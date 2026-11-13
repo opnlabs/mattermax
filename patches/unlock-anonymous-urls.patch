@@ -1,0 +1,306 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Karan Sharma <hello@mrkaran.dev>
+Date: Fri, 13 Nov 2026 07:42:27 +0530
+Subject: [PATCH] feat: anonymous channel and team URLs without a license
+
+Mattermax-Patch: unlock-anonymous-urls.patch
+---
+ server/channels/api4/channel.go               |  2 +-
+ server/channels/api4/channel_test.go          | 46 ++++++++++++++++++-
+ server/channels/api4/team.go                  |  4 +-
+ server/channels/api4/team_test.go             |  5 +-
+ server/channels/app/plugin_api.go             |  4 +-
+ server/channels/app/plugin_api_test.go        | 24 ++++------
+ .../admin_console/admin_definition.tsx        |  1 -
+ .../admin_definition_anonymous_urls.test.tsx  | 18 ++++++++
+ .../channel_name_form_field.test.tsx          | 10 ++++
+ webapp/channels/src/selectors/config.ts       | 12 +----
+ 10 files changed, 90 insertions(+), 36 deletions(-)
+ create mode 100644 webapp/channels/src/components/admin_console/admin_definition_anonymous_urls.test.tsx
+
+diff --git a/server/channels/api4/channel.go b/server/channels/api4/channel.go
+index 0f571d8f4f60..04c769f074f8 100644
+--- a/server/channels/api4/channel.go
++++ b/server/channels/api4/channel.go
+@@ -148,7 +148,7 @@ func createChannel(c *Context, w http.ResponseWriter, r *http.Request) {
+ 	}
+ 
+ 	license := c.App.Channels().License()
+-	if !channel.IsGroupOrDirect() && model.SafeDereference(c.App.Config().PrivacySettings.UseAnonymousURLs) && model.MinimumEnterpriseAdvancedLicense(license) {
++	if !channel.IsGroupOrDirect() && model.SafeDereference(c.App.Config().PrivacySettings.UseAnonymousURLs) {
+ 		channel.Name = model.NewId()
+ 	}
+ 
+diff --git a/server/channels/api4/channel_test.go b/server/channels/api4/channel_test.go
+index 64250f2ef658..1444eeed120b 100644
+--- a/server/channels/api4/channel_test.go
++++ b/server/channels/api4/channel_test.go
+@@ -233,7 +233,7 @@ func TestCreateChannel(t *testing.T) {
+ 		CheckCreatedStatus(t, response)
+ 		require.Equal(t, originalName, createdChannel.Name)
+ 
+-		// setting license to something other than Enterprise Advanced should also preserve team name
++		// setting license to something other than Enterprise Advanced should still override channel name
+ 		th.App.Srv().SetLicense(model.NewTestLicenseSKU(model.LicenseShortSkuEnterprise))
+ 		th.App.UpdateConfig(func(cfg *model.Config) { *cfg.PrivacySettings.UseAnonymousURLs = true })
+ 
+@@ -242,7 +242,8 @@ func TestCreateChannel(t *testing.T) {
+ 		createdChannel, response, err = th.SystemAdminClient.CreateChannel(context.Background(), ch)
+ 		require.NoError(t, err)
+ 		CheckCreatedStatus(t, response)
+-		require.Equal(t, originalName, createdChannel.Name)
++		require.NotEqual(t, originalName, createdChannel.Name)
++		require.True(t, model.IsValidId(createdChannel.Name))
+ 	})
+ 
+ 	t.Run("Guest users", func(t *testing.T) {
+@@ -9607,3 +9608,44 @@ func TestPatchChannelManagedCategory(t *testing.T) {
+ 		assert.False(t, exists, "managed category should be cleared")
+ 	})
+ }
++
++func TestAnonymousURLsWithoutLicense(t *testing.T) {
++	th := Setup(t).InitBasic(t)
++	th.RemoveLicense(t)
++	require.Nil(t, th.App.Channels().License())
++
++	existingChannel := th.BasicChannel
++	existingTeam := th.BasicTeam
++
++	th.App.UpdateConfig(func(cfg *model.Config) { *cfg.PrivacySettings.UseAnonymousURLs = true })
++
++	channelName := GenerateTestChannelName()
++	channel, resp, err := th.Client.CreateChannel(context.Background(), &model.Channel{DisplayName: "Anonymous Channel", Name: channelName, Type: model.ChannelTypeOpen, TeamId: existingTeam.Id})
++	require.NoError(t, err)
++	CheckCreatedStatus(t, resp)
++	require.NotEqual(t, channelName, channel.Name)
++	require.True(t, model.IsValidId(channel.Name))
++
++	teamName := GenerateTestTeamName()
++	team, resp, err := th.Client.CreateTeam(context.Background(), &model.Team{DisplayName: "Anonymous Team", Name: teamName, Type: model.TeamOpen})
++	require.NoError(t, err)
++	CheckCreatedStatus(t, resp)
++	require.NotEqual(t, teamName, team.Name)
++	require.True(t, model.IsValidId(team.Name))
++
++	patchedChannel, _, err := th.Client.PatchChannel(context.Background(), existingChannel.Id, &model.ChannelPatch{DisplayName: model.NewPointer("Renamed Channel")})
++	require.NoError(t, err)
++	require.Equal(t, existingChannel.Name, patchedChannel.Name)
++
++	patchedTeam, _, err := th.SystemAdminClient.PatchTeam(context.Background(), existingTeam.Id, &model.TeamPatch{DisplayName: model.NewPointer("Renamed Team")})
++	require.NoError(t, err)
++	require.Equal(t, existingTeam.Name, patchedTeam.Name)
++
++	fetchedChannel, _, err := th.Client.GetChannelByName(context.Background(), existingChannel.Name, existingTeam.Id, "")
++	require.NoError(t, err)
++	require.Equal(t, existingChannel.Id, fetchedChannel.Id)
++
++	fetchedTeam, _, err := th.Client.GetTeamByName(context.Background(), existingTeam.Name, "")
++	require.NoError(t, err)
++	require.Equal(t, existingTeam.Id, fetchedTeam.Id)
++}
+diff --git a/server/channels/api4/team.go b/server/channels/api4/team.go
+index 30824468937c..c390490f2724 100644
+--- a/server/channels/api4/team.go
++++ b/server/channels/api4/team.go
+@@ -81,9 +81,7 @@ func createTeam(c *Context, w http.ResponseWriter, r *http.Request) {
+ 	}
+ 	team.Email = strings.ToLower(team.Email)
+ 
+-	license := c.App.Channels().License()
+-
+-	if model.SafeDereference(c.App.Config().PrivacySettings.UseAnonymousURLs) && model.MinimumEnterpriseAdvancedLicense(license) {
++	if model.SafeDereference(c.App.Config().PrivacySettings.UseAnonymousURLs) {
+ 		team.Name = model.NewId()
+ 	}
+ 
+diff --git a/server/channels/api4/team_test.go b/server/channels/api4/team_test.go
+index 457dea43165b..4f48a12798a2 100644
+--- a/server/channels/api4/team_test.go
++++ b/server/channels/api4/team_test.go
+@@ -180,7 +180,7 @@ func TestCreateTeam(t *testing.T) {
+ 		CheckCreatedStatus(t, resp)
+ 		require.Equal(t, originalName, createdTeam.Name)
+ 
+-		// setting license to something other than Enterprise Advanced should preserve team name
++		// setting license to something other than Enterprise Advanced should still override team name
+ 		th.App.UpdateConfig(func(cfg *model.Config) { *cfg.PrivacySettings.UseAnonymousURLs = true })
+ 		th.App.Srv().SetLicense(model.NewTestLicenseSKU(model.LicenseShortSkuEnterprise))
+ 
+@@ -189,7 +189,8 @@ func TestCreateTeam(t *testing.T) {
+ 		createdTeam, resp, err = th.Client.CreateTeam(context.Background(), team)
+ 		require.NoError(t, err)
+ 		CheckCreatedStatus(t, resp)
+-		require.Equal(t, originalName, createdTeam.Name)
++		require.NotEqual(t, originalName, createdTeam.Name)
++		require.True(t, model.IsValidId(createdTeam.Name))
+ 	})
+ 
+ 	t.Run("cloud limit reached returns 400", func(t *testing.T) {
+diff --git a/server/channels/app/plugin_api.go b/server/channels/app/plugin_api.go
+index 8237863412d9..38f7fde5e287 100644
+--- a/server/channels/app/plugin_api.go
++++ b/server/channels/app/plugin_api.go
+@@ -167,7 +167,7 @@ func (api *PluginAPI) GetTelemetryId() string {
+ }
+ 
+ func (api *PluginAPI) CreateTeam(team *model.Team) (*model.Team, *model.AppError) {
+-	if model.SafeDereference(api.app.Config().PrivacySettings.UseAnonymousURLs) && model.MinimumEnterpriseAdvancedLicense(api.app.License()) {
++	if model.SafeDereference(api.app.Config().PrivacySettings.UseAnonymousURLs) {
+ 		team.Name = model.NewId()
+ 	}
+ 
+@@ -467,7 +467,7 @@ func (api *PluginAPI) GetLDAPUserAttributes(userID string, attributes []string)
+ }
+ 
+ func (api *PluginAPI) CreateChannel(channel *model.Channel) (*model.Channel, *model.AppError) {
+-	UseAnonymousURLs := model.SafeDereference(api.app.Config().PrivacySettings.UseAnonymousURLs) && model.MinimumEnterpriseAdvancedLicense(api.app.License())
++	UseAnonymousURLs := model.SafeDereference(api.app.Config().PrivacySettings.UseAnonymousURLs)
+ 	// Space backing channels have system-assigned names, not user-visible URLs — anonymous-URL scrambling does not apply.
+ 	if !channel.IsGroupOrDirect() && !channel.IsSpace() && UseAnonymousURLs {
+ 		channel.Name = model.NewId()
+diff --git a/server/channels/app/plugin_api_test.go b/server/channels/app/plugin_api_test.go
+index 5dfe58ee5d34..0152e2499e6e 100644
+--- a/server/channels/app/plugin_api_test.go
++++ b/server/channels/app/plugin_api_test.go
+@@ -4622,19 +4622,15 @@ func TestPluginAPICreateTeamAnonymousURLs(t *testing.T) {
+ 		assert.Equal(t, originalName, createdTeam.Name, "team name should not be overridden")
+ 	})
+ 
+-	t.Run("should not override team name without Enterprise Advanced license", func(t *testing.T) {
++	t.Run("should override team name without a license", func(t *testing.T) {
+ 		th.App.UpdateConfig(func(cfg *model.Config) { *cfg.PrivacySettings.UseAnonymousURLs = true })
+ 		defer th.App.UpdateConfig(func(cfg *model.Config) { *cfg.PrivacySettings.UseAnonymousURLs = false })
+ 
+-		th.App.Srv().SetLicense(model.NewTestLicenseSKU(model.LicenseShortSkuEnterprise))
+-		defer func() {
+-			appErr := th.App.Srv().RemoveLicense()
+-			require.Nil(t, appErr)
+-		}()
++		require.Nil(t, th.App.Srv().License())
+ 
+ 		originalName := "original-team-name"
+ 		team := &model.Team{
+-			DisplayName: "Enterprise Team",
++			DisplayName: "Unlicensed Team",
+ 			Name:        originalName,
+ 			Type:        model.TeamOpen,
+ 		}
+@@ -4643,7 +4639,8 @@ func TestPluginAPICreateTeamAnonymousURLs(t *testing.T) {
+ 		require.Nil(t, appErr)
+ 		require.NotNil(t, createdTeam)
+ 
+-		assert.Equal(t, originalName, createdTeam.Name, "team name should not be overridden")
++		assert.NotEqual(t, originalName, createdTeam.Name, "team name should be overridden by server")
++		assert.True(t, model.IsValidId(createdTeam.Name), "team name should be a valid server-generated ID")
+ 	})
+ }
+ 
+@@ -5166,15 +5163,11 @@ func TestPluginAPICreateChannelAnonymousURLs(t *testing.T) {
+ 		assert.Equal(t, originalName, createdChannel.Name, "channel name should not be overridden")
+ 	})
+ 
+-	t.Run("should not override channel name without Enterprise Advanced license", func(t *testing.T) {
++	t.Run("should override channel name without a license", func(t *testing.T) {
+ 		th.App.UpdateConfig(func(cfg *model.Config) { *cfg.PrivacySettings.UseAnonymousURLs = true })
+ 		defer th.App.UpdateConfig(func(cfg *model.Config) { *cfg.PrivacySettings.UseAnonymousURLs = false })
+ 
+-		th.App.Srv().SetLicense(model.NewTestLicenseSKU(model.LicenseShortSkuEnterprise))
+-		defer func() {
+-			appErr := th.App.Srv().RemoveLicense()
+-			require.Nil(t, appErr)
+-		}()
++		require.Nil(t, th.App.Srv().License())
+ 
+ 		originalName := "original-channel-name"
+ 		channel := &model.Channel{
+@@ -5188,7 +5181,8 @@ func TestPluginAPICreateChannelAnonymousURLs(t *testing.T) {
+ 		require.Nil(t, appErr)
+ 		require.NotNil(t, createdChannel)
+ 
+-		assert.Equal(t, originalName, createdChannel.Name, "channel name should not be overridden")
++		assert.NotEqual(t, originalName, createdChannel.Name, "channel name should be overridden by server")
++		assert.True(t, model.IsValidId(createdChannel.Name), "channel name should be a valid server-generated ID")
+ 	})
+ }
+ 
+diff --git a/webapp/channels/src/components/admin_console/admin_definition.tsx b/webapp/channels/src/components/admin_console/admin_definition.tsx
+index f94966aca3c7..001ee73d1116 100644
+--- a/webapp/channels/src/components/admin_console/admin_definition.tsx
++++ b/webapp/channels/src/components/admin_console/admin_definition.tsx
+@@ -2974,7 +2974,6 @@ const AdminDefinition: AdminDefinitionType = {
+                             help_text: defineMessage({id: 'admin.privacy.useAnonymousURLsDescription', defaultMessage: 'When true, newly created channels and teams use randomized, non-descriptive identifiers in their URLs instead of human-readable name slugs. This prevents channel and team names from being exposed when team, channel, or message URLs are shared. **Note:** Enabling this setting does not change the URLs of existing teams and channels. To update existing URLs to use anonymous identifiers, use the mmctl command line tool or update them manually.'}),
+                             help_text_markdown: true,
+                             isDisabled: it.not(it.userHasWritePermissionOnResource(RESOURCE_KEYS.SITE.USERS_AND_TEAMS)),
+-                            isHidden: it.not(it.minLicenseTier(LicenseSkus.EnterpriseAdvanced)),
+                         },
+                         {
+                             type: 'dropdown',
+diff --git a/webapp/channels/src/components/admin_console/admin_definition_anonymous_urls.test.tsx b/webapp/channels/src/components/admin_console/admin_definition_anonymous_urls.test.tsx
+new file mode 100644
+index 000000000000..d5bbe6799269
+--- /dev/null
++++ b/webapp/channels/src/components/admin_console/admin_definition_anonymous_urls.test.tsx
+@@ -0,0 +1,18 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++import AdminDefinition from './admin_definition';
++import type {AdminDefinitionSubSectionSchema} from './types';
++
++describe('AdminDefinition - Use anonymous channel and team URLs', () => {
++    test('is shown without a license', () => {
++        const schema = AdminDefinition.site.subsections.users_and_teams.schema as AdminDefinitionSubSectionSchema;
++        const settings = 'settings' in schema && schema.settings ? schema.settings : [];
++        const setting = settings.find((s) => s.key === 'PrivacySettings.UseAnonymousURLs');
++        const isHidden = setting?.isHidden;
++        const hidden = typeof isHidden === 'function' ? isHidden({}, {}, {IsLicensed: 'false'}) : Boolean(isHidden);
++
++        expect(setting).toBeDefined();
++        expect(hidden).toBe(false);
++    });
++});
+diff --git a/webapp/channels/src/components/channel_name_form_field/channel_name_form_field.test.tsx b/webapp/channels/src/components/channel_name_form_field/channel_name_form_field.test.tsx
+index 896cbcb6454c..cf11deb6315a 100644
+--- a/webapp/channels/src/components/channel_name_form_field/channel_name_form_field.test.tsx
++++ b/webapp/channels/src/components/channel_name_form_field/channel_name_form_field.test.tsx
+@@ -68,6 +68,16 @@ describe('ChannelNameFormField - URL editor visibility', () => {
+         expect(screen.queryByTestId('urlInputLabel')).not.toBeInTheDocument();
+     });
+ 
++    test('should not show URL editor when UseAnonymousURLs is true without a license', () => {
++        const state = makeState('true');
++        renderWithContext(
++            <ChannelNameFormField {...baseProps}/>,
++            {...state, entities: {...state.entities, general: {...state.entities.general, license: {IsLicensed: 'false'}}}},
++        );
++
++        expect(screen.queryByTestId('urlInputLabel')).not.toBeInTheDocument();
++    });
++
+     test('should show URL editor when UseAnonymousURLs is true and editing an existing channel', () => {
+         renderWithContext(
+             <ChannelNameFormField
+diff --git a/webapp/channels/src/selectors/config.ts b/webapp/channels/src/selectors/config.ts
+index 365edf3ad8f1..a343705189af 100644
+--- a/webapp/channels/src/selectors/config.ts
++++ b/webapp/channels/src/selectors/config.ts
+@@ -3,16 +3,8 @@
+ 
+ import type {GlobalState} from '@mattermost/types/store';
+ 
+-import {getConfig, getLicense} from 'mattermost-redux/selectors/entities/general';
+-
+-import {isMinimumEnterpriseAdvancedLicense} from 'utils/license_utils';
++import {getConfig} from 'mattermost-redux/selectors/entities/general';
+ 
+ export function isAnonymousURLEnabled(state: GlobalState): boolean {
+-    const license = getLicense(state);
+-    const config = getConfig(state);
+-
+-    return (
+-        config.UseAnonymousURLs === 'true' &&
+-        isMinimumEnterpriseAdvancedLicense(license)
+-    );
++    return getConfig(state).UseAnonymousURLs === 'true';
+ }

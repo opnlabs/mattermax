@@ -1,0 +1,320 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Karan Sharma <hello@mrkaran.dev>
+Date: Thu, 12 Nov 2026 21:50:40 +0530
+Subject: [PATCH] feat: scheduled posts, acknowledgements and persistent
+ notifications without a license
+
+Mattermax-Patch: unlock-scheduled-posts.patch
+---
+ server/channels/api4/post.go                        | 12 ------------
+ server/channels/api4/post_test.go                   | 12 ++++++------
+ server/channels/api4/scheduled_post.go              |  5 -----
+ server/channels/app/post_permission_utils.go        | 13 +------------
+ server/channels/app/scheduled_post.go               |  2 +-
+ server/channels/app/scheduled_post_job.go           |  4 ----
+ server/channels/app/server.go                       |  2 +-
+ .../jobs/post_persistent_notifications/scheduler.go |  4 ++--
+ server/config/client.go                             |  4 ++--
+ .../components/admin_console/admin_definition.tsx   |  1 -
+ .../drafts/drafts_link/drafts_link.test.tsx         |  7 +++----
+ .../src/selectors/entities/scheduled_posts.test.ts  |  4 ++--
+ .../src/selectors/entities/scheduled_posts.ts       |  9 ++++-----
+ 13 files changed, 22 insertions(+), 57 deletions(-)
+
+diff --git a/server/channels/api4/post.go b/server/channels/api4/post.go
+index c32cd6c7fcc3..45a762946b58 100644
+--- a/server/channels/api4/post.go
++++ b/server/channels/api4/post.go
+@@ -1445,12 +1445,6 @@ func unpinPost(c *Context, w http.ResponseWriter, _ *http.Request) {
+ }
+ 
+ func acknowledgePost(c *Context, w http.ResponseWriter, r *http.Request) {
+-	// license check
+-	if !model.MinimumProfessionalLicense(c.App.Srv().License()) {
+-		c.Err = model.NewAppError("", model.NoTranslation, nil, "feature is not available for the current license", http.StatusNotImplemented)
+-		return
+-	}
+-
+ 	c.RequirePostId().RequireUserId()
+ 	if c.Err != nil {
+ 		return
+@@ -1484,12 +1478,6 @@ func acknowledgePost(c *Context, w http.ResponseWriter, r *http.Request) {
+ }
+ 
+ func unacknowledgePost(c *Context, w http.ResponseWriter, r *http.Request) {
+-	// license check
+-	if !model.MinimumProfessionalLicense(c.App.Srv().License()) {
+-		c.Err = model.NewAppError("", "license_error.feature_unavailable", nil, "feature is not available for the current license", http.StatusNotImplemented)
+-		return
+-	}
+-
+ 	c.RequirePostId().RequireUserId()
+ 	if c.Err != nil {
+ 		return
+diff --git a/server/channels/api4/post_test.go b/server/channels/api4/post_test.go
+index c4b49c5eecda..99bc37284200 100644
+--- a/server/channels/api4/post_test.go
++++ b/server/channels/api4/post_test.go
+@@ -543,7 +543,7 @@ func TestCreatePostForPriority(t *testing.T) {
+ 		CheckBadRequestStatus(t, resp)
+ 	})
+ 
+-	t.Run("should return statusNotImplemented when min. pro. license not available", func(t *testing.T) {
++	t.Run("should allow acknowledgements and persistent notifications without a license", func(t *testing.T) {
+ 		appErr := th.App.Srv().RemoveLicense()
+ 		require.Nil(t, appErr)
+ 		defer th.App.Srv().SetLicense(model.NewTestLicenseSKU(model.LicenseShortSkuProfessional))
+@@ -555,19 +555,19 @@ func TestCreatePostForPriority(t *testing.T) {
+ 			},
+ 		}}
+ 		_, resp, err := client.CreatePost(context.Background(), p1)
+-		require.Error(t, err)
+-		CheckNotImplementedStatus(t, resp)
++		require.NoError(t, err)
++		CheckCreatedStatus(t, resp)
+ 
+ 		//  for Persistent Notification
+-		p2 := &model.Post{ChannelId: th.BasicChannel.Id, Message: "test", Metadata: &model.PostMetadata{
++		p2 := &model.Post{ChannelId: th.BasicChannel.Id, Message: "test @" + th.BasicUser2.Username, Metadata: &model.PostMetadata{
+ 			Priority: &model.PostPriority{
+ 				Priority:                new("urgent"),
+ 				PersistentNotifications: new(true),
+ 			},
+ 		}}
+ 		_, resp, err = client.CreatePost(context.Background(), p2)
+-		require.Error(t, err)
+-		CheckNotImplementedStatus(t, resp)
++		require.NoError(t, err)
++		CheckCreatedStatus(t, resp)
+ 	})
+ 
+ 	t.Run("should return forbidden when persistent notification not enabled", func(t *testing.T) {
+diff --git a/server/channels/api4/scheduled_post.go b/server/channels/api4/scheduled_post.go
+index 7723bd3ac13c..3ba7d011452d 100644
+--- a/server/channels/api4/scheduled_post.go
++++ b/server/channels/api4/scheduled_post.go
+@@ -69,11 +69,6 @@ func requireScheduledPostsEnabled(c *Context) {
+ 		c.Err = model.NewAppError("", "api.scheduled_posts.feature_disabled", nil, "", http.StatusBadRequest)
+ 		return
+ 	}
+-
+-	if c.App.Channels().License() == nil {
+-		c.Err = model.NewAppError("", "api.scheduled_posts.license_error", nil, "", http.StatusBadRequest)
+-		return
+-	}
+ }
+ 
+ func createSchedulePost(c *Context, w http.ResponseWriter, r *http.Request) {
+diff --git a/server/channels/app/post_permission_utils.go b/server/channels/app/post_permission_utils.go
+index 224f63faa9f9..fe7430c83018 100644
+--- a/server/channels/app/post_permission_utils.go
++++ b/server/channels/app/post_permission_utils.go
+@@ -20,9 +20,8 @@ func PostPriorityCheckWithApp(where string, a *App, rctx request.CTX, userId str
+ 	isPostPriorityEnabled := a.IsPostPriorityEnabled()
+ 	IsPersistentNotificationsEnabled := a.IsPersistentNotificationsEnabled()
+ 	allowPersistentNotificationsForGuests := *a.Config().ServiceSettings.AllowPersistentNotificationsForGuests
+-	license := a.License()
+ 
+-	appErr = postPriorityCheck(user, priority, rootId, isPostPriorityEnabled, IsPersistentNotificationsEnabled, allowPersistentNotificationsForGuests, license)
++	appErr = postPriorityCheck(user, priority, rootId, isPostPriorityEnabled, IsPersistentNotificationsEnabled, allowPersistentNotificationsForGuests)
+ 	if appErr != nil {
+ 		appErr.Where = where
+ 		return appErr
+@@ -38,7 +37,6 @@ func postPriorityCheck(
+ 	isPostPriorityEnabled,
+ 	isPersistentNotificationsEnabled,
+ 	allowPersistentNotificationsForGuests bool,
+-	license *model.License,
+ ) *model.AppError {
+ 	if priority == nil {
+ 		return nil
+@@ -54,16 +52,7 @@ func postPriorityCheck(
+ 		return model.NewAppError("", "api.post.post_priority.priority_post_only_allowed_for_root_post.request_error", nil, "", http.StatusBadRequest)
+ 	}
+ 
+-	if ack := priority.RequestedAck; ack != nil && *ack {
+-		if !model.MinimumProfessionalLicense(license) {
+-			return model.NewAppError("", "license_error.feature_unavailable", nil, "feature is not available for the current license", http.StatusNotImplemented)
+-		}
+-	}
+-
+ 	if notification := priority.PersistentNotifications; notification != nil && *notification {
+-		if !model.MinimumProfessionalLicense(license) {
+-			return model.NewAppError("", "license_error.feature_unavailable", nil, "feature is not available for the current license", http.StatusNotImplemented)
+-		}
+ 		if !isPersistentNotificationsEnabled {
+ 			return priorityForbiddenErr
+ 		}
+diff --git a/server/channels/app/scheduled_post.go b/server/channels/app/scheduled_post.go
+index cda002c05e63..907621e3787b 100644
+--- a/server/channels/app/scheduled_post.go
++++ b/server/channels/app/scheduled_post.go
+@@ -13,7 +13,7 @@ import (
+ )
+ 
+ // recurringScheduledPostsEnabled gates turning recurrence on. The api4 routes already enforce
+-// the ScheduledPosts setting and license for every scheduled post request, and the job keeps
++// the ScheduledPosts setting for every scheduled post request, and the job keeps
+ // sending existing recurring series regardless of the flag.
+ func (a *App) recurringScheduledPostsEnabled() bool {
+ 	return a.Config().FeatureFlags.RecurringScheduledPosts
+diff --git a/server/channels/app/scheduled_post_job.go b/server/channels/app/scheduled_post_job.go
+index 6515e8f64174..d78b66f74af9 100644
+--- a/server/channels/app/scheduled_post_job.go
++++ b/server/channels/app/scheduled_post_job.go
+@@ -32,10 +32,6 @@ func (a *App) ProcessScheduledPosts(rctx request.CTX) {
+ 		return
+ 	}
+ 
+-	if a.License() == nil {
+-		return
+-	}
+-
+ 	beforeTime := model.GetMillis()
+ 	afterTime := beforeTime - (24 * 60 * 60 * 1000) // subtracting 24 hours from beforeTime
+ 	lastScheduledPostId := ""
+diff --git a/server/channels/app/server.go b/server/channels/app/server.go
+index ba5d627fd996..83fe3590f87b 100644
+--- a/server/channels/app/server.go
++++ b/server/channels/app/server.go
+@@ -1785,7 +1785,7 @@ func (s *Server) initJobs() {
+ 	s.Jobs.RegisterJobType(
+ 		model.JobTypePostPersistentNotifications,
+ 		post_persistent_notifications.MakeWorker(s.Jobs, New(ServerConnector(s.Channels()))),
+-		post_persistent_notifications.MakeScheduler(s.Jobs, func() *model.License { return s.License() }),
++		post_persistent_notifications.MakeScheduler(s.Jobs),
+ 	)
+ 
+ 	s.Jobs.RegisterJobType(
+diff --git a/server/channels/jobs/post_persistent_notifications/scheduler.go b/server/channels/jobs/post_persistent_notifications/scheduler.go
+index 4fa702a54cad..34d7d9740202 100644
+--- a/server/channels/jobs/post_persistent_notifications/scheduler.go
++++ b/server/channels/jobs/post_persistent_notifications/scheduler.go
+@@ -19,9 +19,9 @@ func (scheduler *Scheduler) NextScheduleTime(cfg *model.Config, _ time.Time, _ b
+ 	return &nextTime
+ }
+ 
+-func MakeScheduler(jobServer *jobs.JobServer, licenseFunc func() *model.License) *Scheduler {
++func MakeScheduler(jobServer *jobs.JobServer) *Scheduler {
+ 	enabledFunc := func(_ *model.Config) bool {
+-		return model.MinimumProfessionalLicense(licenseFunc())
++		return true
+ 	}
+ 	return &Scheduler{jobs.NewPeriodicScheduler(jobServer, model.JobTypePostPersistentNotifications, 0, enabledFunc)}
+ }
+diff --git a/server/config/client.go b/server/config/client.go
+index 3d660b41c8f7..30479e155dc3 100644
+--- a/server/config/client.go
++++ b/server/config/client.go
+@@ -146,6 +146,8 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
+ 	props["CollapsedThreads"] = *c.ServiceSettings.CollapsedThreads
+ 	props["EnableCustomGroups"] = "false"
+ 	props["PostPriority"] = strconv.FormatBool(*c.ServiceSettings.PostPriority)
++	props["PostAcknowledgements"] = "true"
++	props["ScheduledPosts"] = strconv.FormatBool(*c.ServiceSettings.ScheduledPosts)
+ 	props["AllowPersistentNotifications"] = strconv.FormatBool(*c.ServiceSettings.AllowPersistentNotifications)
+ 	props["AllowPersistentNotificationsForGuests"] = strconv.FormatBool(*c.ServiceSettings.AllowPersistentNotificationsForGuests)
+ 	props["PersistentNotificationMaxCount"] = strconv.FormatInt(int64(*c.ServiceSettings.PersistentNotificationMaxCount), 10)
+@@ -236,8 +238,6 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
+ 
+ 		if model.MinimumProfessionalLicense(license) {
+ 			props["EnableCustomGroups"] = strconv.FormatBool(*c.ServiceSettings.EnableCustomGroups)
+-			props["PostAcknowledgements"] = "true"
+-			props["ScheduledPosts"] = strconv.FormatBool(*c.ServiceSettings.ScheduledPosts)
+ 		}
+ 
+ 		if model.MinimumEnterpriseLicense(license) {
+diff --git a/webapp/channels/src/components/admin_console/admin_definition.tsx b/webapp/channels/src/components/admin_console/admin_definition.tsx
+index ab59c1995221..1ec6f7d463be 100644
+--- a/webapp/channels/src/components/admin_console/admin_definition.tsx
++++ b/webapp/channels/src/components/admin_console/admin_definition.tsx
+@@ -3594,7 +3594,6 @@ const AdminDefinition: AdminDefinitionType = {
+                                     help_text: defineMessage({id: 'admin.posts.scheduledPosts.description', defaultMessage: 'When enabled, users can schedule and send messages in the future.'}),
+                                     help_text_markdown: false,
+                                     isDisabled: it.not(it.userHasWritePermissionOnResource(RESOURCE_KEYS.SITE.POSTS)),
+-                                    isHidden: it.not(it.licensed),
+                                 },
+                             ],
+                         },
+diff --git a/webapp/channels/src/components/drafts/drafts_link/drafts_link.test.tsx b/webapp/channels/src/components/drafts/drafts_link/drafts_link.test.tsx
+index 9116d42bcb3b..485a98996549 100644
+--- a/webapp/channels/src/components/drafts/drafts_link/drafts_link.test.tsx
++++ b/webapp/channels/src/components/drafts/drafts_link/drafts_link.test.tsx
+@@ -147,7 +147,7 @@ describe('components/drafts/drafts_link', () => {
+         expect(screen.queryByTestId('scheduledPostIcon')).not.toBeInTheDocument();
+     });
+ 
+-    it('should not show scheduled posts badge when not licensed', () => {
++    it('should not show scheduled posts badge when scheduled posts are disabled', () => {
+         const state = {
+             ...baseState,
+             entities: {
+@@ -158,8 +158,8 @@ describe('components/drafts/drafts_link', () => {
+                     },
+                 },
+                 general: {
+-                    license: {
+-                        IsLicensed: 'false',
++                    config: {
++                        ScheduledPosts: 'false',
+                     },
+                 },
+             },
+@@ -204,7 +204,6 @@ describe('components/drafts/drafts_link', () => {
+ 
+     it.each<DeepPartial<GeneralState>>([
+         {config: {ScheduledPosts: 'false'}},
+-        {license: {IsLicensed: 'false'}},
+     ])('should not fetch scheduled posts when component mounts if disabled', async (partialConf) => {
+         const fetchTeamScheduledPosts = require('mattermost-redux/actions/scheduled_posts').fetchTeamScheduledPosts;
+         const state: DeepPartial<GlobalState> = {
+diff --git a/webapp/channels/src/packages/mattermost-redux/src/selectors/entities/scheduled_posts.test.ts b/webapp/channels/src/packages/mattermost-redux/src/selectors/entities/scheduled_posts.test.ts
+index 268e5b400947..917b770a6346 100644
+--- a/webapp/channels/src/packages/mattermost-redux/src/selectors/entities/scheduled_posts.test.ts
++++ b/webapp/channels/src/packages/mattermost-redux/src/selectors/entities/scheduled_posts.test.ts
+@@ -54,11 +54,11 @@ describe('isRecurringScheduledPostsEnabled', () => {
+         } as unknown as GlobalState;
+     }
+ 
+-    it('should be enabled only when scheduled posts, the license and the feature flag all allow it', () => {
++    it('should be enabled when scheduled posts and the feature flag allow it, with or without a license', () => {
+         expect(isRecurringScheduledPostsEnabled(makeState('true', 'true', 'true'))).toBe(true);
+         expect(isRecurringScheduledPostsEnabled(makeState('false', 'true', 'true'))).toBe(false);
+         expect(isRecurringScheduledPostsEnabled(makeState('true', 'false', 'true'))).toBe(false);
+-        expect(isRecurringScheduledPostsEnabled(makeState('true', 'true', 'false'))).toBe(false);
++        expect(isRecurringScheduledPostsEnabled(makeState('true', 'true', 'false'))).toBe(true);
+     });
+ 
+     it('should be disabled when the feature flag is missing from the config', () => {
+diff --git a/webapp/channels/src/packages/mattermost-redux/src/selectors/entities/scheduled_posts.ts b/webapp/channels/src/packages/mattermost-redux/src/selectors/entities/scheduled_posts.ts
+index 203b1f4c07e3..6edc461ae3e9 100644
+--- a/webapp/channels/src/packages/mattermost-redux/src/selectors/entities/scheduled_posts.ts
++++ b/webapp/channels/src/packages/mattermost-redux/src/selectors/entities/scheduled_posts.ts
+@@ -1,13 +1,13 @@
+ // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+ // See LICENSE.txt for license information.
+ 
+-import type {ClientLicense, ClientConfig} from '@mattermost/types/config';
++import type {ClientConfig} from '@mattermost/types/config';
+ import type {ScheduledPost, ScheduledPostsState} from '@mattermost/types/schedule_post';
+ import {isRecurringScheduledPost} from '@mattermost/types/schedule_post';
+ import type {GlobalState} from '@mattermost/types/store';
+ 
+ import {createSelector} from 'mattermost-redux/selectors/create_selector';
+-import {getConfig, getFeatureFlagValue, getLicense} from 'mattermost-redux/selectors/entities/general';
++import {getConfig, getFeatureFlagValue} from 'mattermost-redux/selectors/entities/general';
+ import {getTeamIdByChannelId} from 'mattermost-redux/selectors/entities/teams';
+ 
+ const emptyList: string[] = [];
+@@ -101,9 +101,8 @@ export function showChannelOrThreadScheduledPostIndicator(state: GlobalState, ch
+ export const isScheduledPostsEnabled: (a: GlobalState) => boolean = createSelector(
+     'isScheduledPostsEnabled',
+     getConfig,
+-    getLicense,
+-    (config: Partial<ClientConfig>, license: ClientLicense): boolean => {
+-        return config.ScheduledPosts === 'true' && license.IsLicensed === 'true';
++    (config: Partial<ClientConfig>): boolean => {
++        return config.ScheduledPosts === 'true';
+     },
+ );
+ 

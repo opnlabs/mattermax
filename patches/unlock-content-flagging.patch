@@ -1,0 +1,268 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Karan Sharma <hello@mrkaran.dev>
+Date: Fri, 13 Nov 2026 00:50:24 +0530
+Subject: [PATCH] feat: content flagging without a license
+
+Mattermax-Patch: unlock-content-flagging.patch
+---
+ server/channels/api4/content_flagging.go      | 22 -----
+ server/channels/api4/content_flagging_test.go | 91 ++++++++++++++++++-
+ server/config/client.go                       |  2 +-
+ server/config/client_test.go                  | 16 ++++
+ .../admin_console/admin_definition.tsx        |  1 -
+ .../admin_definition_data_spillage.test.tsx   |  8 +-
+ 6 files changed, 110 insertions(+), 30 deletions(-)
+
+diff --git a/server/channels/api4/content_flagging.go b/server/channels/api4/content_flagging.go
+index e5166ed173f0..5cad87990ee5 100644
+--- a/server/channels/api4/content_flagging.go
++++ b/server/channels/api4/content_flagging.go
+@@ -37,19 +37,7 @@ func (api *API) InitContentFlagging() {
+ 	api.BaseRoutes.ContentFlagging.Handle("/config", api.APISessionRequired(getContentFlaggingSettings)).Methods(http.MethodGet)
+ }
+ 
+-func requireContentFlaggingAvailable(c *Context) {
+-	if !model.MinimumEnterpriseAdvancedLicense(c.App.License()) {
+-		c.Err = model.NewAppError("requireContentFlaggingEnabled", "api.data_spillage.error.license", nil, "", http.StatusNotImplemented)
+-		return
+-	}
+-}
+-
+ func requireContentFlaggingEnabled(c *Context) {
+-	requireContentFlaggingAvailable(c)
+-	if c.Err != nil {
+-		return
+-	}
+-
+ 	contentFlaggingEnabled := c.App.Config().ContentFlaggingSettings.EnableContentFlagging
+ 	if contentFlaggingEnabled == nil || !*contentFlaggingEnabled {
+ 		c.Err = model.NewAppError("requireContentFlaggingEnabled", "api.data_spillage.error.disabled", nil, "", http.StatusNotImplemented)
+@@ -481,11 +469,6 @@ func keepRemoveFlaggedPostChecks(c *Context, r *http.Request) (*model.FlagConten
+ }
+ 
+ func saveContentFlaggingSettings(c *Context, w http.ResponseWriter, r *http.Request) {
+-	requireContentFlaggingAvailable(c)
+-	if c.Err != nil {
+-		return
+-	}
+-
+ 	var config model.ContentFlaggingSettingsRequest
+ 	if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
+ 		c.SetInvalidParamWithErr("config", err)
+@@ -517,11 +500,6 @@ func saveContentFlaggingSettings(c *Context, w http.ResponseWriter, r *http.Requ
+ }
+ 
+ func getContentFlaggingSettings(c *Context, w http.ResponseWriter, r *http.Request) {
+-	requireContentFlaggingAvailable(c)
+-	if c.Err != nil {
+-		return
+-	}
+-
+ 	if !c.App.SessionHasPermissionTo(*c.AppContext.Session(), model.PermissionManageSystem) {
+ 		c.SetPermissionError(model.PermissionManageSystem)
+ 		return
+diff --git a/server/channels/api4/content_flagging_test.go b/server/channels/api4/content_flagging_test.go
+index f0ac0de17195..c61209186aea 100644
+--- a/server/channels/api4/content_flagging_test.go
++++ b/server/channels/api4/content_flagging_test.go
+@@ -11,7 +11,9 @@ import (
+ 	"time"
+ 
+ 	"github.com/mattermost/mattermost/server/public/model"
++	"github.com/mattermost/mattermost/server/v8/channels/app"
+ 	"github.com/mattermost/mattermost/server/v8/channels/utils/testutils"
++	"github.com/stretchr/testify/assert"
+ 	"github.com/stretchr/testify/require"
+ )
+ 
+@@ -145,17 +147,21 @@ func uploadFileAndCreatePost(t *testing.T, th *TestHelper, client *model.Client4
+ func TestRequireContentFlaggingEnabled(t *testing.T) {
+ 	th := Setup(t).InitBasic(t)
+ 
+-	t.Run("Should set error when license is not valid", func(t *testing.T) {
++	t.Run("Should not set error without a license when feature is enabled", func(t *testing.T) {
+ 		th.RemoveLicense(t)
++
++		th.App.UpdateConfig(func(config *model.Config) {
++			config.ContentFlaggingSettings.EnableContentFlagging = new(true)
++			config.ContentFlaggingSettings.SetDefaults()
++		})
++
+ 		c := &Context{
+ 			App:    th.App,
+ 			Logger: th.App.Log(),
+ 		}
+ 
+ 		requireContentFlaggingEnabled(c)
+-		require.NotNil(t, c.Err)
+-		require.Equal(t, "api.data_spillage.error.license", c.Err.Id)
+-		require.Equal(t, http.StatusNotImplemented, c.Err.StatusCode)
++		require.Nil(t, c.Err)
+ 	})
+ 
+ 	t.Run("Should set error when feature is disabled in config", func(t *testing.T) {
+@@ -1554,3 +1560,80 @@ func TestKeepFlaggedPost(t *testing.T) {
+ 		CheckErrorID(t, err, "api.data_spillage.error.invalid_channel_type")
+ 	})
+ }
++
++func TestContentFlaggingWithoutLicense(t *testing.T) {
++	th := Setup(t).InitBasic(t)
++	th.RemoveLicense(t)
++	require.Nil(t, th.App.License())
++
++	reviewer := th.BasicUser
++	reviewerClient := th.Client
++
++	resp, err := th.SystemAdminClient.SaveContentFlaggingSettings(context.Background(), &model.ContentFlaggingSettingsRequest{
++		ContentFlaggingSettingsBase: model.ContentFlaggingSettingsBase{
++			EnableContentFlagging: new(true),
++		},
++		ReviewerSettings: &model.ReviewSettingsRequest{
++			ReviewerSettings: model.ReviewerSettings{
++				CommonReviewers: new(true),
++			},
++			ReviewerIDsSettings: model.ReviewerIDsSettings{
++				CommonReviewerIds: []string{reviewer.Id},
++			},
++		},
++	})
++	require.NoError(t, err)
++	require.Equal(t, http.StatusOK, resp.StatusCode)
++
++	authorClient := th.CreateClient()
++	th.LoginBasic2WithClient(t, authorClient)
++	post := th.CreatePostWithClient(t, authorClient, th.BasicChannel)
++
++	reporter := th.CreateUser(t)
++	th.LinkUserToTeam(t, reporter, th.BasicTeam)
++	th.AddUserToChannel(t, reporter, th.BasicChannel)
++	reporterClient := th.CreateClient()
++	_, _, err = reporterClient.Login(context.Background(), reporter.Email, reporter.Password)
++	require.NoError(t, err)
++
++	status, resp, err := reporterClient.GetTeamPostFlaggingFeatureStatus(context.Background(), th.BasicTeam.Id)
++	require.NoError(t, err)
++	require.Equal(t, http.StatusOK, resp.StatusCode)
++	require.True(t, status["enabled"])
++
++	flagPostViaAPI(t, reporterClient, post.Id)
++
++	bot, appErr := th.App.GetUserByUsername(model.ContentFlaggingBotUsername)
++	require.Nil(t, appErr)
++	reviewChannel, _, err := reviewerClient.CreateDirectChannel(context.Background(), reviewer.Id, bot.Id)
++	require.NoError(t, err)
++
++	require.EventuallyWithT(t, func(c *assert.CollectT) {
++		posts, _, err := reviewerClient.GetPostsForChannel(context.Background(), reviewChannel.Id, 0, 60, "", false, false)
++		require.NoError(c, err)
++		var found bool
++		for _, p := range posts.Posts {
++			if p.Type == model.ContentFlaggingPostType && p.GetProp(app.POST_PROP_KEY_FLAGGED_POST_ID) == post.Id {
++				found = true
++			}
++		}
++		assert.True(c, found)
++	}, 10*time.Second, 100*time.Millisecond)
++
++	flaggedPost, resp, err := reviewerClient.GetContentFlaggedPost(context.Background(), post.Id)
++	require.NoError(t, err)
++	require.Equal(t, http.StatusOK, resp.StatusCode)
++	require.Equal(t, post.Message, flaggedPost.Message)
++
++	resp, err = reviewerClient.RemoveFlaggedPost(context.Background(), post.Id, &model.FlagContentActionRequest{Comment: "Removed by review"})
++	require.NoError(t, err)
++	require.Equal(t, http.StatusOK, resp.StatusCode)
++
++	statusValue, appErr := th.App.GetPostContentFlaggingPropertyValue(th.Context, post.Id, app.ContentFlaggingPropertyNameStatus)
++	require.Nil(t, appErr)
++	require.Equal(t, `"`+model.ContentFlaggingStatusRemoved+`"`, string(statusValue.Value))
++
++	_, resp, err = authorClient.GetPost(context.Background(), post.Id, "")
++	require.Error(t, err)
++	require.Equal(t, http.StatusNotFound, resp.StatusCode)
++}
+diff --git a/server/config/client.go b/server/config/client.go
+index 811193c83531..3f948dd4bd46 100644
+--- a/server/config/client.go
++++ b/server/config/client.go
+@@ -162,6 +162,7 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
+ 	props["DelayChannelAutocomplete"] = strconv.FormatBool(*c.ExperimentalSettings.DelayChannelAutocomplete)
+ 	props["YoutubeReferrerPolicy"] = strconv.FormatBool(*c.ExperimentalSettings.YoutubeReferrerPolicy)
+ 	props["UniqueEmojiReactionLimitPerPost"] = strconv.FormatInt(int64(*c.ServiceSettings.UniqueEmojiReactionLimitPerPost), 10)
++	props["ContentFlaggingEnabled"] = strconv.FormatBool(c.FeatureFlags.ContentFlagging && *c.ContentFlaggingSettings.EnableContentFlagging)
+ 
+ 	props["EnableAttributeBasedAccessControl"] = strconv.FormatBool(*c.AccessControlSettings.EnableAttributeBasedAccessControl)
+ 	props["EnableUserManagedAttributes"] = strconv.FormatBool(*c.AccessControlSettings.EnableUserManagedAttributes)
+@@ -230,7 +231,6 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
+ 			props["MobileEnableSecureFilePreview"] = strconv.FormatBool(*c.NativeAppSettings.MobileEnableSecureFilePreview)
+ 			props["MobileAllowPdfLinkNavigation"] = strconv.FormatBool(*c.NativeAppSettings.MobileAllowPdfLinkNavigation)
+ 
+-			props["ContentFlaggingEnabled"] = strconv.FormatBool(c.FeatureFlags.ContentFlagging && *c.ContentFlaggingSettings.EnableContentFlagging)
+ 			props["EnableAutoTranslation"] = strconv.FormatBool(c.FeatureFlags.AutoTranslation && *c.AutoTranslationSettings.Enable)
+ 			if c.FeatureFlags.AutoTranslation {
+ 				props["AutoTranslationLanguages"] = strings.Join(*c.AutoTranslationSettings.TargetLanguages, ",")
+diff --git a/server/config/client_test.go b/server/config/client_test.go
+index ce739071a093..9e611558b240 100644
+--- a/server/config/client_test.go
++++ b/server/config/client_test.go
+@@ -117,6 +117,22 @@ func TestGetClientConfig(t *testing.T) {
+ 			},
+ 			nil,
+ 		},
++		{
++			"unlicensed content flagging",
++			&model.Config{
++				ContentFlaggingSettings: model.ContentFlaggingSettings{
++					ContentFlaggingSettingsBase: model.ContentFlaggingSettingsBase{
++						EnableContentFlagging: new(true),
++					},
++				},
++			},
++			"",
++			nil,
++			map[string]string{
++				"ContentFlaggingEnabled": "true",
++			},
++			nil,
++		},
+ 		{
+ 			"licensed, but not for theme management",
+ 			&model.Config{
+diff --git a/webapp/channels/src/components/admin_console/admin_definition.tsx b/webapp/channels/src/components/admin_console/admin_definition.tsx
+index b8ff808c79f7..2e8b8c463521 100644
+--- a/webapp/channels/src/components/admin_console/admin_definition.tsx
++++ b/webapp/channels/src/components/admin_console/admin_definition.tsx
+@@ -4126,7 +4126,6 @@ const AdminDefinition: AdminDefinitionType = {
+                 title: defineMessage({id: 'admin.sidebar.dataSpillage', defaultMessage: 'Data Spillage Handling'}),
+                 searchableStrings: dataSpillageSearchableStrings,
+                 isHidden: it.any(
+-                    it.not(it.minLicenseTier(LicenseSkus.EnterpriseAdvanced)),
+                     it.not(it.userHasReadPermissionOnResource(RESOURCE_KEYS.USER_MANAGEMENT.SYSTEM_ROLES)),
+                     it.configIsFalse('FeatureFlags', 'ContentFlagging'),
+                 ),
+diff --git a/webapp/channels/src/components/admin_console/admin_definition_data_spillage.test.tsx b/webapp/channels/src/components/admin_console/admin_definition_data_spillage.test.tsx
+index 3d95a81388eb..f79c69505030 100644
+--- a/webapp/channels/src/components/admin_console/admin_definition_data_spillage.test.tsx
++++ b/webapp/channels/src/components/admin_console/admin_definition_data_spillage.test.tsx
+@@ -85,14 +85,18 @@ describe('AdminDefinition - Data Spillage discovery', () => {
+         expect('name' in schema ? schema.name : undefined).toEqual(settingsSubsection.title);
+     });
+ 
+-    test('shows discovery instead of settings for Professional licenses', () => {
++    test('shows settings for Professional licenses', () => {
+         const siteSectionHiddenCheck = AdminDefinition.site.isHidden as Extract<Check, (...args: any[]) => boolean>;
+ 
+         expect(siteSectionHiddenCheck(contentFlaggingConfigEnabled, {}, professionalLicense, true, consoleAccess)).toBe(false);
+-        expect(isHidden(settingsSubsection, contentFlaggingConfigEnabled, professionalLicense)).toBe(true);
++        expect(isHidden(settingsSubsection, contentFlaggingConfigEnabled, professionalLicense)).toBe(false);
+         expect(isHidden(discoverySubsection, contentFlaggingConfigEnabled, professionalLicense)).toBe(false);
+     });
+ 
++    test('shows settings without a license', () => {
++        expect(isHidden(settingsSubsection, contentFlaggingConfigEnabled, {IsLicensed: 'false'} as ClientLicense)).toBe(false);
++    });
++
+     test('shows settings instead of discovery for Enterprise Advanced licenses', () => {
+         expect(isHidden(settingsSubsection, contentFlaggingConfigEnabled, enterpriseAdvancedLicense)).toBe(false);
+         expect(isHidden(discoverySubsection, contentFlaggingConfigEnabled, enterpriseAdvancedLicense)).toBe(true);

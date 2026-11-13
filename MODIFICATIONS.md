@@ -199,3 +199,323 @@ Workspaces pages (`admin_definition.tsx`). The test helpers no longer add a
 license when these settings are on, so the shared channel tests run without
 one. DMs with remote users stay behind upstream's `EnableSharedChannelsDMs`
 feature flag.
+
+### unlock-theme-management.patch
+
+2026-11-12. Allow theme management without a license: admins can set the
+default theme, turn theme selection and custom themes on or off, and limit
+the themes users can pick. Upstream sent fixed values for `ThemeSettings` to
+clients without a ThemeManagement license and hid the settings in the System
+Console. The client config now sends the configured values
+(`server/config/client.go`), and the four settings on Site Configuration >
+Customization are shown (`admin_definition.tsx`). The user settings theme
+picker already reads these values.
+
+### unlock-guest-permissions.patch
+
+2026-11-12. Allow editing guest role permissions without a license, so admins
+can change what guests may do (post and upload, react, mention, edit and
+delete posts, create private channels) in the System Scheme and in team
+override schemes. Upstream rejected patches to the guest roles without the
+GuestAccountsPermissions license feature (`api4/role.go`) and showed the
+Guests panels read-only (`permission_system_scheme_settings.tsx`,
+`permission_team_scheme_settings.tsx`). The guest Group Mentions permission is
+offered when custom groups are enabled (`guest_permissions_tree`), as it is for
+members. Role permission checks are unchanged.
+
+### command-palette.patch
+
+2026-11-13. Turn the Ctrl/Cmd+K channel switcher into a command palette when
+the query starts with ">": set your status (online, away, do not disturb for a
+chosen time, offline), set or clear a custom status, open Settings, Profile,
+Threads, Drafts or the System Console (for users with console access), and run
+any slash command available in the current channel through the existing
+autocomplete. Without ">", the switcher works as before and shows a hint row.
+The commands live in new files under
+`components/quick_switch_modal/command_palette/`; `quick_switch_modal.tsx`
+gains the provider, the hint and Enter handling. No server change.
+
+### quote-reply.patch
+
+2026-11-13. Add "Quote reply" (shortcut Q) to the post menu. It inserts a
+Markdown quote of the post (first 5 lines, "[attachment]" when files are
+attached), credited to the author's display name, with a link to the original,
+into the channel's composer, or the thread's composer in a thread, and focuses
+it without opening a thread. New files under `components/quote_reply/`;
+`advanced_text_editor.tsx` registers its composer with one hook call, and
+`dot_menu` adds the item and shortcut. No server change. The author name is
+Markdown-escaped and its newlines become spaces before it goes into the
+attribution line.
+
+### voice-messages.patch
+
+2026-11-13. Record voice messages from the web composer. A microphone button
+records up to 5 minutes (MP4/AAC where the browser supports it so recordings
+play on iOS, WebM/Opus otherwise) and uploads the recording through the normal
+file upload path, so the post is an ordinary post with an audio file. The
+duration and a 64-bar waveform are stored in `Post.Props.voice_messages`,
+keyed by file id, and those files get an inline player with a seekable
+waveform and 1x/1.5x/2x speed. The button follows `EnableFileAttachments` and
+the `upload_file` permission. New files under `components/voice_message/`;
+small edits in `advanced_text_editor` and `file_attachment_list`. No server,
+schema or config change; mobile apps show a normal audio attachment. The
+inline player renders only when the attachment's `mime_type` starts with
+`audio/`; any other file listed in `voice_messages` keeps its normal
+attachment card. The WebM fallback saves recordings as `.weba`, so the server
+stores `audio/webm`.
+
+### read-receipts.patch
+
+2026-11-13. Opt-in read receipts for direct and group messages. An admin
+switch, `TeamSettings.EnableReadReceipts` (off by default), and a personal
+Settings > Display toggle (on by default) stored as the
+`display_settings`/`read_receipts` preference. Turning receipts off is
+reciprocal: that user neither sends nor sees receipts. The client sends only
+"false" or "true"; `App.UpdatePreferences` stores the server's own time when
+receipts are turned back on (keeping the existing time if they were already
+on), and deleting the preference does the same instead of resetting it, so
+reads made while off stay private. Any stored value other than "false", no
+row, or a past server time counts as off. A receipt is the other member's
+existing `ChannelMembers.LastViewedAt`, so there is no migration. One rule,
+`model.ReadReceiptVisible`, gates both the new
+`GET /api/v4/channels/{id}/read_receipts` endpoint and the new
+`read_receipt` websocket event. The web app shows "Seen" or "Seen by N" under
+your newest message. Other members' last-viewed times stay hidden everywhere
+else. Mobile apps ignore the event.
+
+### slowmode.patch
+
+2026-11-13. Per-channel slowmode (Off, 5s, 10s, 30s, 1m, 5m, 15m, 1h), set by
+channel, team or system admins in a new Moderation tab of channel settings.
+Stored as a Systems row `channel_posting_rules_<channelId>`, served by
+`GET/PUT /api/v4/channels/{id}/posting_rules`, and cached in memory with the
+cache entry dropped on save. Enforced in `App.CreatePost`
+(`app/channel_posting_rules.go`), so the API, built-in slash commands (`/me`,
+`/shrug`, `/echo`) and scheduled posts all follow it, with HTTP 429 and the
+seconds left; slash commands show that message instead of a generic failure.
+A scheduled post that would break slowmode at send time fails with "Unable to
+Send" and its author is notified. Concurrent posts are serialized per channel
+and user with an in-process lock while slowmode is on, which assumes a single
+node (Mattermax does not unlock clustering). Deleted posts still count, so
+deleting your last post does not reset the wait. Exempt: channel, team and
+system admins, bots, incoming webhooks and webhook-style command responses,
+plugin posts, system messages, and DMs/GMs. The web app shows an indicator and
+a countdown notice at the composer. Mobile apps get the server's error text.
+
+### thread-auto-archive.patch
+
+2026-11-13. Per-channel thread auto-archive (Off, 1, 3, 7, 30 days without
+replies), in the same Moderation tab and the same Systems row as slowmode.
+Checked in `App.CreatePost` at reply time from max(root `CreateAt`,
+`Threads.LastReplyAt`), with no background job, so the same paths and
+exemptions as slowmode apply and a scheduled reply to an archived thread
+fails with "Unable to Send". Late replies are rejected with HTTP 403. Channel
+admins and above can still reply, which reopens the thread. A reply to a
+deleted root is left to the post layer, but a database error while looking up
+the root rejects the reply. Root posts and reactions are unaffected. The
+thread view shows an archived notice instead of the reply box
+(`create_comment.tsx`, +6).
+
+### unlock-content-flagging.patch
+
+2026-11-13. Content flagging (Data Spillage Handling) works without a license:
+users flag posts with a reason, configured reviewers get a review post from
+the content review bot and can keep or remove the post. Gates removed: the
+Enterprise Advanced check in `api4/content_flagging.go`
+(`requireContentFlaggingAvailable`), the `ContentFlaggingEnabled` client
+config in `config/client.go`, and the license tier check on the System Console
+page in `admin_definition.tsx`. The `ContentFlagging` feature flag already
+defaults on upstream; admins still enable the feature in
+`ContentFlaggingSettings.EnableContentFlagging`. Picking LDAP groups as
+reviewers stays behind the LDAP groups license.
+
+### unlock-custom-profile-attributes.patch
+
+2026-11-13. Admin-defined custom profile attributes work without a license:
+admins create, edit and delete fields under System Console > System Attributes
+> Attribute Management, users fill them in Profile settings, and values show
+in the profile popover and System Console user detail. Server gates removed:
+the properties `LicenseCheckHook` registration in `app/server.go` and the
+inline Enterprise check in api4 `getCPAGroup`. Webapp gates removed in
+logged_in, the websocket reconnect, profile_popover, user_settings/general,
+system_user_detail, and the Attribute Management pages; the unlicensed User
+Attributes discovery page and its string are gone. Still gated: Board
+Attributes, Classification Markings, and LDAP attribute sync.
+
+### unlock-mobile-security.patch
+
+2026-11-13. Mobile biometric authentication, screen capture prevention,
+jailbreak/root protection and the mobile watermark work without a license.
+`config/client.go` sends `MobileEnableBiometrics`,
+`MobilePreventScreenCapture`, `MobileJailbreakProtection` and
+`ExperimentalEnableWatermark` in both client configs, and the System Console
+shows the Mobile Security page and the Enable Mobile Watermark setting without
+a license. The stock Mattermost mobile app reads these four from the client
+config without checking the license. `MobileEnableSecureFilePreview` and
+`MobileAllowPdfLinkNavigation` stay gated at Enterprise Advanced, because the
+stock app also checks that license tier itself
+(`app/queries/servers/security.ts`), so unlocking them on the server would
+show settings that do nothing. Intune MAM stays gated.
+
+### unlock-enforce-mfa.patch
+
+2026-11-13. Admins can require multi-factor authentication for all users
+(`ServiceSettings.EnforceMultifactorAuthentication`) without a license. As
+upstream, the guest setting (`GuestAccountsSettings.EnforceMultifactorAuthentication`)
+only applies while global enforcement is on: it decides whether guests are
+included, and does not enforce MFA on its own. Gates removed: `CheckUserMfa` in `app/authentication.go`,
+the licensed-only client config prop in `config/client.go`, the System Console
+setting, and the webapp MFA-required redirect checks (`utils/route.tsx`,
+logged_in, team_controller, mfa_controller, the MFA settings section). TOTP
+lives in AGPL `server/platform/shared/mfa`. A licensed server whose license
+lacks the MFA feature now also enforces MFA when the config asks for it.
+
+### unlock-lock-profile-fields.patch
+
+2026-11-13. `TeamSettings.LockProfileFieldsForEmailUsers` works without a
+license: email/password users cannot change locked name, username, nickname,
+position or profile image, and invites can preset member profiles. Gates
+removed: `CheckLockedProfileFields` and `IsProfileImageLockedForUser` in
+`app/user.go`, the invite profile check in `app/team.go`, the Enterprise-only
+client config prop in `config/client.go` (which empties and removes that
+license block), and the hidden System Console setting.
+
+### unlock-custom-terms-of-service.patch
+
+2026-11-13. Admins can enable Custom Terms of Service without a license, and
+users must accept them on login and again after the re-acceptance period.
+Gates removed in `api4/terms_of_service.go` (create), `config/client.go`
+(`EnableCustomTermsOfService` and `CustomTermsOfServiceReAcceptancePeriod` in
+the limited client config), the mattermost-redux `shouldShowTermsOfService`
+selector, the System Console page and its enable toggle.
+
+### unlock-audit-logging.patch
+
+2026-11-13. Audit logging works without a license: the System Console Audit
+Logging page is visible, and `ExperimentalAuditSettings.AdvancedLoggingJSON`
+targets load alongside basic file auditing. The same `AdvancedLogging` license
+feature also gated the main server log, so `LogSettings` advanced targets are
+no longer stripped when unlicensed (`RemoveUnlicensedLogTargets` deleted).
+Release note: on upgrade, a server whose config already lists advanced log or
+audit targets (TCP, syslog, extra files) starts writing to them. Gates
+removed in `app/audit.go`, `app/server.go`, `app/delivery_tracking_config.go`,
+`app/platform/log.go`, `config/logger.go`, `config/client.go`
+(`AuditLoggingActive`) and `admin_definition.tsx`. The audit certificate
+upload stays Cloud-only.
+
+### prometheus-metrics.patch
+
+2026-11-13. Prometheus metrics without a license, from a clean-room
+implementation of `einterfaces.MetricsInterface` in package `platform`
+(`metrics_prometheus.go`, `metrics_prometheus_client.go`,
+`metrics_prometheus_noop.go`), registered through the existing
+`RegisterMetricsInterface` hook. When `MetricsSettings.Enable` is true,
+`/metrics` is served on the existing metrics port
+(`MetricsSettings.ListenAddress`) beside the upstream pprof and plugin-metrics
+routes. 68 interface methods record; 50 are no-ops: 23 for features that stay
+enterprise-only (HA cluster, Elasticsearch, Redis cache, replica lag, access
+control, auto-translation) and 27 deferred until their client-supplied labels
+have a bounded mapping. Nothing records while `Enable` is false, except four
+up/down gauges that must stay balanced. `config/client.go` sends
+`EnableMetrics`, `EnableClientMetrics` and `EnableNotificationMetrics` without
+a license. `PerformanceReport.IsValid` rejects null samples and reports with
+more than 500 entries; client samples outside fixed per-metric limits are
+dropped. No user, channel or team ID becomes a label, and
+`MetricsSettings.ClientSideUserIds` has no effect. The report cap and value
+limits are estimates. Keep the whole metrics port private (loopback or a
+private address, firewalled): it also serves pprof and unauthenticated plugin
+metrics. The server logs a warning when it binds all interfaces. Keep
+`FeatureFlags.AggregatePluginMetrics` off, or use plugins that do not export
+Go runtime collectors.
+
+### data-retention.patch
+
+2026-11-13. Data retention works without a license: global message and file
+retention, custom team and channel message policies, the System Console pages
+and the deletion job. Upstream ships the API, store and console in AGPL code
+but leaves the policy service and the deletion job to enterprise code; this
+patch adds clean-room versions in `app/data_retention_policies.go`,
+`app/data_retention_job.go` and `jobs/data_retention/`, plus store methods in
+new sqlstore files. As upstream, the global message policy also deletes direct
+and group messages; custom policies cannot include them. When the job deletes
+a post it also removes the post's attachments, thumbnails and previews from
+file storage, with or without file retention (bytes before rows, retried on
+the next run if storage fails; a path still used by a `CopyFileInfos` copy
+keeps its bytes); file retention still removes old files of kept posts.
+Nothing is deleted by default, and scheduled runs stay paused until an admin's
+manual run completes: only a job created through the API by an authenticated
+admin carries `trigger=manual`, and only that arms the schedule (Systems row
+`MattermaxDataRetentionArmedBy`, which records the settings that run used).
+The schedule pauses again until the next manual run whenever retention gets
+stricter than that: message or file deletion turned on or shortened, Preserve
+Pinned Posts turned off, or a custom policy change that makes a team or
+channel keep posts for less time (a shorter policy period, a team or channel
+added to a policy shorter than what applied to it, or removed from or deleted
+with a policy longer than the team policy or global period it falls back to).
+Changes that only keep data longer never pause it, and a scheduled run stops
+if retention gets stricter mid-run. `CopyFileInfos` now copies through
+`FileInfoStore.SaveCopy`, which locks the live source row, so a copy can never
+lose its bytes to a concurrent retention run. Small upstream edits:
+`app/job.go`, `app/file.go`, `thread_store.go` (`DeleteOrphanedRows` deletes
+only the selected rows), `store.go` and the generated layers. License gates
+removed in `app/data_retention.go`, `config/client.go` and
+`admin_definition.tsx`. Not covered in v1: recaps, abandoned unattached
+uploads, audits, legal hold.
+
+### unlock-user-export.patch
+
+2026-11-13. The System Console user list CSV export works without a license.
+Removes the Professional check in `app/report.go` (`StartUsersBatchExport`)
+and the upgrade gate in the webapp `system_users_export` component, and drops
+its two now-unused tooltip strings from `en.json`. The export job, CSV worker
+and system-bot delivery are AGPL. System-admin authorization stays. Cells
+starting with `=`, `+`, `-`, `@`, tab or carriage return are prefixed with `'`
+at the CSV writer (`saveCSVChunk`) to prevent formula injection.
+
+### unlock-lock-teammate-name-display.patch
+
+2026-11-13. `TeamSettings.LockTeammateNameDisplay` works without a license:
+the admin's teammate name style overrides saved user preferences, and Settings
+> Display shows it as managed by the System Administrator. Gates removed in
+`admin_definition.tsx`, the teammate-name preference selector and the Display
+settings connector. The server already sent the setting without a license.
+
+### unlock-channel-banners.patch
+
+2026-11-13. Channel admins (and anyone granted
+`manage_public/private_channel_banner`) can set a channel banner, and members
+see it, without a license. Gates removed: `canEditChannelBanner` in
+`api4/channel.go`, the Enterprise Advanced checks in webapp
+`channel_banner.tsx` and `channel_settings_modal.tsx`, and the banner
+permissions in the System Console permissions tree. Classification banners and
+channel attributes stay gated.
+
+### unlock-managed-channel-categories.patch
+
+2026-11-13. Admin-managed sidebar categories (set when creating or editing a
+channel, then shown in members' sidebars) work without a license. Gates
+removed: `getManagedCategories` and the two managed-category checks in
+`patchChannel` in `api4/channel.go`, and `CreateChannel` in `app/channel.go`.
+Still behind upstream's `ManagedChannelCategories` feature flag (default off,
+route registered at startup); enable it with
+`MM_FEATUREFLAGS_MANAGEDCHANNELCATEGORIES=true`.
+
+### unlock-email-notification-contents.patch
+
+2026-11-13. `EmailSettings.EmailNotificationContentsType` ("full" or
+"generic") applies without a license; "generic" emails omit the message text.
+Gates removed: `App.emailNotificationContentsType` in
+`app/notification_email.go` (immediate emails), the same check in
+`app/email/email_batching.go` (batched emails), and the System Console
+control's license check. Generic emails still name the channel, as upstream
+does.
+
+### unlock-anonymous-urls.patch
+
+2026-11-13. `PrivacySettings.UseAnonymousURLs` gives new channels (not DMs or
+GMs) and new teams server-generated ID names without a license; existing teams
+and channels keep their names. Gates removed: `createChannel` in
+`api4/channel.go`, `createTeam` in `api4/team.go`, `PluginAPI.CreateTeam` and
+`PluginAPI.CreateChannel` in `app/plugin_api.go`, the webapp selector
+`isAnonymousURLEnabled` that hides the URL editors, and the System Console
+toggle's Enterprise Advanced check.

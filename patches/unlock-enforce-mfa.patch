@@ -1,0 +1,369 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Karan Sharma <hello@mrkaran.dev>
+Date: Fri, 13 Nov 2026 00:40:39 +0530
+Subject: [PATCH] feat: enforced multi-factor authentication without a license
+
+Mattermax-Patch: unlock-enforce-mfa.patch
+---
+ server/channels/api4/user_test.go             | 28 +++++++++++++++++++
+ server/channels/app/authentication.go         |  2 +-
+ server/config/client.go                       |  6 +---
+ server/config/client_test.go                  | 14 ++++++++++
+ .../admin_console/admin_definition.tsx        |  1 -
+ .../admin_definition_mfa.test.tsx             | 18 ++++++++++++
+ .../src/components/logged_in/index.ts         |  2 +-
+ .../components/mfa/mfa_controller/index.ts    |  5 +---
+ .../mfa/mfa_controller/mfa_controller.tsx     |  3 +-
+ .../src/components/team_controller/index.ts   |  5 ++--
+ .../security/mfa_section/index.ts             |  6 ++--
+ webapp/channels/src/utils/route.test.ts       | 26 ++++++++---------
+ webapp/channels/src/utils/route.tsx           |  3 --
+ 13 files changed, 81 insertions(+), 38 deletions(-)
+ create mode 100644 webapp/channels/src/components/admin_console/admin_definition_mfa.test.tsx
+
+diff --git a/server/channels/api4/user_test.go b/server/channels/api4/user_test.go
+index 4c6ba1497e5e..c6e8a1c71988 100644
+--- a/server/channels/api4/user_test.go
++++ b/server/channels/api4/user_test.go
+@@ -11860,6 +11860,34 @@ func TestMeEndpointsWithMfaEnforced(t *testing.T) {
+ 	})
+ }
+ 
++func TestMfaEnforcedWithoutLicense(t *testing.T) {
++	th := Setup(t).InitBasic(t)
++	require.Nil(t, th.App.Srv().License())
++
++	th.App.UpdateConfig(func(cfg *model.Config) {
++		*cfg.ServiceSettings.EnableMultifactorAuthentication = true
++		*cfg.ServiceSettings.EnforceMultifactorAuthentication = true
++	})
++
++	client := th.CreateClient()
++	_, _, err := client.Login(context.Background(), th.BasicUser.Email, th.BasicUser.Password)
++	require.NoError(t, err)
++
++	_, _, err = client.GetMe(context.Background(), "")
++	require.NoError(t, err)
++
++	_, resp, err := client.GetTeamsForUser(context.Background(), th.BasicUser.Id, "")
++	CheckErrorID(t, err, "api.context.mfa_required.app_error")
++	CheckForbiddenStatus(t, resp)
++
++	th.App.UpdateConfig(func(cfg *model.Config) {
++		*cfg.ServiceSettings.EnforceMultifactorAuthentication = false
++	})
++
++	_, _, err = client.GetTeamsForUser(context.Background(), th.BasicUser.Id, "")
++	require.NoError(t, err)
++}
++
+ func TestGetSessionAttributesManifest(t *testing.T) {
+ 	th := Setup(t).InitBasic(t)
+ 
+diff --git a/server/channels/app/authentication.go b/server/channels/app/authentication.go
+index 278ece11ddd8..098fc57a2a9b 100644
+--- a/server/channels/app/authentication.go
++++ b/server/channels/app/authentication.go
+@@ -376,7 +376,7 @@ func (a *App) CheckUserMfa(rctx request.CTX, user *model.User, token string) *mo
+ }
+ 
+ func (a *App) MFARequired(rctx request.CTX, method string) *model.AppError {
+-	if license := a.Channels().License(); license == nil || !*license.Features.MFA || !*a.Config().ServiceSettings.EnableMultifactorAuthentication || !*a.Config().ServiceSettings.EnforceMultifactorAuthentication {
++	if !*a.Config().ServiceSettings.EnableMultifactorAuthentication || !*a.Config().ServiceSettings.EnforceMultifactorAuthentication {
+ 		return nil
+ 	}
+ 
+diff --git a/server/config/client.go b/server/config/client.go
+index bc4e31eb35d3..69b767013951 100644
+--- a/server/config/client.go
++++ b/server/config/client.go
+@@ -354,7 +354,7 @@ func GenerateLimitedClientConfig(c *model.Config, telemetryID string, license *m
+ 	props["CustomBrandText"] = *c.TeamSettings.CustomBrandText
+ 	props["CustomDescriptionText"] = *c.TeamSettings.CustomDescriptionText
+ 	props["EnableMultifactorAuthentication"] = strconv.FormatBool(*c.ServiceSettings.EnableMultifactorAuthentication)
+-	props["EnforceMultifactorAuthentication"] = "false"
++	props["EnforceMultifactorAuthentication"] = strconv.FormatBool(*c.ServiceSettings.EnforceMultifactorAuthentication)
+ 	props["EnableGuestAccounts"] = strconv.FormatBool(*c.GuestAccountsSettings.Enable)
+ 	props["HideGuestTags"] = strconv.FormatBool(*c.GuestAccountsSettings.HideTags)
+ 	props["GuestAccountsEnforceMultifactorAuthentication"] = strconv.FormatBool(*c.GuestAccountsSettings.EnforceMultifactorAuthentication)
+@@ -380,10 +380,6 @@ func GenerateLimitedClientConfig(c *model.Config, telemetryID string, license *m
+ 			props["CustomTermsOfServiceReAcceptancePeriod"] = strconv.FormatInt(int64(*c.SupportSettings.CustomTermsOfServiceReAcceptancePeriod), 10)
+ 		}
+ 
+-		if *license.Features.MFA {
+-			props["EnforceMultifactorAuthentication"] = strconv.FormatBool(*c.ServiceSettings.EnforceMultifactorAuthentication)
+-		}
+-
+ 		if license.IsCloud() {
+ 			// MM-48727: enable SSO options for free cloud - not in self hosted
+ 			*license.Features.GoogleOAuth = true
+diff --git a/server/config/client_test.go b/server/config/client_test.go
+index c546f51856f8..36e504b27fee 100644
+--- a/server/config/client_test.go
++++ b/server/config/client_test.go
+@@ -179,6 +179,20 @@ func TestGetClientConfig(t *testing.T) {
+ 			},
+ 			nil,
+ 		},
++		{
++			"unlicensed enforcement",
++			&model.Config{
++				ServiceSettings: model.ServiceSettings{
++					EnforceMultifactorAuthentication: new(true),
++				},
++			},
++			"tag1",
++			nil,
++			map[string]string{
++				"EnforceMultifactorAuthentication": "true",
++			},
++			nil,
++		},
+ 		{
+ 			"licensed for enforcement",
+ 			&model.Config{
+diff --git a/webapp/channels/src/components/admin_console/admin_definition.tsx b/webapp/channels/src/components/admin_console/admin_definition.tsx
+index d3e4982d15de..947ff1882c7f 100644
+--- a/webapp/channels/src/components/admin_console/admin_definition.tsx
++++ b/webapp/channels/src/components/admin_console/admin_definition.tsx
+@@ -4482,7 +4482,6 @@ const AdminDefinition: AdminDefinitionType = {
+                                     </ExternalLink>
+                                 ),
+                             },
+-                            isHidden: it.not(it.licensedForFeature('MFA')),
+                             isDisabled: it.any(
+                                 it.not(it.userHasWritePermissionOnResource(RESOURCE_KEYS.AUTHENTICATION.MFA)),
+                                 it.stateIsFalse('ServiceSettings.EnableMultifactorAuthentication'),
+diff --git a/webapp/channels/src/components/admin_console/admin_definition_mfa.test.tsx b/webapp/channels/src/components/admin_console/admin_definition_mfa.test.tsx
+new file mode 100644
+index 000000000000..2d4d01290e2d
+--- /dev/null
++++ b/webapp/channels/src/components/admin_console/admin_definition_mfa.test.tsx
+@@ -0,0 +1,18 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++import AdminDefinition from './admin_definition';
++import type {AdminDefinitionSubSectionSchema} from './types';
++
++describe('AdminDefinition - Enforce Multi-factor Authentication', () => {
++    test('is shown without a license', () => {
++        const schema = AdminDefinition.authentication.subsections.mfa.schema as AdminDefinitionSubSectionSchema;
++        const settings = 'settings' in schema && schema.settings ? schema.settings : [];
++        const setting = settings.find((s) => s.key === 'ServiceSettings.EnforceMultifactorAuthentication');
++        const isHidden = setting?.isHidden;
++        const hidden = typeof isHidden === 'function' ? isHidden({}, {}, {IsLicensed: 'false'}) : Boolean(isHidden);
++
++        expect(setting).toBeDefined();
++        expect(hidden).toBe(false);
++    });
++});
+diff --git a/webapp/channels/src/components/logged_in/index.ts b/webapp/channels/src/components/logged_in/index.ts
+index 0dbc92218d15..cfc68d9be4c1 100644
+--- a/webapp/channels/src/components/logged_in/index.ts
++++ b/webapp/channels/src/components/logged_in/index.ts
+@@ -38,7 +38,7 @@ export function mapStateToProps(state: GlobalState, ownProps: Props) {
+         currentUser: getCurrentUser(state),
+         currentChannelId,
+         isCurrentChannelManuallyUnread: isManuallyUnread(state, currentChannelId),
+-        mfaRequired: checkIfMFARequired(getCurrentUser(state), license, config, ownProps.match.url),
++        mfaRequired: checkIfMFARequired(getCurrentUser(state), config, ownProps.match.url),
+         showTermsOfService,
+         customProfileAttributesEnabled: true,
+     };
+diff --git a/webapp/channels/src/components/mfa/mfa_controller/index.ts b/webapp/channels/src/components/mfa/mfa_controller/index.ts
+index 4fa2e5285aa9..5cda6d76ba5b 100644
+--- a/webapp/channels/src/components/mfa/mfa_controller/index.ts
++++ b/webapp/channels/src/components/mfa/mfa_controller/index.ts
+@@ -3,22 +3,19 @@
+ 
+ import {connect} from 'react-redux';
+ 
+-import {getConfig, getLicense} from 'mattermost-redux/selectors/entities/general';
++import {getConfig} from 'mattermost-redux/selectors/entities/general';
+ 
+ import type {GlobalState} from 'types/store';
+ 
+ import MFAController from './mfa_controller';
+ 
+ function mapStateToProps(state: GlobalState) {
+-    const license = getLicense(state);
+     const config = getConfig(state);
+ 
+-    const mfa = license.MFA === 'true';
+     const enableMultifactorAuthentication = config.EnableMultifactorAuthentication === 'true';
+     const enforceMultifactorAuthentication = config.EnforceMultifactorAuthentication === 'true';
+ 
+     return {
+-        mfa,
+         enableMultifactorAuthentication,
+         enforceMultifactorAuthentication,
+     };
+diff --git a/webapp/channels/src/components/mfa/mfa_controller/mfa_controller.tsx b/webapp/channels/src/components/mfa/mfa_controller/mfa_controller.tsx
+index d360c39c726b..45eab14a44e0 100644
+--- a/webapp/channels/src/components/mfa/mfa_controller/mfa_controller.tsx
++++ b/webapp/channels/src/components/mfa/mfa_controller/mfa_controller.tsx
+@@ -23,7 +23,6 @@ type Location = {
+ type Props = {
+     location: Location;
+     children?: React.ReactNode;
+-    mfa: boolean;
+     enableMultifactorAuthentication: boolean;
+     enforceMultifactorAuthentication: boolean;
+ 
+@@ -57,7 +56,7 @@ export default class MFAController extends React.PureComponent<Props & RouteComp
+ 
+     public render(): JSX.Element {
+         let backButton;
+-        if (this.props.mfa && this.props.enforceMultifactorAuthentication) {
++        if (this.props.enforceMultifactorAuthentication) {
+             backButton = (
+                 <div className='signup-header'>
+                     <button
+diff --git a/webapp/channels/src/components/team_controller/index.ts b/webapp/channels/src/components/team_controller/index.ts
+index 2e0c0f9fcb83..26dbbae1f9f9 100644
+--- a/webapp/channels/src/components/team_controller/index.ts
++++ b/webapp/channels/src/components/team_controller/index.ts
+@@ -7,7 +7,7 @@ import type {RouteComponentProps} from 'react-router-dom';
+ 
+ import {fetchAllMyTeamsChannels, fetchAllMyChannelMembers, fetchChannelsAndMembers, unsetActiveChannelOnServer} from 'mattermost-redux/actions/channels';
+ import {getCurrentChannelId} from 'mattermost-redux/selectors/entities/channels';
+-import {getLicense, getConfig} from 'mattermost-redux/selectors/entities/general';
++import {getConfig} from 'mattermost-redux/selectors/entities/general';
+ import {getCurrentTeamId, getMyTeams} from 'mattermost-redux/selectors/entities/teams';
+ import {getCurrentUser} from 'mattermost-redux/selectors/entities/users';
+ 
+@@ -32,7 +32,6 @@ type Params = {
+ export type OwnProps = RouteComponentProps<Params>;
+ 
+ function mapStateToProps(state: GlobalState, ownProps: OwnProps) {
+-    const license = getLicense(state);
+     const config = getConfig(state);
+     const currentUser = getCurrentUser(state);
+     const plugins = state.plugins.components.NeedsTeamComponent;
+@@ -48,7 +47,7 @@ function mapStateToProps(state: GlobalState, ownProps: OwnProps) {
+         products,
+         selectedThreadId: getSelectedThreadIdInCurrentTeam(state),
+         selectedPostId: getSelectedPostId(state),
+-        mfaRequired: checkIfMFARequired(currentUser, license, config, ownProps.match.url),
++        mfaRequired: checkIfMFARequired(currentUser, config, ownProps.match.url),
+         disableRefetchingOnBrowserFocus,
+         disableWakeUpReconnectHandler,
+     };
+diff --git a/webapp/channels/src/components/user_settings/security/mfa_section/index.ts b/webapp/channels/src/components/user_settings/security/mfa_section/index.ts
+index 4dbe38cee1a3..78d8a08c9bd7 100644
+--- a/webapp/channels/src/components/user_settings/security/mfa_section/index.ts
++++ b/webapp/channels/src/components/user_settings/security/mfa_section/index.ts
+@@ -8,7 +8,7 @@ import type {Dispatch} from 'redux';
+ import type {GlobalState} from '@mattermost/types/store';
+ import type {UserProfile} from '@mattermost/types/users';
+ 
+-import {getConfig, getLicense} from 'mattermost-redux/selectors/entities/general';
++import {getConfig} from 'mattermost-redux/selectors/entities/general';
+ import {getCurrentUser} from 'mattermost-redux/selectors/entities/users';
+ 
+ import {deactivateMfa} from 'actions/views/mfa';
+@@ -18,11 +18,9 @@ import Constants from 'utils/constants';
+ import MfaSection from './mfa_section';
+ 
+ function mapStateToProps(state: GlobalState) {
+-    const license = getLicense(state);
+     const config = getConfig(state);
+-    const mfaLicensed = license && license.IsLicensed === 'true' && license.MFA === 'true';
+     const mfaEnabled = config.EnableMultifactorAuthentication === 'true';
+-    const mfaEnforced = mfaLicensed && config.EnforceMultifactorAuthentication === 'true';
++    const mfaEnforced = config.EnforceMultifactorAuthentication === 'true';
+     const user: UserProfile = getCurrentUser(state);
+     let mfaActive = false;
+     let mfaAvailable = false;
+diff --git a/webapp/channels/src/utils/route.test.ts b/webapp/channels/src/utils/route.test.ts
+index 0761e9e2131c..a29db9422904 100644
+--- a/webapp/channels/src/utils/route.test.ts
++++ b/webapp/channels/src/utils/route.test.ts
+@@ -1,7 +1,6 @@
+ // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+ // See LICENSE.txt for license information.
+ 
+-import type {ClientLicense} from '@mattermost/types/config';
+ import type {UserProfile} from '@mattermost/types/users';
+ 
+ import {checkIfMFARequired} from './route';
+@@ -49,24 +48,23 @@ describe('Utils.Route', () => {
+                 terms_of_service_create_at: 0,
+                 remote_id: ''};
+             const config: ConfigOption = {EnableMultifactorAuthentication: 'true', EnforceMultifactorAuthentication: 'true'};
+-            const license: ClientLicense = {MFA: 'true'};
+ 
+-            expect(checkIfMFARequired(user, license, config, '')).toBeTruthy();
+-            expect(!checkIfMFARequired(user, license, config, '/mfa/setup')).toBeTruthy();
+-            expect(!checkIfMFARequired(user, license, config, '/mfa/confirm')).toBeTruthy();
++            expect(checkIfMFARequired(user, config, '')).toBeTruthy();
++            expect(!checkIfMFARequired(user, config, '/mfa/setup')).toBeTruthy();
++            expect(!checkIfMFARequired(user, config, '/mfa/confirm')).toBeTruthy();
+ 
+             user.auth_service = 'email';
+-            expect(checkIfMFARequired(user, license, config, '')).toBeTruthy();
++            expect(checkIfMFARequired(user, config, '')).toBeTruthy();
+ 
+             user.auth_service = 'ldap';
+-            expect(checkIfMFARequired(user, license, config, '')).toBeTruthy();
++            expect(checkIfMFARequired(user, config, '')).toBeTruthy();
+ 
+             user.auth_service = 'saml';
+-            expect(!checkIfMFARequired(user, license, config, '')).toBeTruthy();
++            expect(!checkIfMFARequired(user, config, '')).toBeTruthy();
+ 
+             user.auth_service = '';
+             user.mfa_active = true;
+-            expect(!checkIfMFARequired(user, license, config, '')).toBeTruthy();
++            expect(!checkIfMFARequired(user, config, '')).toBeTruthy();
+         });
+ 
+         test('mfa is not enforced or enabled', () => {
+@@ -110,16 +108,16 @@ describe('Utils.Route', () => {
+                 terms_of_service_create_at: 0,
+                 remote_id: ''};
+             const config: ConfigOption = {EnableMultifactorAuthentication: 'true', EnforceMultifactorAuthentication: 'true'};
+-            const license: ClientLicense = {MFA: 'true'};
+-            expect(!checkIfMFARequired(user, license, config, '')).toBeTruthy();
++            expect(!checkIfMFARequired(user, config, '')).toBeTruthy();
+ 
+             config.EnforceMultifactorAuthentication = 'true';
+             config.EnableMultifactorAuthentication = 'false';
+-            expect(!checkIfMFARequired(user, license, config, '')).toBeTruthy();
++            expect(!checkIfMFARequired(user, config, '')).toBeTruthy();
+ 
+-            license.MFA = 'false';
++            user.mfa_active = false;
+             config.EnableMultifactorAuthentication = 'true';
+-            expect(!checkIfMFARequired(user, license, config, '')).toBeTruthy();
++            config.EnforceMultifactorAuthentication = 'false';
++            expect(!checkIfMFARequired(user, config, '')).toBeTruthy();
+         });
+     });
+ });
+diff --git a/webapp/channels/src/utils/route.tsx b/webapp/channels/src/utils/route.tsx
+index 3361a2247ec4..a42bf3f74552 100644
+--- a/webapp/channels/src/utils/route.tsx
++++ b/webapp/channels/src/utils/route.tsx
+@@ -1,7 +1,6 @@
+ // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+ // See LICENSE.txt for license information.
+ 
+-import type {ClientLicense} from '@mattermost/types/config';
+ import type {UserProfile} from '@mattermost/types/users';
+ 
+ import {isGuest} from 'mattermost-redux/utils/user_utils';
+@@ -24,12 +23,10 @@ export type ConfigOption = {
+ 
+ export function checkIfMFARequired(
+     user: UserProfile | undefined,
+-    license: ClientLicense,
+     config: ConfigOption,
+     path: string,
+ ): boolean {
+     if (
+-        license.MFA === 'true' &&
+         config.EnableMultifactorAuthentication === 'true' &&
+         config.EnforceMultifactorAuthentication === 'true' &&
+         mfaPaths.indexOf(path) === -1

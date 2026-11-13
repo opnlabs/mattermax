@@ -1,0 +1,193 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Karan Sharma <hello@mrkaran.dev>
+Date: Fri, 13 Nov 2026 07:32:39 +0530
+Subject: [PATCH] feat: lock teammate name display without a license
+
+Mattermax-Patch: unlock-lock-teammate-name-display.patch
+---
+ .../admin_console/admin_definition.tsx        |  1 -
+ ...nition_lock_teammate_name_display.test.tsx | 15 +++++++
+ .../user_settings/display/index.test.tsx      | 44 ++++++++++++++++++-
+ .../components/user_settings/display/index.ts |  4 +-
+ .../src/selectors/entities/preferences.ts     |  5 +--
+ .../src/selectors/entities/users.test.ts      | 12 ++---
+ 6 files changed, 68 insertions(+), 13 deletions(-)
+ create mode 100644 webapp/channels/src/components/admin_console/admin_definition_lock_teammate_name_display.test.tsx
+
+diff --git a/webapp/channels/src/components/admin_console/admin_definition.tsx b/webapp/channels/src/components/admin_console/admin_definition.tsx
+index c9dbe4295fba..2dc7f19b1ef1 100644
+--- a/webapp/channels/src/components/admin_console/admin_definition.tsx
++++ b/webapp/channels/src/components/admin_console/admin_definition.tsx
+@@ -3005,7 +3005,6 @@ const AdminDefinition: AdminDefinitionType = {
+                             help_text_values: {
+                                 strong: (msg: string) => <strong>{msg}</strong>,
+                             },
+-                            isHidden: it.not(it.licensedForFeature('LockTeammateNameDisplay')),
+                             isDisabled: it.not(it.userHasWritePermissionOnResource(RESOURCE_KEYS.SITE.USERS_AND_TEAMS)),
+                         },
+                         {
+diff --git a/webapp/channels/src/components/admin_console/admin_definition_lock_teammate_name_display.test.tsx b/webapp/channels/src/components/admin_console/admin_definition_lock_teammate_name_display.test.tsx
+new file mode 100644
+index 000000000000..84c650d98ac1
+--- /dev/null
++++ b/webapp/channels/src/components/admin_console/admin_definition_lock_teammate_name_display.test.tsx
+@@ -0,0 +1,15 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++import AdminDefinition from './admin_definition';
++
++test('name locking is visible without a license', () => {
++    const schema = AdminDefinition.site.subsections.users_and_teams.schema;
++    if (!('settings' in schema) || !schema.settings) {
++        throw new Error('Expected Users and Teams settings');
++    }
++    const setting = schema.settings.find((item) => item.key === 'TeamSettings.LockTeammateNameDisplay');
++    expect(setting).toBeDefined();
++    expect(setting?.isHidden).toBeUndefined();
++    expect(setting?.isDisabled).toBeDefined();
++});
+diff --git a/webapp/channels/src/components/user_settings/display/index.test.tsx b/webapp/channels/src/components/user_settings/display/index.test.tsx
+index 0410c6eebcaf..25d9e20b369b 100644
+--- a/webapp/channels/src/components/user_settings/display/index.test.tsx
++++ b/webapp/channels/src/components/user_settings/display/index.test.tsx
+@@ -1,15 +1,20 @@
+ // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+ // See LICENSE.txt for license information.
+ 
++import React from 'react';
++
+ import type {UserProfile} from '@mattermost/types/users';
+ 
++import {General, Preferences} from 'mattermost-redux/constants';
++
+ import {getLanguageInfo} from 'i18n/i18n';
+ import mergeObjects from 'packages/mattermost-redux/test/merge_objects';
++import {renderWithContext, screen} from 'tests/react_testing_utils';
+ import {TestHelper} from 'utils/test_helper';
+ 
+ import type {GlobalState} from 'types/store';
+ 
+-import {makeMapStateToProps} from './index';
++import UserSettingsDisplay, {makeMapStateToProps} from './index';
+ 
+ describe('components/user_settings/display/index', () => {
+     const user = TestHelper.getUserMock({id: 'user_id', locale: 'de'});
+@@ -69,4 +74,41 @@ describe('components/user_settings/display/index', () => {
+         expect(userLocale).toBe('en');
+         expect(getLanguageInfo(userLocale)).toBeDefined();
+     });
++
++    test.each(['false', 'true'])('honors name locking without a license when set to %s', (locked) => {
++        const state = mergeObjects(baseState, {
++            entities: {
++                general: {
++                    config: {
++                        LockTeammateNameDisplay: locked,
++                        TeammateNameDisplay: General.TEAMMATE_NAME_DISPLAY.SHOW_USERNAME,
++                    },
++                    license: {IsLicensed: 'false'},
++                },
++                preferences: {myPreferences: {
++                    [`${Preferences.CATEGORY_DISPLAY_SETTINGS}--${Preferences.NAME_NAME_FORMAT}`]: {
++                        value: General.TEAMMATE_NAME_DISPLAY.SHOW_FULLNAME,
++                    },
++                }},
++            },
++        });
++        expect(makeMapStateToProps()(state, ownProps).lockTeammateNameDisplay).toBe(locked === 'true');
++        renderWithContext(
++            <UserSettingsDisplay
++                {...ownProps}
++                activeSection={Preferences.NAME_NAME_FORMAT}
++                updateSection={jest.fn()}
++                closeModal={jest.fn()}
++                collapseModal={jest.fn()}
++            />,
++            state,
++        );
++        if (locked === 'true') {
++            expect(screen.queryByRole('radio')).not.toBeInTheDocument();
++            expect(screen.getByText(/This field is handled through your System Administrator/)).toBeInTheDocument();
++            expect(screen.queryByRole('button', {name: 'Save'})).not.toBeInTheDocument();
++        } else {
++            expect(screen.getByRole('radio', {name: 'Show first and last name'})).toBeChecked();
++        }
++    });
+ });
+diff --git a/webapp/channels/src/components/user_settings/display/index.ts b/webapp/channels/src/components/user_settings/display/index.ts
+index e6122bc0db5c..2edf13b2859c 100644
+--- a/webapp/channels/src/components/user_settings/display/index.ts
++++ b/webapp/channels/src/components/user_settings/display/index.ts
+@@ -12,7 +12,7 @@ import {savePreferences} from 'mattermost-redux/actions/preferences';
+ import {autoUpdateTimezone} from 'mattermost-redux/actions/timezone';
+ import {patchUser, updateMe} from 'mattermost-redux/actions/users';
+ import {General} from 'mattermost-redux/constants';
+-import {getConfig, getLicense} from 'mattermost-redux/selectors/entities/general';
++import {getConfig} from 'mattermost-redux/selectors/entities/general';
+ import {
+     get,
+     isCollapsedThreadsAllowed,
+@@ -46,7 +46,7 @@ export function makeMapStateToProps() {
+         const allowCustomThemes = config.AllowCustomThemes === 'true';
+         const enableLinkPreviews = config.EnableLinkPreviews === 'true';
+         const enableThemeSelection = config.EnableThemeSelection === 'true';
+-        const lockTeammateNameDisplay = getLicense(state).LockTeammateNameDisplay === 'true' && config.LockTeammateNameDisplay === 'true';
++        const lockTeammateNameDisplay = config.LockTeammateNameDisplay === 'true';
+         const configTeammateNameDisplay = config.TeammateNameDisplay as string;
+         const emojiPickerEnabled = config.EnableEmojiPicker === 'true';
+         const lastActiveTimeEnabled = config.EnableLastActiveTime === 'true';
+diff --git a/webapp/channels/src/packages/mattermost-redux/src/selectors/entities/preferences.ts b/webapp/channels/src/packages/mattermost-redux/src/selectors/entities/preferences.ts
+index af47b629ce59..4a13a496388e 100644
+--- a/webapp/channels/src/packages/mattermost-redux/src/selectors/entities/preferences.ts
++++ b/webapp/channels/src/packages/mattermost-redux/src/selectors/entities/preferences.ts
+@@ -99,9 +99,8 @@ export const getTeammateNameDisplaySetting: (state: GlobalState) => string = cre
+     'getTeammateNameDisplaySetting',
+     getConfig,
+     (state) => getPreferenceObject(state, Preferences.CATEGORY_DISPLAY_SETTINGS, Preferences.NAME_NAME_FORMAT),
+-    getLicense,
+-    (config, teammateNameDisplayPreference, license) => {
+-        const useAdminTeammateNameDisplaySetting = (license && license.LockTeammateNameDisplay === 'true') && config.LockTeammateNameDisplay === 'true';
++    (config, teammateNameDisplayPreference) => {
++        const useAdminTeammateNameDisplaySetting = config.LockTeammateNameDisplay === 'true';
+         if (teammateNameDisplayPreference && !useAdminTeammateNameDisplaySetting) {
+             return teammateNameDisplayPreference.value || '';
+         } else if (config.TeammateNameDisplay) {
+diff --git a/webapp/channels/src/packages/mattermost-redux/src/selectors/entities/users.test.ts b/webapp/channels/src/packages/mattermost-redux/src/selectors/entities/users.test.ts
+index 64bb778936b2..795575ccd891 100644
+--- a/webapp/channels/src/packages/mattermost-redux/src/selectors/entities/users.test.ts
++++ b/webapp/channels/src/packages/mattermost-redux/src/selectors/entities/users.test.ts
+@@ -674,7 +674,7 @@ describe('Selectors.Users', () => {
+             expect(Selectors.makeGetDisplayName()(newTestState, testUser1.id)).toEqual('username');
+             expect(Selectors.makeDisplayNameGetter()(newTestState, false)(testUser1)).toEqual('username');
+         });
+-        it('Should show full name since license is false', () => {
++        it('Should override the preference when the license feature is false', () => {
+             const newTestState = {
+                 entities: {
+                     users: {profiles: newProfiles},
+@@ -696,10 +696,10 @@ describe('Selectors.Users', () => {
+                     },
+                 },
+             } as unknown as GlobalState;
+-            expect(Selectors.makeGetDisplayName()(newTestState, testUser1.id)).toEqual('First Last');
+-            expect(Selectors.makeDisplayNameGetter()(newTestState, false)(testUser1)).toEqual('First Last');
++            expect(Selectors.makeGetDisplayName()(newTestState, testUser1.id)).toEqual('username');
++            expect(Selectors.makeDisplayNameGetter()(newTestState, false)(testUser1)).toEqual('username');
+         });
+-        it('Should show full name since license is not available', () => {
++        it('Should override the preference without a license', () => {
+             const newTestState = {
+                 entities: {
+                     users: {profiles: newProfiles},
+@@ -718,8 +718,8 @@ describe('Selectors.Users', () => {
+                     },
+                 },
+             } as GlobalState;
+-            expect(Selectors.makeGetDisplayName()(newTestState, testUser1.id)).toEqual('First Last');
+-            expect(Selectors.makeDisplayNameGetter()(newTestState, false)(testUser1)).toEqual('First Last');
++            expect(Selectors.makeGetDisplayName()(newTestState, testUser1.id)).toEqual('username');
++            expect(Selectors.makeDisplayNameGetter()(newTestState, false)(testUser1)).toEqual('username');
+         });
+         it('Should show Full name since license is not available and lock teammate name display is false', () => {
+             const newTestState = {

@@ -1,0 +1,1923 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Karan Sharma <hello@mrkaran.dev>
+Date: Fri, 13 Nov 2026 00:03:30 +0530
+Subject: [PATCH] feat: per-channel slowmode
+
+Mattermax-Patch: slowmode.patch
+---
+ server/channels/api4/api.go                   |   1 +
+ server/channels/api4/channel_posting_rules.go |  84 +++++
+ .../api4/channel_posting_rules_test.go        | 293 ++++++++++++++++++
+ server/channels/app/channel_posting_rules.go  | 125 ++++++++
+ server/channels/app/command.go                |   4 +
+ server/channels/app/keyed_mutex.go            |  41 +++
+ server/channels/app/post.go                   |   6 +
+ server/channels/app/scheduled_post_job.go     |   3 +
+ server/channels/app/server.go                 |  10 +
+ .../channels/store/retrylayer/retrylayer.go   |  21 ++
+ server/channels/store/sqlstore/post_store.go  |  16 +
+ server/channels/store/store.go                |   1 +
+ .../store/storetest/mocks/PostStore.go        |  28 ++
+ .../channels/store/timerlayer/timerlayer.go   |  16 +
+ server/i18n/en.json                           |  25 ++
+ server/public/model/channel_posting_rules.go  |  28 ++
+ .../advanced_text_editor.tsx                  |   7 +-
+ .../post_box_indicator/post_box_indicator.tsx |   2 +
+ .../channel_settings_moderation_tab.scss      |  29 ++
+ .../channel_settings_moderation_tab.test.tsx  |  75 +++++
+ .../channel_settings_moderation_tab.tsx       | 145 +++++++++
+ ...ettings_moderation_tab_visibility.test.tsx |  73 +++++
+ .../posting_rules_options.ts                  |  29 ++
+ .../channel_posting_rules/slowmode.test.tsx   | 161 ++++++++++
+ .../slowmode_indicator.scss                   |  16 +
+ .../slowmode_indicator.tsx                    |  38 +++
+ .../use_channel_posting_rules.ts              |  45 +++
+ .../channel_posting_rules/use_slowmode.tsx    |  92 ++++++
+ .../channel_settings_modal.tsx                |  19 ++
+ webapp/channels/src/i18n/en.json              |  40 +++
+ webapp/platform/client/src/client4.ts         |  15 +
+ .../types/src/channel_posting_rules.ts        |   6 +
+ 32 files changed, 1492 insertions(+), 2 deletions(-)
+ create mode 100644 server/channels/api4/channel_posting_rules.go
+ create mode 100644 server/channels/api4/channel_posting_rules_test.go
+ create mode 100644 server/channels/app/channel_posting_rules.go
+ create mode 100644 server/channels/app/keyed_mutex.go
+ create mode 100644 server/public/model/channel_posting_rules.go
+ create mode 100644 webapp/channels/src/components/channel_posting_rules/channel_settings_moderation_tab.scss
+ create mode 100644 webapp/channels/src/components/channel_posting_rules/channel_settings_moderation_tab.test.tsx
+ create mode 100644 webapp/channels/src/components/channel_posting_rules/channel_settings_moderation_tab.tsx
+ create mode 100644 webapp/channels/src/components/channel_posting_rules/channel_settings_moderation_tab_visibility.test.tsx
+ create mode 100644 webapp/channels/src/components/channel_posting_rules/posting_rules_options.ts
+ create mode 100644 webapp/channels/src/components/channel_posting_rules/slowmode.test.tsx
+ create mode 100644 webapp/channels/src/components/channel_posting_rules/slowmode_indicator.scss
+ create mode 100644 webapp/channels/src/components/channel_posting_rules/slowmode_indicator.tsx
+ create mode 100644 webapp/channels/src/components/channel_posting_rules/use_channel_posting_rules.ts
+ create mode 100644 webapp/channels/src/components/channel_posting_rules/use_slowmode.tsx
+ create mode 100644 webapp/platform/types/src/channel_posting_rules.ts
+
+diff --git a/server/channels/api4/api.go b/server/channels/api4/api.go
+index b058db68d6fa..56554545abd7 100644
+--- a/server/channels/api4/api.go
++++ b/server/channels/api4/api.go
+@@ -408,6 +408,7 @@ func Init(srv *app.Server) (*API, error) {
+ 	api.InitDrafts()
+ 	api.InitIPFiltering()
+ 	api.InitChannelBookmarks()
++	api.InitChannelPostingRules()
+ 	api.InitView()
+ 	api.InitBoard()
+ 	api.InitReports()
+diff --git a/server/channels/api4/channel_posting_rules.go b/server/channels/api4/channel_posting_rules.go
+new file mode 100644
+index 000000000000..09cbe6cb7598
+--- /dev/null
++++ b/server/channels/api4/channel_posting_rules.go
+@@ -0,0 +1,84 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++package api4
++
++import (
++	"encoding/json"
++	"net/http"
++
++	"github.com/mattermost/mattermost/server/public/model"
++	"github.com/mattermost/mattermost/server/public/shared/mlog"
++)
++
++func (api *API) InitChannelPostingRules() {
++	api.BaseRoutes.Channel.Handle("/posting_rules", api.APISessionRequired(getChannelPostingRules)).Methods(http.MethodGet)
++	api.BaseRoutes.Channel.Handle("/posting_rules", api.APISessionRequired(updateChannelPostingRules)).Methods(http.MethodPut)
++}
++
++func getChannelPostingRules(c *Context, w http.ResponseWriter, r *http.Request) {
++	c.RequireChannelId()
++	if c.Err != nil {
++		return
++	}
++
++	channel, appErr := c.App.GetChannel(c.AppContext, c.Params.ChannelId)
++	if appErr != nil {
++		c.Err = appErr
++		return
++	}
++
++	if ok, _ := c.App.SessionHasPermissionToReadChannel(c.AppContext, *c.AppContext.Session(), channel); !ok {
++		c.SetPermissionError(model.PermissionReadChannelContent)
++		return
++	}
++
++	rules, appErr := c.App.GetChannelPostingRules(channel.Id)
++	if appErr != nil {
++		c.Err = appErr
++		return
++	}
++
++	if err := json.NewEncoder(w).Encode(rules); err != nil {
++		c.Logger.Warn("Error while writing response", mlog.Err(err))
++	}
++}
++
++func updateChannelPostingRules(c *Context, w http.ResponseWriter, r *http.Request) {
++	c.RequireChannelId()
++	if c.Err != nil {
++		return
++	}
++
++	var rules model.ChannelPostingRules
++	if err := json.NewDecoder(r.Body).Decode(&rules); err != nil {
++		c.SetInvalidParamWithErr("posting_rules", err)
++		return
++	}
++
++	auditRec := c.MakeAuditRecord("updateChannelPostingRules", model.AuditStatusFail)
++	defer c.LogAuditRec(auditRec)
++	model.AddEventParameterToAuditRec(auditRec, "channel_id", c.Params.ChannelId)
++	model.AddEventParameterAuditableToAuditRec(auditRec, "posting_rules", &rules)
++
++	if ok, _ := c.App.SessionHasPermissionToChannel(c.AppContext, *c.AppContext.Session(), c.Params.ChannelId, model.PermissionManageChannelRoles); !ok {
++		c.SetPermissionError(model.PermissionManageChannelRoles)
++		return
++	}
++
++	channel, appErr := c.App.GetChannel(c.AppContext, c.Params.ChannelId)
++	if appErr != nil {
++		c.Err = appErr
++		return
++	}
++
++	if appErr := c.App.SaveChannelPostingRules(channel, &rules); appErr != nil {
++		c.Err = appErr
++		return
++	}
++
++	auditRec.Success()
++	if err := json.NewEncoder(w).Encode(rules); err != nil {
++		c.Logger.Warn("Error while writing response", mlog.Err(err))
++	}
++}
+diff --git a/server/channels/api4/channel_posting_rules_test.go b/server/channels/api4/channel_posting_rules_test.go
+new file mode 100644
+index 000000000000..4a4f7103e3df
+--- /dev/null
++++ b/server/channels/api4/channel_posting_rules_test.go
+@@ -0,0 +1,293 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++package api4
++
++import (
++	"context"
++	"encoding/json"
++	"net/http"
++	"strings"
++	"sync"
++	"testing"
++
++	"github.com/stretchr/testify/require"
++
++	"github.com/mattermost/mattermost/server/public/model"
++)
++
++func storeChannelPostingRules(t *testing.T, client *model.Client4, channelID string, rules model.ChannelPostingRules) (*http.Response, error) {
++	t.Helper()
++	resp, err := client.DoAPIPutJSON(context.Background(), "/channels/"+channelID+"/posting_rules", rules)
++	if resp != nil {
++		resp.Body.Close()
++	}
++	return resp, err
++}
++
++func fetchChannelPostingRules(t *testing.T, client *model.Client4, channelID string) model.ChannelPostingRules {
++	t.Helper()
++	resp, err := client.DoAPIGet(context.Background(), "/channels/"+channelID+"/posting_rules", "")
++	require.NoError(t, err)
++	defer resp.Body.Close()
++	var rules model.ChannelPostingRules
++	require.NoError(t, json.NewDecoder(resp.Body).Decode(&rules))
++	return rules
++}
++
++func newChannelMemberClient(t *testing.T, th *TestHelper, channel *model.Channel) (*model.User, *model.Client4) {
++	t.Helper()
++	user := th.CreateUser(t)
++	th.LinkUserToTeam(t, user, th.BasicTeam)
++	th.AddUserToChannel(t, user, channel)
++	client := th.CreateClient()
++	_, _, err := client.Login(context.Background(), user.Username, user.Password)
++	require.NoError(t, err)
++	return user, client
++}
++
++func postMessage(client *model.Client4, channelID, rootID string) error {
++	_, _, err := client.CreatePost(context.Background(), &model.Post{ChannelId: channelID, RootId: rootID, Message: "message_" + model.NewId()})
++	return err
++}
++
++func TestChannelPostingRulesAPI(t *testing.T) {
++	mainHelper.Parallel(t)
++	th := Setup(t).InitBasic(t)
++
++	channel := th.CreatePublicChannel(t)
++	_, memberClient := newChannelMemberClient(t, th, channel)
++
++	t.Run("rules are off by default", func(t *testing.T) {
++		require.Equal(t, model.ChannelPostingRules{}, fetchChannelPostingRules(t, memberClient, channel.Id))
++	})
++
++	t.Run("a member cannot change the rules", func(t *testing.T) {
++		resp, err := storeChannelPostingRules(t, memberClient, channel.Id, model.ChannelPostingRules{SlowmodeSeconds: 30})
++		require.Error(t, err)
++		require.Equal(t, http.StatusForbidden, resp.StatusCode)
++	})
++
++	t.Run("a channel admin sets slowmode and members can read it", func(t *testing.T) {
++		_, err := storeChannelPostingRules(t, th.Client, channel.Id, model.ChannelPostingRules{SlowmodeSeconds: 30})
++		require.NoError(t, err)
++		require.Equal(t, 30, fetchChannelPostingRules(t, memberClient, channel.Id).SlowmodeSeconds)
++	})
++
++	t.Run("an interval outside the allowed options is rejected", func(t *testing.T) {
++		resp, err := storeChannelPostingRules(t, th.Client, channel.Id, model.ChannelPostingRules{SlowmodeSeconds: 42})
++		CheckErrorID(t, err, "model.channel_posting_rules.slowmode_seconds.app_error")
++		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
++	})
++
++	t.Run("rules are cached and a save takes effect on the next post", func(t *testing.T) {
++		channel := th.CreatePublicChannel(t)
++		_, client := newChannelMemberClient(t, th, channel)
++		require.Equal(t, model.ChannelPostingRules{}, fetchChannelPostingRules(t, client, channel.Id))
++
++		_, err := storeChannelPostingRules(t, th.Client, channel.Id, model.ChannelPostingRules{SlowmodeSeconds: 60})
++		require.NoError(t, err)
++		require.NoError(t, postMessage(client, channel.Id, ""))
++		CheckErrorID(t, postMessage(client, channel.Id, ""), "api.post.create_post.slowmode.app_error")
++
++		_, err = storeChannelPostingRules(t, th.Client, channel.Id, model.ChannelPostingRules{})
++		require.NoError(t, err)
++		require.NoError(t, postMessage(client, channel.Id, ""))
++
++		require.NoError(t, th.App.Srv().Store().System().SaveOrUpdate(&model.System{Name: "channel_posting_rules_" + channel.Id, Value: `{"slowmode_seconds":60}`}))
++		require.NoError(t, postMessage(client, channel.Id, ""))
++	})
++
++	t.Run("rules cannot be set on a direct message", func(t *testing.T) {
++		dm := th.CreateDmChannel(t, th.BasicUser2)
++		_, err := storeChannelPostingRules(t, th.SystemAdminClient, dm.Id, model.ChannelPostingRules{SlowmodeSeconds: 30})
++		CheckErrorID(t, err, "app.channel_posting_rules.dm_gm.app_error")
++	})
++}
++
++func TestSlowmodeConcurrentPosts(t *testing.T) {
++	mainHelper.Parallel(t)
++	th := Setup(t).InitBasic(t)
++
++	channel := th.CreatePublicChannel(t)
++	_, err := storeChannelPostingRules(t, th.Client, channel.Id, model.ChannelPostingRules{SlowmodeSeconds: 60})
++	require.NoError(t, err)
++	_, client := newChannelMemberClient(t, th, channel)
++
++	errs := make([]error, 10)
++	var wg sync.WaitGroup
++	for i := range errs {
++		wg.Go(func() { errs[i] = postMessage(client, channel.Id, "") })
++	}
++	wg.Wait()
++
++	succeeded := 0
++	for _, err := range errs {
++		if err == nil {
++			succeeded++
++			continue
++		}
++		CheckErrorID(t, err, "api.post.create_post.slowmode.app_error")
++	}
++	require.Equal(t, 1, succeeded)
++}
++
++func TestSlowmode(t *testing.T) {
++	mainHelper.Parallel(t)
++	th := Setup(t).InitBasic(t)
++
++	channel := th.CreatePublicChannel(t)
++	_, err := storeChannelPostingRules(t, th.Client, channel.Id, model.ChannelPostingRules{SlowmodeSeconds: 60})
++	require.NoError(t, err)
++
++	t.Run("a second root post or reply inside the interval is rejected with the seconds left", func(t *testing.T) {
++		_, client := newChannelMemberClient(t, th, channel)
++		root, _, err := client.CreatePost(context.Background(), &model.Post{ChannelId: channel.Id, Message: "first"})
++		require.NoError(t, err)
++
++		for _, rootID := range []string{"", root.Id} {
++			err = postMessage(client, channel.Id, rootID)
++			CheckErrorID(t, err, "api.post.create_post.slowmode.app_error")
++			var appErr *model.AppError
++			require.ErrorAs(t, err, &appErr)
++			require.Equal(t, http.StatusTooManyRequests, appErr.StatusCode)
++			require.Regexp(t, `You can post again in (59|60) seconds\.`, appErr.Message)
++		}
++	})
++
++	t.Run("the interval is per user", func(t *testing.T) {
++		_, first := newChannelMemberClient(t, th, channel)
++		_, second := newChannelMemberClient(t, th, channel)
++		require.NoError(t, postMessage(first, channel.Id, ""))
++		require.NoError(t, postMessage(second, channel.Id, ""))
++	})
++
++	t.Run("deleting the last post does not reset the interval", func(t *testing.T) {
++		_, client := newChannelMemberClient(t, th, channel)
++		post, _, err := client.CreatePost(context.Background(), &model.Post{ChannelId: channel.Id, Message: "first"})
++		require.NoError(t, err)
++		_, err = client.DeletePost(context.Background(), post.Id)
++		require.NoError(t, err)
++		CheckErrorID(t, postMessage(client, channel.Id, ""), "api.post.create_post.slowmode.app_error")
++	})
++
++	t.Run("posting is allowed again once the interval has passed", func(t *testing.T) {
++		user, client := newChannelMemberClient(t, th, channel)
++		_, err := th.App.Srv().Store().Post().Save(th.Context, &model.Post{
++			ChannelId: channel.Id,
++			UserId:    user.Id,
++			Message:   "an hour ago",
++			CreateAt:  model.GetMillis() - 61*1000,
++		})
++		require.NoError(t, err)
++		require.NoError(t, postMessage(client, channel.Id, ""))
++		CheckErrorID(t, postMessage(client, channel.Id, ""), "api.post.create_post.slowmode.app_error")
++	})
++
++	t.Run("the join message does not start the interval", func(t *testing.T) {
++		user := th.CreateUser(t)
++		th.LinkUserToTeam(t, user, th.BasicTeam)
++		client := th.CreateClient()
++		_, _, err := client.Login(context.Background(), user.Username, user.Password)
++		require.NoError(t, err)
++		_, _, err = client.AddChannelMember(context.Background(), channel.Id, user.Id)
++		require.NoError(t, err)
++		require.NoError(t, postMessage(client, channel.Id, ""))
++	})
++
++	t.Run("channel admins are exempt", func(t *testing.T) {
++		user, client := newChannelMemberClient(t, th, channel)
++		th.MakeUserChannelAdmin(t, user, channel)
++		require.NoError(t, postMessage(client, channel.Id, ""))
++		require.NoError(t, postMessage(client, channel.Id, ""))
++	})
++
++	t.Run("team admins are exempt", func(t *testing.T) {
++		user, client := newChannelMemberClient(t, th, channel)
++		th.UpdateUserToTeamAdmin(t, user, th.BasicTeam)
++		require.NoError(t, postMessage(client, channel.Id, ""))
++		require.NoError(t, postMessage(client, channel.Id, ""))
++	})
++
++	t.Run("system admins are exempt", func(t *testing.T) {
++		th.LinkUserToTeam(t, th.SystemAdminUser, th.BasicTeam)
++		th.AddUserToChannel(t, th.SystemAdminUser, channel)
++		require.NoError(t, postMessage(th.SystemAdminClient, channel.Id, ""))
++		require.NoError(t, postMessage(th.SystemAdminClient, channel.Id, ""))
++	})
++
++	t.Run("bots are exempt", func(t *testing.T) {
++		th.App.UpdateConfig(func(cfg *model.Config) { *cfg.ServiceSettings.EnableBotAccountCreation = true })
++		bot := th.CreateBotWithSystemAdminClient(t)
++		botUser, appErr := th.App.GetUser(th.Context, bot.UserId)
++		require.Nil(t, appErr)
++		th.LinkUserToTeam(t, botUser, th.BasicTeam)
++		th.AddUserToChannel(t, botUser, channel)
++		for range 2 {
++			_, _, appErr = th.App.CreatePostAsUser(th.Context, &model.Post{ChannelId: channel.Id, UserId: bot.UserId, Message: "beep"}, "", false)
++			require.Nil(t, appErr)
++		}
++	})
++
++	t.Run("incoming webhook posts are exempt", func(t *testing.T) {
++		th.App.UpdateConfig(func(cfg *model.Config) { *cfg.ServiceSettings.EnableIncomingWebhooks = true })
++		user, _ := newChannelMemberClient(t, th, channel)
++		hook, appErr := th.App.CreateIncomingWebhookForChannel(user.Id, channel, &model.IncomingWebhook{ChannelId: channel.Id})
++		require.Nil(t, appErr)
++		for range 2 {
++			resp, err := http.Post(th.Client.URL+"/hooks/"+hook.Id, "application/json", strings.NewReader(`{"text": "hook"}`))
++			require.NoError(t, err)
++			resp.Body.Close()
++			require.Equal(t, http.StatusOK, resp.StatusCode)
++		}
++	})
++
++	t.Run("built-in slash commands such as /me are slowed down", func(t *testing.T) {
++		_, client := newChannelMemberClient(t, th, channel)
++		require.NoError(t, postMessage(client, channel.Id, ""))
++		_, _, err := client.ExecuteCommand(context.Background(), channel.Id, "/me waves")
++		CheckErrorID(t, err, "api.post.create_post.slowmode.app_error")
++	})
++
++	t.Run("CreatePostMissingChannel, which /echo posts through, is slowed down", func(t *testing.T) {
++		user, client := newChannelMemberClient(t, th, channel)
++		require.NoError(t, postMessage(client, channel.Id, ""))
++		_, _, appErr := th.App.CreatePostMissingChannel(th.Context, &model.Post{ChannelId: channel.Id, UserId: user.Id, Message: "echo"}, true, true)
++		require.NotNil(t, appErr)
++		require.Equal(t, "api.post.create_post.slowmode.app_error", appErr.Id)
++	})
++
++	t.Run("a scheduled post that would break slowmode fails as unable to send", func(t *testing.T) {
++		user, _ := newChannelMemberClient(t, th, channel)
++		for range 2 {
++			_, err := th.App.Srv().Store().ScheduledPost().CreateScheduledPost(th.Context, &model.ScheduledPost{
++				Draft:       model.Draft{CreateAt: model.GetMillis(), UserId: user.Id, ChannelId: channel.Id, Message: "scheduled"},
++				ScheduledAt: model.GetMillis() - 1000,
++			})
++			require.NoError(t, err)
++		}
++
++		th.App.ProcessScheduledPosts(th.Context)
++
++		remaining, err := th.App.Srv().Store().ScheduledPost().GetScheduledPostsForUser(th.Context, user.Id, th.BasicTeam.Id)
++		require.NoError(t, err)
++		require.Len(t, remaining, 1)
++		require.Equal(t, model.ScheduledPostErrorUnableToSend, remaining[0].ErrorCode)
++	})
++
++	t.Run("system messages and plugin posts are exempt", func(t *testing.T) {
++		user, client := newChannelMemberClient(t, th, channel)
++		require.NoError(t, postMessage(client, channel.Id, ""))
++		_, _, appErr := th.App.CreatePost(th.Context, &model.Post{ChannelId: channel.Id, UserId: user.Id, Type: model.PostTypeHeaderChange, Message: "header"}, channel, model.CreatePostFlags{})
++		require.Nil(t, appErr)
++		_, _, appErr = th.App.CreatePost(th.Context, &model.Post{ChannelId: channel.Id, UserId: user.Id, Message: "plugin"}, channel, model.CreatePostFlags{FromPlugin: true})
++		require.Nil(t, appErr)
++	})
++
++	t.Run("direct messages are never slowed down", func(t *testing.T) {
++		dm := th.CreateDmChannel(t, th.BasicUser2)
++		require.NoError(t, th.App.Srv().Store().System().SaveOrUpdate(&model.System{Name: "channel_posting_rules_" + dm.Id, Value: `{"slowmode_seconds":60}`}))
++		require.NoError(t, postMessage(th.Client, dm.Id, ""))
++		require.NoError(t, postMessage(th.Client, dm.Id, ""))
++	})
++}
+diff --git a/server/channels/app/channel_posting_rules.go b/server/channels/app/channel_posting_rules.go
+new file mode 100644
+index 000000000000..621c35763c11
+--- /dev/null
++++ b/server/channels/app/channel_posting_rules.go
+@@ -0,0 +1,125 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++package app
++
++import (
++	"encoding/json"
++	"errors"
++	"net/http"
++
++	"github.com/mattermost/mattermost/server/public/model"
++	"github.com/mattermost/mattermost/server/public/shared/request"
++	"github.com/mattermost/mattermost/server/v8/channels/store"
++)
++
++const channelPostingRulesKeyPrefix = "channel_posting_rules_"
++
++func (a *App) GetChannelPostingRules(channelID string) (*model.ChannelPostingRules, *model.AppError) {
++	var cached model.ChannelPostingRules
++	if err := a.Srv().channelPostingRulesCache.Get(channelID, &cached); err == nil {
++		return &cached, nil
++	}
++
++	rules := &model.ChannelPostingRules{}
++	system, err := a.Srv().Store().System().GetByName(channelPostingRulesKeyPrefix + channelID)
++	var nfErr *store.ErrNotFound
++	switch {
++	case errors.As(err, &nfErr):
++	case err != nil:
++		return nil, model.NewAppError("GetChannelPostingRules", "app.channel_posting_rules.get.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
++	default:
++		if err := json.Unmarshal([]byte(system.Value), rules); err != nil {
++			return nil, model.NewAppError("GetChannelPostingRules", "app.channel_posting_rules.get.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
++		}
++	}
++
++	if err := a.Srv().channelPostingRulesCache.SetWithDefaultExpiry(channelID, rules); err != nil {
++		return nil, model.NewAppError("GetChannelPostingRules", "app.channel_posting_rules.get.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
++	}
++	return rules, nil
++}
++
++func (a *App) SaveChannelPostingRules(channel *model.Channel, rules *model.ChannelPostingRules) *model.AppError {
++	if channel.IsGroupOrDirect() {
++		return model.NewAppError("SaveChannelPostingRules", "app.channel_posting_rules.dm_gm.app_error", nil, "", http.StatusBadRequest)
++	}
++
++	if appErr := rules.IsValid(); appErr != nil {
++		return appErr
++	}
++
++	value, err := json.Marshal(rules)
++	if err != nil {
++		return model.NewAppError("SaveChannelPostingRules", "app.channel_posting_rules.save.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
++	}
++
++	if err := a.Srv().Store().System().SaveOrUpdate(&model.System{Name: channelPostingRulesKeyPrefix + channel.Id, Value: string(value)}); err != nil {
++		return model.NewAppError("SaveChannelPostingRules", "app.channel_posting_rules.save.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
++	}
++
++	if err := a.Srv().channelPostingRulesCache.Remove(channel.Id); err != nil {
++		return model.NewAppError("SaveChannelPostingRules", "app.channel_posting_rules.save.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
++	}
++	return nil
++}
++
++func isChannelPostingRulesError(appErr *model.AppError) bool {
++	return appErr.Id == "api.post.create_post.slowmode.app_error"
++}
++
++func (a *App) enforceChannelPostingRules(rctx request.CTX, post *model.Post, channel *model.Channel, user *model.User, flags model.CreatePostFlags) (func(), *model.AppError) {
++	noop := func() {}
++	if channel.IsGroupOrDirect() || post.IsSystemMessage() || user.IsBot || flags.FromIncomingWebhook || flags.FromPlugin {
++		return noop, nil
++	}
++
++	rules, appErr := a.GetChannelPostingRules(channel.Id)
++	if appErr != nil {
++		return nil, appErr
++	}
++	if rules.SlowmodeSeconds == 0 {
++		return noop, a.checkChannelPostingRules(rctx, post, channel)
++	}
++
++	// Held until the post is saved. An in-process lock suffices because Mattermax runs single-node.
++	unlock := a.Srv().channelPostingRulesLocks.lock(channel.Id + user.Id)
++	if appErr := a.checkChannelPostingRules(rctx, post, channel); appErr != nil {
++		unlock()
++		return nil, appErr
++	}
++	return unlock, nil
++}
++
++func (a *App) checkChannelPostingRules(rctx request.CTX, post *model.Post, channel *model.Channel) *model.AppError {
++	rules, appErr := a.GetChannelPostingRules(channel.Id)
++	if appErr != nil {
++		return appErr
++	}
++
++	if rules.SlowmodeSeconds == 0 {
++		return nil
++	}
++
++	if ok, _ := a.HasPermissionToChannel(rctx, post.UserId, channel.Id, model.PermissionManageChannelRoles); ok {
++		return nil
++	}
++
++	return a.checkSlowmode(post, channel, rules.SlowmodeSeconds)
++}
++
++func (a *App) checkSlowmode(post *model.Post, channel *model.Channel, slowmodeSeconds int) *model.AppError {
++	interval := int64(slowmodeSeconds) * 1000
++	now := model.GetMillis()
++	lastCreateAt, err := a.Srv().Store().Post().GetLastCreateAtForUserInChannel(channel.Id, post.UserId, now-interval)
++	if err != nil {
++		return model.NewAppError("checkSlowmode", "app.channel_posting_rules.get.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
++	}
++
++	if lastCreateAt == 0 {
++		return nil
++	}
++
++	secondsLeft := (lastCreateAt + interval - now + 999) / 1000
++	return model.NewAppError("createPost", "api.post.create_post.slowmode.app_error", map[string]any{"Seconds": secondsLeft}, "", http.StatusTooManyRequests)
++}
+diff --git a/server/channels/app/command.go b/server/channels/app/command.go
+index 2a3472801a98..8fd80cc794e8 100644
+--- a/server/channels/app/command.go
++++ b/server/channels/app/command.go
+@@ -678,6 +678,10 @@ func (a *App) HandleCommandResponse(rctx request.CTX, command *model.Command, ar
+ 		}
+ 	}
+ 
++	if lastError != nil && isChannelPostingRulesError(lastError) {
++		return response, lastError
++	}
++
+ 	if lastError != nil {
+ 		return response, model.NewAppError("command", "api.command.execute_command.create_post_failed.app_error", map[string]any{"Trigger": trigger}, "", http.StatusInternalServerError)
+ 	}
+diff --git a/server/channels/app/keyed_mutex.go b/server/channels/app/keyed_mutex.go
+new file mode 100644
+index 000000000000..292d84af9298
+--- /dev/null
++++ b/server/channels/app/keyed_mutex.go
+@@ -0,0 +1,41 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++package app
++
++import "sync"
++
++type keyedMutex struct {
++	mu      sync.Mutex
++	entries map[string]*keyedMutexEntry
++}
++
++type keyedMutexEntry struct {
++	sync.Mutex
++	refs int
++}
++
++func (k *keyedMutex) lock(key string) func() {
++	k.mu.Lock()
++	if k.entries == nil {
++		k.entries = map[string]*keyedMutexEntry{}
++	}
++	entry := k.entries[key]
++	if entry == nil {
++		entry = &keyedMutexEntry{}
++		k.entries[key] = entry
++	}
++	entry.refs++
++	k.mu.Unlock()
++
++	entry.Lock()
++	return func() {
++		entry.Unlock()
++		k.mu.Lock()
++		entry.refs--
++		if entry.refs == 0 {
++			delete(k.entries, key)
++		}
++		k.mu.Unlock()
++	}
++}
+diff --git a/server/channels/app/post.go b/server/channels/app/post.go
+index 58c842f5f172..bc30d1fe946a 100644
+--- a/server/channels/app/post.go
++++ b/server/channels/app/post.go
+@@ -265,6 +265,12 @@ func (a *App) CreatePost(rctx request.CTX, post *model.Post, channel *model.Chan
+ 		}
+ 	}
+ 
++	unlockPostingRules, err := a.enforceChannelPostingRules(rctx, post, channel, user, flags)
++	if err != nil {
++		return nil, false, err
++	}
++	defer unlockPostingRules()
++
+ 	if user.IsBot {
+ 		post.AddProp(model.PostPropsFromBot, "true")
+ 	}
+diff --git a/server/channels/app/scheduled_post_job.go b/server/channels/app/scheduled_post_job.go
+index d78b66f74af9..a46eb96ab6f8 100644
+--- a/server/channels/app/scheduled_post_job.go
++++ b/server/channels/app/scheduled_post_job.go
+@@ -254,6 +254,9 @@ func (a *App) postScheduledPost(rctx request.CTX, scheduledPost *model.Scheduled
+ 		)
+ 
+ 		scheduledPost.ErrorCode = model.ScheduledPostErrorUnknownError
++		if isChannelPostingRulesError(appErr) {
++			scheduledPost.ErrorCode = model.ScheduledPostErrorUnableToSend
++		}
+ 		return scheduledPostFailed, appErr
+ 	}
+ 
+diff --git a/server/channels/app/server.go b/server/channels/app/server.go
+index 74bd6abd64be..5a48eb70e8c3 100644
+--- a/server/channels/app/server.go
++++ b/server/channels/app/server.go
+@@ -128,6 +128,9 @@ type Server struct {
+ 	clusterLeaderListenerId string
+ 	loggerLicenseListenerId string
+ 
++	channelPostingRulesCache cache.Cache
++	channelPostingRulesLocks keyedMutex
++
+ 	pushNotificationServerLicenseListenerId       string
+ 	pushNotificationServerClusterLeaderListenerId string
+ 
+@@ -448,6 +451,13 @@ func NewServer(options ...Option) (*Server, error) {
+ 	}); err != nil {
+ 		return nil, errors.Wrap(err, "Unable to create opengraphdata cache")
+ 	}
++	if s.channelPostingRulesCache, err = s.platform.CacheProvider().NewCache(&cache.CacheOptions{
++		Name:          "channel_posting_rules",
++		Size:          model.ChannelCacheSize,
++		DefaultExpiry: 15 * time.Minute,
++	}); err != nil {
++		return nil, errors.Wrap(err, "Unable to create channel posting rules cache")
++	}
+ 
+ 	s.createPushNotificationsHub(request.EmptyContext(s.Log()))
+ 
+diff --git a/server/channels/store/retrylayer/retrylayer.go b/server/channels/store/retrylayer/retrylayer.go
+index e6c6a5ab513c..d46178ce78a1 100644
+--- a/server/channels/store/retrylayer/retrylayer.go
++++ b/server/channels/store/retrylayer/retrylayer.go
+@@ -8950,6 +8950,27 @@ func (s *RetryLayerPostStore) GetFlaggedPostsForTeam(userID string, teamID strin
+ 
+ }
+ 
++func (s *RetryLayerPostStore) GetLastCreateAtForUserInChannel(channelID string, userID string, since int64) (int64, error) {
++
++	tries := 0
++	for {
++		result, err := s.PostStore.GetLastCreateAtForUserInChannel(channelID, userID, since)
++		if err == nil {
++			return result, nil
++		}
++		if !isRepeatableError(err) {
++			return result, err
++		}
++		tries++
++		if tries >= 3 {
++			err = errors.Wrap(err, "giving up after 3 consecutive repeatable transaction failures")
++			return result, err
++		}
++		timepkg.Sleep(100 * timepkg.Millisecond)
++	}
++
++}
++
+ func (s *RetryLayerPostStore) GetMaxPostSize() int {
+ 
+ 	return s.PostStore.GetMaxPostSize()
+diff --git a/server/channels/store/sqlstore/post_store.go b/server/channels/store/sqlstore/post_store.go
+index e4e4250ab7e6..3661472298b3 100644
+--- a/server/channels/store/sqlstore/post_store.go
++++ b/server/channels/store/sqlstore/post_store.go
+@@ -1545,6 +1545,22 @@ func (s *SqlPostStore) HasAutoResponsePostByUserSince(options model.GetPostsSinc
+ 	return exist, nil
+ }
+ 
++func (s *SqlPostStore) GetLastCreateAtForUserInChannel(channelID, userID string, since int64) (int64, error) {
++	query := s.getQueryBuilder().
++		Select("COALESCE(MAX(CreateAt), 0)").
++		From("Posts").
++		Where(sq.Eq{"ChannelId": channelID, "UserId": userID}).
++		Where(sq.Gt{"CreateAt": since}).
++		Where(sq.NotLike{"Type": model.PostSystemMessagePrefix + "%"})
++
++	var createAt int64
++	if err := s.GetMaster().GetBuilder(&createAt, query); err != nil {
++		return 0, errors.Wrapf(err, "failed to get last post time in channelId=%s for userId=%s", channelID, userID)
++	}
++
++	return createAt, nil
++}
++
+ func (s *SqlPostStore) GetPostsSinceForSync(options model.GetPostsSinceForSyncOptions, cursor model.GetPostsSinceForSyncCursor, limit int) ([]*model.Post, model.GetPostsSinceForSyncCursor, error) {
+ 	query := s.postsQuery.
+ 		OrderBy("Posts.UpdateAt", "Id").
+diff --git a/server/channels/store/store.go b/server/channels/store/store.go
+index b4fe9cf32ae8..3b7482a4b8b3 100644
+--- a/server/channels/store/store.go
++++ b/server/channels/store/store.go
+@@ -435,6 +435,7 @@ type PostStore interface {
+ 	SearchPostsForUser(rctx request.CTX, paramsList []*model.SearchParams, userID, teamID string, page, perPage int) (*model.PostSearchResults, error)
+ 	GetOldestEntityCreationTime() (int64, error)
+ 	HasAutoResponsePostByUserSince(options model.GetPostsSinceOptions, userID string) (bool, error)
++	GetLastCreateAtForUserInChannel(channelID, userID string, since int64) (int64, error)
+ 	GetPostsSinceForSync(options model.GetPostsSinceForSyncOptions, cursor model.GetPostsSinceForSyncCursor, limit int) ([]*model.Post, model.GetPostsSinceForSyncCursor, error)
+ 	SetPostReminder(reminder *model.PostReminder) error
+ 	GetPostReminders(now int64) ([]*model.PostReminder, error)
+diff --git a/server/channels/store/storetest/mocks/PostStore.go b/server/channels/store/storetest/mocks/PostStore.go
+index 10b4eb529270..dcb5b19f4807 100644
+--- a/server/channels/store/storetest/mocks/PostStore.go
++++ b/server/channels/store/storetest/mocks/PostStore.go
+@@ -371,6 +371,34 @@ func (_m *PostStore) GetFlaggedPostsForTeam(userID string, teamID string, offset
+ 	return r0, r1
+ }
+ 
++// GetLastCreateAtForUserInChannel provides a mock function with given fields: channelID, userID, since
++func (_m *PostStore) GetLastCreateAtForUserInChannel(channelID string, userID string, since int64) (int64, error) {
++	ret := _m.Called(channelID, userID, since)
++
++	if len(ret) == 0 {
++		panic("no return value specified for GetLastCreateAtForUserInChannel")
++	}
++
++	var r0 int64
++	var r1 error
++	if rf, ok := ret.Get(0).(func(string, string, int64) (int64, error)); ok {
++		return rf(channelID, userID, since)
++	}
++	if rf, ok := ret.Get(0).(func(string, string, int64) int64); ok {
++		r0 = rf(channelID, userID, since)
++	} else {
++		r0 = ret.Get(0).(int64)
++	}
++
++	if rf, ok := ret.Get(1).(func(string, string, int64) error); ok {
++		r1 = rf(channelID, userID, since)
++	} else {
++		r1 = ret.Error(1)
++	}
++
++	return r0, r1
++}
++
+ // GetMaxPostSize provides a mock function with no fields
+ func (_m *PostStore) GetMaxPostSize() int {
+ 	ret := _m.Called()
+diff --git a/server/channels/store/timerlayer/timerlayer.go b/server/channels/store/timerlayer/timerlayer.go
+index 233295314f15..e1157f521194 100644
+--- a/server/channels/store/timerlayer/timerlayer.go
++++ b/server/channels/store/timerlayer/timerlayer.go
+@@ -7225,6 +7225,22 @@ func (s *TimerLayerPostStore) GetFlaggedPostsForTeam(userID string, teamID strin
+ 	return result, err
+ }
+ 
++func (s *TimerLayerPostStore) GetLastCreateAtForUserInChannel(channelID string, userID string, since int64) (int64, error) {
++	start := time.Now()
++
++	result, err := s.PostStore.GetLastCreateAtForUserInChannel(channelID, userID, since)
++
++	elapsed := float64(time.Since(start)) / float64(time.Second)
++	if s.Root.Metrics != nil {
++		success := "false"
++		if err == nil {
++			success = "true"
++		}
++		s.Root.Metrics.ObserveStoreMethodDuration("PostStore.GetLastCreateAtForUserInChannel", success, elapsed)
++	}
++	return result, err
++}
++
+ func (s *TimerLayerPostStore) GetMaxPostSize() int {
+ 	start := time.Now()
+ 
+diff --git a/server/i18n/en.json b/server/i18n/en.json
+index e2f887359747..ce304e723042 100644
+--- a/server/i18n/en.json
++++ b/server/i18n/en.json
+@@ -3818,6 +3818,11 @@
+     "translation": "Silent posts cannot use persistent notifications.",
+     "description": "API error when a post is marked both silent and persistent-notification, which conflict; both are message priority features."
+   },
++  {
++    "id": "api.post.create_post.slowmode.app_error",
++    "translation": "Slowmode is on in this channel. You can post again in {{.Seconds}} seconds.",
++    "description": "Error returned when a user posts in a channel with slowmode on before their per-user interval has passed. Seconds is the whole number of seconds until they can post again."
++  },
+   {
+     "id": "api.post.create_webhook_post.creating.app_error",
+     "translation": "Error creating post.",
+@@ -7614,6 +7619,21 @@
+     "translation": "Failed to record channel member history. Failed to update existing join record",
+     "description": "Internal API error when the server fails to close out a user's join record in the channel member history (used for compliance exports)."
+   },
++  {
++    "id": "app.channel_posting_rules.dm_gm.app_error",
++    "translation": "Posting rules cannot be set on direct or group messages.",
++    "description": "Error returned when someone tries to set slowmode or thread auto-archive on a direct or group message."
++  },
++  {
++    "id": "app.channel_posting_rules.get.app_error",
++    "translation": "Unable to get the channel posting rules.",
++    "description": "Error returned when the server cannot read a channel's posting rules (slowmode, thread auto-archive) from the database."
++  },
++  {
++    "id": "app.channel_posting_rules.save.app_error",
++    "translation": "Unable to save the channel posting rules.",
++    "description": "Error returned when the server cannot store a channel's posting rules (slowmode, thread auto-archive)."
++  },
+   {
+     "id": "app.cloud.preview_modal_bucket_url_not_configured",
+     "translation": "Preview bucket URL is not configured",
+@@ -14986,6 +15006,11 @@
+     "translation": "Invalid user id.",
+     "description": "API validation error when saving a channel membership record whose user ID is malformed."
+   },
++  {
++    "id": "model.channel_posting_rules.slowmode_seconds.app_error",
++    "translation": "Invalid slowmode interval.",
++    "description": "Validation error returned when a channel's slowmode interval is not one of the allowed values."
++  },
+   {
+     "id": "model.cluster.is_valid.create_at.app_error",
+     "translation": "CreateAt must be set.",
+diff --git a/server/public/model/channel_posting_rules.go b/server/public/model/channel_posting_rules.go
+new file mode 100644
+index 000000000000..5437465a0620
+--- /dev/null
++++ b/server/public/model/channel_posting_rules.go
+@@ -0,0 +1,28 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++package model
++
++import (
++	"net/http"
++	"slices"
++)
++
++var ChannelSlowmodeSecondsOptions = []int{0, 5, 10, 30, 60, 300, 900, 3600}
++
++type ChannelPostingRules struct {
++	SlowmodeSeconds int `json:"slowmode_seconds"`
++}
++
++func (r *ChannelPostingRules) Auditable() map[string]any {
++	return map[string]any{
++		"slowmode_seconds": r.SlowmodeSeconds,
++	}
++}
++
++func (r *ChannelPostingRules) IsValid() *AppError {
++	if !slices.Contains(ChannelSlowmodeSecondsOptions, r.SlowmodeSeconds) {
++		return NewAppError("ChannelPostingRules.IsValid", "model.channel_posting_rules.slowmode_seconds.app_error", nil, "", http.StatusBadRequest)
++	}
++	return nil
++}
+diff --git a/webapp/channels/src/components/advanced_text_editor/advanced_text_editor.tsx b/webapp/channels/src/components/advanced_text_editor/advanced_text_editor.tsx
+index 60c190846cce..37a8bd6b4cb9 100644
+--- a/webapp/channels/src/components/advanced_text_editor/advanced_text_editor.tsx
++++ b/webapp/channels/src/components/advanced_text_editor/advanced_text_editor.tsx
+@@ -32,6 +32,7 @@ import PostBoxIndicator from 'components/advanced_text_editor/post_box_indicator
+ import WysiwygEditor from 'components/advanced_text_editor/wysiwyg_editor/wysiwyg_editor';
+ import type {WysiwygEditorHandle} from 'components/advanced_text_editor/wysiwyg_editor/wysiwyg_editor';
+ import {makeAsyncComponent} from 'components/async_load';
++import {useSlowmodeNotice} from 'components/channel_posting_rules/use_slowmode';
+ import AutoHeightSwitcher from 'components/common/auto_height_switcher';
+ import useDidUpdate from 'components/common/hooks/useDidUpdate';
+ import useGetAgentsBridgeEnabled from 'components/common/hooks/useGetAgentsBridgeEnabled';
+@@ -480,9 +481,11 @@ const AdvancedTextEditor = ({
+         labels: burnOnReadLabels,
+         additionalControl: burnOnReadAdditionalControl,
+     } = useBurnOnRead(draft, handleDraftChange, focusTextbox, showPreview, false);
++    const slowmodeNotice = useSlowmodeNotice(channelId, isInEditMode);
++    const composerError = postError || slowmodeNotice;
+     const [handleSubmit, errorClass] = useSubmit(
+         draft,
+-        postError,
++        composerError,
+         channelId,
+         rootId,
+         serverError,
+@@ -1032,7 +1035,7 @@ const AdvancedTextEditor = ({
+                 <MessageWithMentionsFooter/>
+             )}
+             <Footer
+-                postError={postError}
++                postError={composerError}
+                 errorClass={errorClass}
+                 serverError={serverError}
+                 channelId={channelId}
+diff --git a/webapp/channels/src/components/advanced_text_editor/post_box_indicator/post_box_indicator.tsx b/webapp/channels/src/components/advanced_text_editor/post_box_indicator/post_box_indicator.tsx
+index 3215f7317920..a4caef3283ef 100644
+--- a/webapp/channels/src/components/advanced_text_editor/post_box_indicator/post_box_indicator.tsx
++++ b/webapp/channels/src/components/advanced_text_editor/post_box_indicator/post_box_indicator.tsx
+@@ -5,6 +5,7 @@ import React from 'react';
+ 
+ import RemoteUserHour from 'components/advanced_text_editor/remote_user_hour';
+ import ScheduledPostIndicator from 'components/advanced_text_editor/scheduled_post_indicator/scheduled_post_indicator';
++import SlowmodeIndicator from 'components/channel_posting_rules/slowmode_indicator';
+ 
+ import useTimePostBoxIndicator from '../use_post_box_indicator';
+ 
+@@ -27,6 +28,7 @@ export default function PostBoxIndicator({channelId, teammateDisplayName, locati
+ 
+     return (
+         <div className='postBoxIndicator'>
++            <SlowmodeIndicator channelId={channelId}/>
+             {
+                 showRemoteUserHour &&
+                 <RemoteUserHour
+diff --git a/webapp/channels/src/components/channel_posting_rules/channel_settings_moderation_tab.scss b/webapp/channels/src/components/channel_posting_rules/channel_settings_moderation_tab.scss
+new file mode 100644
+index 000000000000..1afc290bb211
+--- /dev/null
++++ b/webapp/channels/src/components/channel_posting_rules/channel_settings_moderation_tab.scss
+@@ -0,0 +1,29 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++.ChannelSettingsModal__moderationTab {
++    display: flex;
++    flex-direction: column;
++    gap: 32px;
++
++    &--with-save-panel {
++        padding-bottom: 80px;
++    }
++
++    &__section {
++        display: flex;
++        align-items: center;
++        gap: 24px;
++    }
++
++    &__text {
++        display: flex;
++        flex: 1;
++        flex-direction: column;
++        gap: 8px;
++    }
++
++    &__select {
++        width: 200px;
++    }
++}
+diff --git a/webapp/channels/src/components/channel_posting_rules/channel_settings_moderation_tab.test.tsx b/webapp/channels/src/components/channel_posting_rules/channel_settings_moderation_tab.test.tsx
+new file mode 100644
+index 000000000000..a976f3d08fcf
+--- /dev/null
++++ b/webapp/channels/src/components/channel_posting_rules/channel_settings_moderation_tab.test.tsx
+@@ -0,0 +1,75 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++import React from 'react';
++
++import {Client4} from 'mattermost-redux/client';
++
++import {renderWithContext, screen, userEvent, waitFor} from 'tests/react_testing_utils';
++import {TestHelper} from 'utils/test_helper';
++
++import ChannelSettingsModerationTab from './channel_settings_moderation_tab';
++
++async function chooseOption(label: string, option: string) {
++    await userEvent.click(screen.getByLabelText(label));
++    await userEvent.click(await screen.findByText(option));
++}
++
++describe('ChannelSettingsModerationTab', () => {
++    let getRules: jest.SpyInstance;
++    let updateRules: jest.SpyInstance;
++
++    beforeEach(() => {
++        getRules = jest.spyOn(Client4, 'getChannelPostingRules').mockResolvedValue({slowmode_seconds: 30});
++        updateRules = jest.spyOn(Client4, 'updateChannelPostingRules').mockImplementation(async (_channelId, rules) => rules);
++    });
++
++    afterEach(() => {
++        getRules.mockRestore();
++        updateRules.mockRestore();
++    });
++
++    it('shows the saved slowmode interval and saves a new one', async () => {
++        const setAreThereUnsavedChanges = jest.fn();
++        renderWithContext(
++            <ChannelSettingsModerationTab
++                channel={TestHelper.getChannelMock({id: 'settings_channel'})}
++                setAreThereUnsavedChanges={setAreThereUnsavedChanges}
++            />,
++        );
++
++        expect(await screen.findByText('30 seconds')).toBeInTheDocument();
++        expect(screen.queryByRole('button', {name: 'Save'})).not.toBeInTheDocument();
++
++        await chooseOption('Slowmode', '1 minute');
++        expect(setAreThereUnsavedChanges).toHaveBeenLastCalledWith(true);
++
++        await userEvent.click(screen.getByRole('button', {name: 'Save'}));
++
++        expect(updateRules).toHaveBeenCalledWith('settings_channel', {slowmode_seconds: 60});
++        expect(await screen.findByText('Settings saved')).toBeInTheDocument();
++        expect(setAreThereUnsavedChanges).toHaveBeenLastCalledWith(false);
++    });
++
++    it('resets an unsaved change', async () => {
++        renderWithContext(<ChannelSettingsModerationTab channel={TestHelper.getChannelMock({id: 'reset_channel'})}/>);
++
++        expect(await screen.findByText('30 seconds')).toBeInTheDocument();
++        await chooseOption('Slowmode', 'Off');
++        await userEvent.click(screen.getByRole('button', {name: 'Reset'}));
++
++        expect(screen.getByText('30 seconds')).toBeInTheDocument();
++        expect(updateRules).not.toHaveBeenCalled();
++    });
++
++    it('shows the server error when saving fails', async () => {
++        updateRules.mockRejectedValue({message: 'You do not have the appropriate permissions.'});
++        renderWithContext(<ChannelSettingsModerationTab channel={TestHelper.getChannelMock({id: 'error_channel'})}/>);
++
++        expect(await screen.findByText('30 seconds')).toBeInTheDocument();
++        await chooseOption('Slowmode', '5 minutes');
++        await userEvent.click(screen.getByRole('button', {name: 'Save'}));
++
++        await waitFor(() => expect(screen.getByText('You do not have the appropriate permissions.')).toBeInTheDocument());
++    });
++});
+diff --git a/webapp/channels/src/components/channel_posting_rules/channel_settings_moderation_tab.tsx b/webapp/channels/src/components/channel_posting_rules/channel_settings_moderation_tab.tsx
+new file mode 100644
+index 000000000000..423efcf775b9
+--- /dev/null
++++ b/webapp/channels/src/components/channel_posting_rules/channel_settings_moderation_tab.tsx
+@@ -0,0 +1,145 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++import isEqual from 'lodash/isEqual';
++import React, {useCallback, useEffect, useState} from 'react';
++import {useIntl} from 'react-intl';
++
++import type {ChannelPostingRules} from '@mattermost/types/channel_posting_rules';
++import type {Channel} from '@mattermost/types/channels';
++import type {ServerError} from '@mattermost/types/errors';
++
++import {Client4} from 'mattermost-redux/client';
++
++import DropdownInput from 'components/dropdown_input';
++import type {SaveChangesPanelState} from 'components/widgets/modals/components/save_changes_panel';
++import SaveChangesPanel from 'components/widgets/modals/components/save_changes_panel';
++
++import {slowmodeOptions} from './posting_rules_options';
++import type {PostingRuleOption} from './posting_rules_options';
++import {setChannelPostingRules, useChannelPostingRules} from './use_channel_posting_rules';
++
++import './channel_settings_moderation_tab.scss';
++
++const DEFAULT_RULES: ChannelPostingRules = {slowmode_seconds: 0};
++
++type Props = {
++    channel: Channel;
++    setAreThereUnsavedChanges?: (unsaved: boolean) => void;
++    showTabSwitchError?: boolean;
++};
++
++type SectionProps = {
++    name: string;
++    heading: string;
++    subheading: string;
++    options: PostingRuleOption[];
++    value: number;
++    onChange: (value: number) => void;
++};
++
++function PostingRuleSection({name, heading, subheading, options, value, onChange}: SectionProps) {
++    const {formatMessage} = useIntl();
++    const toSelectOption = (option: PostingRuleOption) => ({value: String(option.value), label: formatMessage(option.label, {count: option.count})});
++    const selected = options.find((option) => option.value === value) ?? options[0];
++
++    return (
++        <div className='ChannelSettingsModal__moderationTab__section'>
++            <div className='ChannelSettingsModal__moderationTab__text'>
++                <label
++                    className='Input_legend'
++                    htmlFor={name}
++                >
++                    {heading}
++                </label>
++                <span className='Input_subheading'>{subheading}</span>
++            </div>
++            <div className='ChannelSettingsModal__moderationTab__select'>
++                <DropdownInput
++                    name={name}
++                    testId={name}
++                    inputId={name}
++                    options={options.map(toSelectOption)}
++                    value={toSelectOption(selected)}
++                    onChange={(option) => onChange(Number(option.value))}
++                    isClearable={false}
++                    isSearchable={false}
++                />
++            </div>
++        </div>
++    );
++}
++
++export default function ChannelSettingsModerationTab({channel, setAreThereUnsavedChanges, showTabSwitchError}: Props) {
++    const {formatMessage} = useIntl();
++    const savedRules = useChannelPostingRules(channel.id) ?? DEFAULT_RULES;
++    const [editedRules, setEditedRules] = useState<ChannelPostingRules>();
++    const [panelState, setPanelState] = useState<SaveChangesPanelState>();
++    const [saving, setSaving] = useState(false);
++    const [saveError, setSaveError] = useState('');
++
++    const rules = editedRules ?? savedRules;
++    const hasChanges = !isEqual(rules, savedRules);
++    const showPanel = hasChanges || panelState === 'saved';
++
++    useEffect(() => {
++        setAreThereUnsavedChanges?.(hasChanges);
++    }, [hasChanges, setAreThereUnsavedChanges]);
++
++    const updateRules = useCallback((patch: Partial<ChannelPostingRules>) => {
++        setEditedRules({...rules, ...patch});
++        setPanelState('editing');
++        setSaveError('');
++    }, [rules]);
++
++    const handleSave = useCallback(async () => {
++        setSaving(true);
++        try {
++            const saved = await Client4.updateChannelPostingRules(channel.id, rules);
++            setChannelPostingRules(channel.id, saved);
++            setEditedRules(undefined);
++            setPanelState('saved');
++        } catch (error) {
++            setSaveError((error as ServerError).message);
++            setPanelState('error');
++        } finally {
++            setSaving(false);
++        }
++    }, [channel.id, rules]);
++
++    const handleCancel = useCallback(() => {
++        setEditedRules(undefined);
++        setPanelState(undefined);
++        setSaveError('');
++    }, []);
++
++    const handleClose = useCallback(() => setPanelState(undefined), []);
++
++    return (
++        <div
++            className={`ChannelSettingsModal__moderationTab${showPanel ? ' ChannelSettingsModal__moderationTab--with-save-panel' : ''}`}
++            data-testid='channel-settings-moderation-tab'
++        >
++            <PostingRuleSection
++                name='channelSlowmode'
++                heading={formatMessage({id: 'channel_settings.moderation.slowmode.heading', defaultMessage: 'Slowmode'})}
++                subheading={formatMessage({id: 'channel_settings.moderation.slowmode.subheading', defaultMessage: 'Members must wait this long between messages, including replies. Channel admins, team admins and system admins are exempt.'})}
++                options={slowmodeOptions}
++                value={rules.slowmode_seconds}
++                onChange={(value) => updateRules({slowmode_seconds: value})}
++            />
++            {showPanel && (
++                <SaveChangesPanel
++                    handleSubmit={handleSave}
++                    handleCancel={handleCancel}
++                    handleClose={handleClose}
++                    tabChangeError={showTabSwitchError}
++                    state={showTabSwitchError ? 'error' : panelState}
++                    saving={saving}
++                    customErrorMessage={saveError}
++                    cancelButtonText={formatMessage({id: 'channel_settings.save_changes_panel.reset', defaultMessage: 'Reset'})}
++                />
++            )}
++        </div>
++    );
++}
+diff --git a/webapp/channels/src/components/channel_posting_rules/channel_settings_moderation_tab_visibility.test.tsx b/webapp/channels/src/components/channel_posting_rules/channel_settings_moderation_tab_visibility.test.tsx
+new file mode 100644
+index 000000000000..143b092d3360
+--- /dev/null
++++ b/webapp/channels/src/components/channel_posting_rules/channel_settings_moderation_tab_visibility.test.tsx
+@@ -0,0 +1,73 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++import React from 'react';
++
++import type {ChannelType} from '@mattermost/types/channels';
++
++import {Client4} from 'mattermost-redux/client';
++import Permissions from 'mattermost-redux/constants/permissions';
++
++import ChannelSettingsModal from 'components/channel_settings_modal/channel_settings_modal';
++
++import {renderWithContext, screen} from 'tests/react_testing_utils';
++import {TestHelper} from 'utils/test_helper';
++
++function renderModal(channelType: ChannelType, channelPermissions: string[]) {
++    const channel = TestHelper.getChannelMock({id: 'channel_id', team_id: 'team_id', type: channelType, name: 'some-channel'});
++    return renderWithContext(
++        <ChannelSettingsModal
++            channelId={channel.id}
++            isOpen={true}
++            onExited={jest.fn()}
++        />,
++        {
++            entities: {
++                channels: {
++                    channels: {[channel.id]: channel},
++                    roles: {[channel.id]: new Set(['channel_role'])},
++                },
++                roles: {
++                    roles: {
++                        channel_role: {permissions: channelPermissions},
++                    },
++                },
++                teams: {
++                    currentTeamId: 'team_id',
++                    myMembers: {team_id: TestHelper.getTeamMembershipMock({team_id: 'team_id', roles: ''})},
++                },
++                users: {
++                    currentUserId: 'user_id',
++                    profiles: {user_id: TestHelper.getUserMock({id: 'user_id', roles: ''})},
++                },
++            },
++        },
++    );
++}
++
++describe('Moderation tab in channel settings', () => {
++    beforeEach(() => {
++        jest.spyOn(Client4, 'getChannelPostingRules').mockResolvedValue({slowmode_seconds: 0});
++    });
++
++    afterEach(() => {
++        jest.restoreAllMocks();
++    });
++
++    it('is shown to channel admins', async () => {
++        renderModal('O', [Permissions.MANAGE_PUBLIC_CHANNEL_PROPERTIES, Permissions.MANAGE_CHANNEL_ROLES]);
++        expect(await screen.findByRole('tab', {name: /moderation/i}, {timeout: 10000})).toBeInTheDocument();
++    });
++
++    it('is hidden from channel members', async () => {
++        renderModal('O', [Permissions.MANAGE_PUBLIC_CHANNEL_PROPERTIES]);
++        expect(await screen.findByRole('tab', {name: /info/i}, {timeout: 10000})).toBeInTheDocument();
++        expect(screen.queryByRole('tab', {name: /moderation/i})).not.toBeInTheDocument();
++    });
++
++    it('is hidden in group messages', async () => {
++        renderModal('G', [Permissions.MANAGE_PRIVATE_CHANNEL_PROPERTIES, Permissions.MANAGE_CHANNEL_ROLES]);
++        expect(await screen.findByRole('tab', {name: /info/i}, {timeout: 10000})).toBeInTheDocument();
++        expect(screen.queryByRole('tab', {name: /moderation/i})).not.toBeInTheDocument();
++    });
++});
+diff --git a/webapp/channels/src/components/channel_posting_rules/posting_rules_options.ts b/webapp/channels/src/components/channel_posting_rules/posting_rules_options.ts
+new file mode 100644
+index 000000000000..0efbf3ca5f31
+--- /dev/null
++++ b/webapp/channels/src/components/channel_posting_rules/posting_rules_options.ts
+@@ -0,0 +1,29 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++import {defineMessages} from 'react-intl';
++import type {MessageDescriptor} from 'react-intl';
++
++const messages = defineMessages({
++    off: {id: 'channel_posting_rules.off', defaultMessage: 'Off'},
++    seconds: {id: 'channel_posting_rules.seconds', defaultMessage: '{count, plural, one {# second} other {# seconds}}'},
++    minutes: {id: 'channel_posting_rules.minutes', defaultMessage: '{count, plural, one {# minute} other {# minutes}}'},
++    hours: {id: 'channel_posting_rules.hours', defaultMessage: '{count, plural, one {# hour} other {# hours}}'},
++});
++
++export type PostingRuleOption = {
++    value: number;
++    label: MessageDescriptor;
++    count?: number;
++};
++
++export const slowmodeOptions: PostingRuleOption[] = [
++    {value: 0, label: messages.off},
++    {value: 5, label: messages.seconds, count: 5},
++    {value: 10, label: messages.seconds, count: 10},
++    {value: 30, label: messages.seconds, count: 30},
++    {value: 60, label: messages.minutes, count: 1},
++    {value: 300, label: messages.minutes, count: 5},
++    {value: 900, label: messages.minutes, count: 15},
++    {value: 3600, label: messages.hours, count: 1},
++];
+diff --git a/webapp/channels/src/components/channel_posting_rules/slowmode.test.tsx b/webapp/channels/src/components/channel_posting_rules/slowmode.test.tsx
+new file mode 100644
+index 000000000000..b880a66cff69
+--- /dev/null
++++ b/webapp/channels/src/components/channel_posting_rules/slowmode.test.tsx
+@@ -0,0 +1,161 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++import React from 'react';
++
++import type {ChannelType} from '@mattermost/types/channels';
++
++import {Client4} from 'mattermost-redux/client';
++import Permissions from 'mattermost-redux/constants/permissions';
++
++import {onSubmit} from 'actions/views/create_comment';
++
++import AdvancedTextEditor from 'components/advanced_text_editor/advanced_text_editor';
++
++import {renderWithContext, screen, act, fireEvent} from 'tests/react_testing_utils';
++import {Locations} from 'utils/constants';
++import {TestHelper} from 'utils/test_helper';
++
++jest.mock('actions/views/create_comment', () => ({
++    ...jest.requireActual('actions/views/create_comment'),
++    onSubmit: jest.fn(() => () => Promise.resolve({data: true})),
++}));
++
++const mockedOnSubmit = jest.mocked(onSubmit);
++
++const currentUserId = 'current_user_id';
++const now = new Date('2026-11-12T12:00:00Z').getTime();
++
++function makeState(channelId: string, channelType: ChannelType, channelPermissions: string[], lastOwnPostAt?: number) {
++    return {
++        entities: {
++            general: {
++                config: {PostPriority: 'false', ExperimentalTimezone: 'false', EnableCustomEmoji: 'false', AllowSyncedDrafts: 'false'},
++                license: {IsLicensed: 'false'},
++            },
++            channels: {
++                currentChannelId: channelId,
++                channels: {
++                    [channelId]: TestHelper.getChannelMock({id: channelId, team_id: 'team_id', type: channelType, display_name: 'Town'}),
++                },
++                stats: {[channelId]: {member_count: 2}},
++                roles: {[channelId]: new Set(['channel_user'])},
++            },
++            posts: {
++                posts: lastOwnPostAt ? {
++                    own_post: TestHelper.getPostMock({id: 'own_post', channel_id: channelId, user_id: currentUserId, create_at: lastOwnPostAt, type: ''}),
++                    other_post: TestHelper.getPostMock({id: 'other_post', channel_id: channelId, user_id: 'other_user', create_at: now - 1000, type: ''}),
++                } : {},
++            },
++            roles: {
++                roles: {
++                    system_user: {permissions: [Permissions.CREATE_POST]},
++                    channel_user: {permissions: channelPermissions},
++                },
++            },
++            teams: {
++                currentTeamId: 'team_id',
++                teams: {team_id: TestHelper.getTeamMock({id: 'team_id'})},
++                myMembers: {team_id: TestHelper.getTeamMembershipMock({team_id: 'team_id', roles: ''})},
++            },
++            users: {
++                currentUserId,
++                profiles: {[currentUserId]: TestHelper.getUserMock({id: currentUserId, roles: 'system_user'})},
++                statuses: {[currentUserId]: 'online'},
++            },
++        },
++        websocket: {connectionId: 'connection_id'},
++    };
++}
++
++function renderComposer(channelId: string, state: ReturnType<typeof makeState>) {
++    return renderWithContext(
++        <AdvancedTextEditor
++            location={Locations.CENTER}
++            channelId={channelId}
++            rootId=''
++            isThreadView={false}
++        />,
++        state,
++    );
++}
++
++async function flushRulesRequest() {
++    await act(async () => {
++        await Promise.resolve();
++    });
++}
++
++async function typeAndSend(message: string) {
++    fireEvent.input(screen.getByTestId('post_textbox'), {target: {value: message}});
++    await act(async () => {
++        fireEvent.click(screen.getByTestId('SendMessageButton'));
++    });
++}
++
++describe('slowmode in the composer', () => {
++    let getRules: jest.SpyInstance;
++
++    beforeEach(() => {
++        jest.useFakeTimers({now, doNotFake: ['queueMicrotask', 'nextTick']});
++        mockedOnSubmit.mockClear();
++        getRules = jest.spyOn(Client4, 'getChannelPostingRules').mockResolvedValue({slowmode_seconds: 30});
++    });
++
++    afterEach(() => {
++        getRules.mockRestore();
++        jest.useRealTimers();
++    });
++
++    it('shows that slowmode is on and blocks sending until the interval since the last own post has passed', async () => {
++        renderComposer('slow_channel', makeState('slow_channel', 'O', [Permissions.CREATE_POST], now - 10000));
++        await flushRulesRequest();
++
++        expect(screen.getByText('Slowmode is on: one message every 30 seconds')).toBeInTheDocument();
++        expect(screen.getByText('Slowmode is on: you can post again in 20s')).toBeInTheDocument();
++
++        await typeAndSend('too soon');
++        expect(mockedOnSubmit).not.toHaveBeenCalled();
++
++        act(() => {
++            jest.advanceTimersByTime(5000);
++        });
++        expect(screen.getByText('Slowmode is on: you can post again in 15s')).toBeInTheDocument();
++
++        act(() => {
++            jest.advanceTimersByTime(15000);
++        });
++        expect(screen.queryByText(/you can post again/)).not.toBeInTheDocument();
++
++        await typeAndSend('on time');
++        expect(mockedOnSubmit).toHaveBeenCalledWith('slow_channel', '', expect.objectContaining({message: 'on time'}), expect.anything(), undefined);
++    });
++
++    it('does not block a user whose last post is older than the interval', async () => {
++        renderComposer('quiet_channel', makeState('quiet_channel', 'O', [Permissions.CREATE_POST], now - 31000));
++        await flushRulesRequest();
++
++        expect(screen.getByText('Slowmode is on: one message every 30 seconds')).toBeInTheDocument();
++        expect(screen.queryByText(/you can post again/)).not.toBeInTheDocument();
++    });
++
++    it('does not block channel admins', async () => {
++        renderComposer('admin_channel', makeState('admin_channel', 'O', [Permissions.CREATE_POST, Permissions.MANAGE_CHANNEL_ROLES], now - 1000));
++        await flushRulesRequest();
++
++        expect(screen.getByText('Slowmode is on: one message every 30 seconds')).toBeInTheDocument();
++        expect(screen.queryByText(/you can post again/)).not.toBeInTheDocument();
++
++        await typeAndSend('admin message');
++        expect(mockedOnSubmit).toHaveBeenCalled();
++    });
++
++    it('does not apply to direct messages', async () => {
++        renderComposer('dm_channel', makeState('dm_channel', 'D', [Permissions.CREATE_POST], now - 1000));
++        await flushRulesRequest();
++
++        expect(getRules).not.toHaveBeenCalled();
++        expect(screen.queryByTestId('slowmode-indicator')).not.toBeInTheDocument();
++        expect(screen.queryByText(/you can post again/)).not.toBeInTheDocument();
++    });
++});
+diff --git a/webapp/channels/src/components/channel_posting_rules/slowmode_indicator.scss b/webapp/channels/src/components/channel_posting_rules/slowmode_indicator.scss
+new file mode 100644
+index 000000000000..9a79a67eee19
+--- /dev/null
++++ b/webapp/channels/src/components/channel_posting_rules/slowmode_indicator.scss
+@@ -0,0 +1,16 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++.SlowmodeIndicator {
++    display: flex;
++    align-items: end;
++    color: rgba(var(--center-channel-color-rgb), 0.75);
++    font-size: 12px;
++    gap: 5px;
++
++    i.icon {
++        width: 16px;
++        height: 16px;
++        font-size: 16px;
++    }
++}
+diff --git a/webapp/channels/src/components/channel_posting_rules/slowmode_indicator.tsx b/webapp/channels/src/components/channel_posting_rules/slowmode_indicator.tsx
+new file mode 100644
+index 000000000000..e98a4b844ebd
+--- /dev/null
++++ b/webapp/channels/src/components/channel_posting_rules/slowmode_indicator.tsx
+@@ -0,0 +1,38 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++import React from 'react';
++import {FormattedMessage, useIntl} from 'react-intl';
++
++import {slowmodeOptions} from './posting_rules_options';
++import {useSlowmode} from './use_slowmode';
++
++import './slowmode_indicator.scss';
++
++type Props = {
++    channelId: string;
++};
++
++export default function SlowmodeIndicator({channelId}: Props) {
++    const {formatMessage} = useIntl();
++    const {slowmodeSeconds} = useSlowmode(channelId);
++    const option = slowmodeOptions.find(({value}) => value === slowmodeSeconds);
++
++    if (!slowmodeSeconds || !option) {
++        return null;
++    }
++
++    return (
++        <div
++            className='SlowmodeIndicator'
++            data-testid='slowmode-indicator'
++        >
++            <i className='icon icon-clock-outline'/>
++            <FormattedMessage
++                id='channel_posting_rules.slowmode.indicator'
++                defaultMessage='Slowmode is on: one message every {interval}'
++                values={{interval: formatMessage(option.label, {count: option.count})}}
++            />
++        </div>
++    );
++}
+diff --git a/webapp/channels/src/components/channel_posting_rules/use_channel_posting_rules.ts b/webapp/channels/src/components/channel_posting_rules/use_channel_posting_rules.ts
+new file mode 100644
+index 000000000000..e107bccec08c
+--- /dev/null
++++ b/webapp/channels/src/components/channel_posting_rules/use_channel_posting_rules.ts
+@@ -0,0 +1,45 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++import {useEffect, useSyncExternalStore} from 'react';
++
++import type {ChannelPostingRules} from '@mattermost/types/channel_posting_rules';
++
++import {Client4} from 'mattermost-redux/client';
++
++const rulesByChannel = new Map<string, ChannelPostingRules>();
++const requestsByChannel = new Map<string, Promise<void>>();
++const listeners = new Set<() => void>();
++
++function subscribe(listener: () => void) {
++    listeners.add(listener);
++    return () => {
++        listeners.delete(listener);
++    };
++}
++
++export function setChannelPostingRules(channelId: string, rules: ChannelPostingRules) {
++    rulesByChannel.set(channelId, rules);
++    listeners.forEach((listener) => listener());
++}
++
++function fetchChannelPostingRules(channelId: string) {
++    if (!requestsByChannel.has(channelId)) {
++        const request = Client4.getChannelPostingRules(channelId).
++            then((rules) => setChannelPostingRules(channelId, rules), () => undefined).
++            finally(() => requestsByChannel.delete(channelId));
++        requestsByChannel.set(channelId, request);
++    }
++}
++
++export function useChannelPostingRules(channelId?: string): ChannelPostingRules | undefined {
++    const rules = useSyncExternalStore(subscribe, () => (channelId ? rulesByChannel.get(channelId) : undefined));
++
++    useEffect(() => {
++        if (channelId) {
++            fetchChannelPostingRules(channelId);
++        }
++    }, [channelId]);
++
++    return rules;
++}
+diff --git a/webapp/channels/src/components/channel_posting_rules/use_slowmode.tsx b/webapp/channels/src/components/channel_posting_rules/use_slowmode.tsx
+new file mode 100644
+index 000000000000..7ecc67b3059b
+--- /dev/null
++++ b/webapp/channels/src/components/channel_posting_rules/use_slowmode.tsx
+@@ -0,0 +1,92 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++import React, {useEffect, useMemo, useState} from 'react';
++import {FormattedMessage} from 'react-intl';
++import {useSelector} from 'react-redux';
++
++import type {Channel} from '@mattermost/types/channels';
++import type {Post} from '@mattermost/types/posts';
++import type {IDMappedObjects} from '@mattermost/types/utilities';
++
++import {Permissions} from 'mattermost-redux/constants';
++import {createSelector} from 'mattermost-redux/selectors/create_selector';
++import {getChannel} from 'mattermost-redux/selectors/entities/channels';
++import {haveIChannelPermission} from 'mattermost-redux/selectors/entities/roles';
++import {getCurrentUserId} from 'mattermost-redux/selectors/entities/users';
++import {isSystemMessage} from 'mattermost-redux/utils/post_utils';
++
++import Constants from 'utils/constants';
++
++import type {GlobalState} from 'types/store';
++
++import {useChannelPostingRules} from './use_channel_posting_rules';
++
++export function isPostingRulesChannel(channel?: Channel): channel is Channel {
++    return channel?.type === Constants.OPEN_CHANNEL || channel?.type === Constants.PRIVATE_CHANNEL;
++}
++
++function makeGetLastOwnPostAt() {
++    return createSelector(
++        'makeGetLastOwnPostAt',
++        (state: GlobalState) => state.entities.posts.posts as IDMappedObjects<Post>,
++        getCurrentUserId,
++        (_state: GlobalState, channelId: string) => channelId,
++        (posts, userId, channelId) => {
++            let lastPostAt = 0;
++            for (const post of Object.values(posts)) {
++                if (post.channel_id === channelId && post.user_id === userId && !post.failed && !isSystemMessage(post) && post.create_at > lastPostAt) {
++                    lastPostAt = post.create_at;
++                }
++            }
++            return lastPostAt;
++        },
++    );
++}
++
++function useSecondsUntil(timestamp: number) {
++    const [now, setNow] = useState(Date.now);
++
++    useEffect(() => {
++        setNow(Date.now());
++        if (timestamp <= Date.now()) {
++            return undefined;
++        }
++        const interval = setInterval(() => {
++            setNow(Date.now());
++            if (Date.now() >= timestamp) {
++                clearInterval(interval);
++            }
++        }, 1000);
++        return () => clearInterval(interval);
++    }, [timestamp]);
++
++    return Math.max(0, Math.ceil((timestamp - now) / 1000));
++}
++
++export function useSlowmode(channelId: string) {
++    const channel = useSelector((state: GlobalState) => getChannel(state, channelId));
++    const rules = useChannelPostingRules(isPostingRulesChannel(channel) ? channelId : undefined);
++    const slowmodeSeconds = isPostingRulesChannel(channel) ? rules?.slowmode_seconds ?? 0 : 0;
++    const exempt = useSelector((state: GlobalState) => !channel || haveIChannelPermission(state, channel.team_id, channelId, Permissions.MANAGE_CHANNEL_ROLES));
++    const getLastOwnPostAt = useMemo(() => makeGetLastOwnPostAt(), []);
++    const lastOwnPostAt = useSelector((state: GlobalState) => (slowmodeSeconds && !exempt ? getLastOwnPostAt(state, channelId) : 0));
++    const secondsLeft = useSecondsUntil(lastOwnPostAt ? lastOwnPostAt + (slowmodeSeconds * 1000) : 0);
++
++    return {slowmodeSeconds, secondsLeft: Math.min(secondsLeft, slowmodeSeconds)};
++}
++
++export function useSlowmodeNotice(channelId: string, isInEditMode: boolean) {
++    const {secondsLeft} = useSlowmode(channelId);
++    if (isInEditMode || !secondsLeft) {
++        return null;
++    }
++
++    return (
++        <FormattedMessage
++            id='channel_posting_rules.slowmode.blocked'
++            defaultMessage='Slowmode is on: you can post again in {seconds}s'
++            values={{seconds: secondsLeft}}
++        />
++    );
++}
+diff --git a/webapp/channels/src/components/channel_settings_modal/channel_settings_modal.tsx b/webapp/channels/src/components/channel_settings_modal/channel_settings_modal.tsx
+index 043bc24dafbb..de9ac65485da 100644
+--- a/webapp/channels/src/components/channel_settings_modal/channel_settings_modal.tsx
++++ b/webapp/channels/src/components/channel_settings_modal/channel_settings_modal.tsx
+@@ -25,6 +25,7 @@ import {
+ import {getBasePath, isChannelAccessControlEnabled} from 'selectors/general';
+ import {getChannelSettingsTabs} from 'selectors/plugins';
+ 
++import ChannelSettingsModerationTab from 'components/channel_posting_rules/channel_settings_moderation_tab';
+ import type {Tab as SidebarTab} from 'components/settings_sidebar/settings_sidebar';
+ import {normalizePluginIcon} from 'components/settings_sidebar/settings_sidebar';
+ 
+@@ -58,6 +59,7 @@ const BuiltInTabIds = {
+     ACCESS_RULES: 'access_rules',
+     PERMISSIONS_POLICY: 'permissions_policy',
+     CONFIGURATION: 'configuration',
++    MODERATION: 'moderation',
+     ARCHIVE: 'archive',
+ } as const;
+ type BuiltInTabId = typeof BuiltInTabIds[keyof typeof BuiltInTabIds];
+@@ -154,6 +156,7 @@ function ChannelSettingsModal({channelId, isOpen, onExited, focusOriginElement}:
+     const canManageJoinLeaveMessages = !isDMorGM && canManageChannelProperties;
+     const shouldShowConfigurationTab = canManageBanner || canManageChannelTranslation || canManageSharedChannels || canManageJoinLeaveMessages;
+     const shouldShowInfoTab = canManageChannelProperties;
++    const shouldShowModerationTab = useSelector((state: GlobalState) => !isDMorGM && haveIChannelPermission(state, channel.team_id, channel.id, Permissions.MANAGE_CHANNEL_ROLES));
+ 
+     const canArchivePrivateChannels = useSelector((state: GlobalState) =>
+         haveIChannelPermission(state, channel.team_id, channel.id, Permissions.DELETE_PRIVATE_CHANNEL),
+@@ -247,6 +250,13 @@ function ChannelSettingsModal({channelId, isOpen, onExited, focusOriginElement}:
+                 iconTitle: formatMessage({id: 'generic_icons.settings', defaultMessage: 'Settings Icon'}),
+                 display: shouldShowConfigurationTab,
+             },
++            {
++                name: BuiltInTabIds.MODERATION,
++                uiName: formatMessage({id: 'channel_settings.tab.moderation', defaultMessage: 'Moderation'}),
++                icon: 'icon icon-clock-outline',
++                iconTitle: formatMessage({id: 'channel_settings.tab.moderation.icon', defaultMessage: 'Moderation Icon'}),
++                display: shouldShowModerationTab,
++            },
+             {
+                 name: BuiltInTabIds.ARCHIVE,
+                 uiName: formatMessage({id: 'channel_settings.tab.archive', defaultMessage: 'Archive Channel'}),
+@@ -261,6 +271,7 @@ function ChannelSettingsModal({channelId, isOpen, onExited, focusOriginElement}:
+         shouldShowAccessRulesTab,
+         shouldShowPermissionsPolicyTab,
+         shouldShowConfigurationTab,
++        shouldShowModerationTab,
+         shouldShowArchiveTab,
+     ]);
+ 
+@@ -421,6 +432,14 @@ function ChannelSettingsModal({channelId, isOpen, onExited, focusOriginElement}:
+             return renderPermissionsPolicyTab();
+         case BuiltInTabIds.CONFIGURATION:
+             return renderConfigurationTab();
++        case BuiltInTabIds.MODERATION:
++            return (
++                <ChannelSettingsModerationTab
++                    channel={channel}
++                    setAreThereUnsavedChanges={setAreThereUnsavedChanges}
++                    showTabSwitchError={showTabSwitchError}
++                />
++            );
+         case BuiltInTabIds.ARCHIVE:
+             return renderArchiveTab();
+         default: {
+diff --git a/webapp/channels/src/i18n/en.json b/webapp/channels/src/i18n/en.json
+index 41e1095ea257..f7ae0328331a 100644
+--- a/webapp/channels/src/i18n/en.json
++++ b/webapp/channels/src/i18n/en.json
+@@ -19635,6 +19635,30 @@
+     "defaultMessage": "Thread reply notifications",
+     "description": "Section heading in the channel notification preferences modal for thread reply notification options."
+   },
++  "channel_posting_rules.hours": {
++    "defaultMessage": "{count, plural, one {# hour} other {# hours}}",
++    "description": "Duration label in the channel posting rules dropdowns and the slowmode indicator, for example '1 hour'. count is the number of hours."
++  },
++  "channel_posting_rules.minutes": {
++    "defaultMessage": "{count, plural, one {# minute} other {# minutes}}",
++    "description": "Duration label in the channel posting rules dropdowns and the slowmode indicator, for example '5 minutes'. count is the number of minutes."
++  },
++  "channel_posting_rules.off": {
++    "defaultMessage": "Off",
++    "description": "Dropdown option in the channel settings Moderation tab that turns a posting rule (slowmode or thread auto-archive) off."
++  },
++  "channel_posting_rules.seconds": {
++    "defaultMessage": "{count, plural, one {# second} other {# seconds}}",
++    "description": "Duration label in the channel posting rules dropdowns and the slowmode indicator, for example '30 seconds'. count is the number of seconds."
++  },
++  "channel_posting_rules.slowmode.blocked": {
++    "defaultMessage": "Slowmode is on: you can post again in {seconds}s",
++    "description": "Notice under the message composer while the user must wait before posting again in a channel with slowmode on. seconds is the countdown; 's' abbreviates seconds."
++  },
++  "channel_posting_rules.slowmode.indicator": {
++    "defaultMessage": "Slowmode is on: one message every {interval}",
++    "description": "Small indicator above the message composer in a channel with slowmode on. interval is a duration such as '30 seconds' or '1 minute'."
++  },
+   "channel_select.placeholder": {
+     "defaultMessage": "--- Select a channel ---",
+     "description": "Default (unselected) option of a channel dropdown in integration settings forms; the dashes are decorative."
+@@ -19883,6 +19907,14 @@
+     "defaultMessage": "Channel Settings",
+     "description": "Title of the Channel Settings modal."
+   },
++  "channel_settings.moderation.slowmode.heading": {
++    "defaultMessage": "Slowmode",
++    "description": "Heading of the slowmode setting in the channel settings Moderation tab. Slowmode limits how often each member can post in the channel."
++  },
++  "channel_settings.moderation.slowmode.subheading": {
++    "defaultMessage": "Members must wait this long between messages, including replies. Channel admins, team admins and system admins are exempt.",
++    "description": "Help text under the slowmode setting in the channel settings Moderation tab, explaining who it applies to."
++  },
+   "channel_settings.permissions_policy.action.download": {
+     "defaultMessage": "Download files",
+     "description": "Permission action name in the channel Permissions Policy rule editor; allows downloading files ('Download' as a verb)."
+@@ -20219,6 +20251,14 @@
+     "defaultMessage": "Membership Policy",
+     "description": "Tab name in the Channel Settings modal sidebar for attribute-based membership access rules; compact."
+   },
++  "channel_settings.tab.moderation": {
++    "defaultMessage": "Moderation",
++    "description": "Name of the channel settings tab that holds slowmode and thread auto-archive."
++  },
++  "channel_settings.tab.moderation.icon": {
++    "defaultMessage": "Moderation Icon",
++    "description": "Accessible title of the icon next to the Moderation tab in channel settings."
++  },
+   "channel_settings.tab.permissions_policy": {
+     "defaultMessage": "Permissions Policy",
+     "description": "Tab name in the Channel Settings modal sidebar for per-channel permission rules; compact."
+diff --git a/webapp/platform/client/src/client4.ts b/webapp/platform/client/src/client4.ts
+index a52faddd4144..6dd7db854623 100644
+--- a/webapp/platform/client/src/client4.ts
++++ b/webapp/platform/client/src/client4.ts
+@@ -12,6 +12,7 @@ import type {UserAutocomplete, AutocompleteSuggestion} from '@mattermost/types/a
+ import type {Bot, BotPatch} from '@mattermost/types/bots';
+ import type {ChannelBookmark, ChannelBookmarkCreate, ChannelBookmarkPatch, UpdateChannelBookmarkResponse} from '@mattermost/types/channel_bookmarks';
+ import type {ChannelCategory, OrderedChannelCategories} from '@mattermost/types/channel_categories';
++import type {ChannelPostingRules} from '@mattermost/types/channel_posting_rules';
+ import type {
+     Channel,
+     ChannelJoinRequest,
+@@ -2240,6 +2241,20 @@ export default class Client4 {
+         );
+     };
+ 
++    getChannelPostingRules = (channelId: string) => {
++        return this.doFetch<ChannelPostingRules>(
++            `${this.getChannelRoute(channelId)}/posting_rules`,
++            {method: 'get'},
++        );
++    };
++
++    updateChannelPostingRules = (channelId: string, rules: ChannelPostingRules) => {
++        return this.doFetch<ChannelPostingRules>(
++            `${this.getChannelRoute(channelId)}/posting_rules`,
++            {method: 'put', body: JSON.stringify(rules)},
++        );
++    };
++
+     // Channel Bookmark Routes
+ 
+     getChannelBookmarks = (channelId: string, bookmarksSince?: number) => {
+diff --git a/webapp/platform/types/src/channel_posting_rules.ts b/webapp/platform/types/src/channel_posting_rules.ts
+new file mode 100644
+index 000000000000..75ff8eafa8a6
+--- /dev/null
++++ b/webapp/platform/types/src/channel_posting_rules.ts
+@@ -0,0 +1,6 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++export type ChannelPostingRules = {
++    slowmode_seconds: number;
++};

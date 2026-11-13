@@ -1,0 +1,159 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Karan Sharma <hello@mrkaran.dev>
+Date: Fri, 13 Nov 2026 07:41:01 +0530
+Subject: [PATCH] feat: generic email notification contents without a license
+
+Mattermax-Patch: unlock-email-notification-contents.patch
+---
+ server/channels/app/email/email_batching.go   |  5 +-
+ server/channels/app/notification_email.go     |  5 +-
+ .../channels/app/notification_email_test.go   | 54 +++++++++++++++++++
+ .../admin_console/admin_definition.tsx        |  1 -
+ ...ition_email_notification_contents.test.tsx | 18 +++++++
+ 5 files changed, 74 insertions(+), 9 deletions(-)
+ create mode 100644 webapp/channels/src/components/admin_console/admin_definition_email_notification_contents.test.tsx
+
+diff --git a/server/channels/app/email/email_batching.go b/server/channels/app/email/email_batching.go
+index 8e31f91648cd..22bd313abbea 100644
+--- a/server/channels/app/email/email_batching.go
++++ b/server/channels/app/email/email_batching.go
+@@ -264,10 +264,7 @@ func (es *Service) sendBatchedEmailNotification(userID string, notifications []*
+ 	postsData := make([]*postData, 0 /* len */, len(notifications) /* cap */)
+ 	embeddedFiles := make(map[string]io.Reader)
+ 
+-	emailNotificationContentsType := model.EmailNotificationContentsFull
+-	if license := es.license(); license != nil && *license.Features.EmailNotificationContents {
+-		emailNotificationContentsType = *es.config().EmailSettings.EmailNotificationContentsType
+-	}
++	emailNotificationContentsType := *es.config().EmailSettings.EmailNotificationContentsType
+ 
+ 	// check if user has CRT set to ON
+ 	appCRT := *es.config().ServiceSettings.CollapsedThreads
+diff --git a/server/channels/app/notification_email.go b/server/channels/app/notification_email.go
+index bcb6e22f7993..14c5a975e551 100644
+--- a/server/channels/app/notification_email.go
++++ b/server/channels/app/notification_email.go
+@@ -22,10 +22,7 @@ import (
+ )
+ 
+ func (a *App) emailNotificationContentsType() string {
+-	if license := a.Srv().License(); license != nil && *license.Features.EmailNotificationContents {
+-		return *a.Config().EmailSettings.EmailNotificationContentsType
+-	}
+-	return model.EmailNotificationContentsFull
++	return *a.Config().EmailSettings.EmailNotificationContentsType
+ }
+ 
+ func (a *App) buildEmailNotification(
+diff --git a/server/channels/app/notification_email_test.go b/server/channels/app/notification_email_test.go
+index 11c692084275..4060a9c6423a 100644
+--- a/server/channels/app/notification_email_test.go
++++ b/server/channels/app/notification_email_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"html/template"
+ 	"net/url"
+ 	"regexp"
++	"strings"
+ 	"testing"
+ 	"time"
+ 
+@@ -24,6 +25,7 @@ import (
+ 	"github.com/mattermost/mattermost/server/v8/channels/store/storetest/mocks"
+ 	"github.com/mattermost/mattermost/server/v8/channels/testlib"
+ 	"github.com/mattermost/mattermost/server/v8/channels/utils"
++	"github.com/mattermost/mattermost/server/v8/platform/shared/mail"
+ 	"github.com/mattermost/mattermost/server/v8/platform/shared/templates"
+ )
+ 
+@@ -1406,3 +1408,55 @@ func TestSendNotificationEmailDeliveryRecordFollowsSentContent(t *testing.T) {
+ 		}, 2*time.Second, 100*time.Millisecond, "the email carried no post content, so nothing may be recorded")
+ 	})
+ }
++
++func TestSendNotificationEmailContentsTypeWithoutLicense(t *testing.T) {
++	th := Setup(t).InitBasic(t)
++	th.App.Srv().SetLicense(nil)
++	require.Nil(t, th.App.Srv().License())
++	th.ConfigureInbucketMail()
++
++	recipient, appErr := th.App.CreateUser(th.Context, &model.User{
++		Email:    strings.ToLower(model.NewId()) + "@localhost",
++		Username: "un_" + model.NewId(),
++		Password: "Password1!",
++	})
++	require.Nil(t, appErr)
++
++	sendAndReceive := func(t *testing.T, contentsType string) (*model.Post, mail.JSONMessageInbucket) {
++		t.Helper()
++
++		require.NoError(t, mail.DeleteMailBox(recipient.Email))
++		th.App.UpdateConfig(func(cfg *model.Config) {
++			*cfg.EmailSettings.EmailNotificationContentsType = contentsType
++		})
++
++		post := th.CreatePost(t, th.BasicChannel)
++		notification := buildTestPostNotification(post, th.BasicChannel, th.BasicUser)
++		_, err := th.App.sendNotificationEmail(th.Context, notification, recipient, th.BasicTeam, nil)
++		require.NoError(t, err)
++
++		var mailbox mail.JSONMessageHeaderInbucket
++		require.NoError(t, mail.RetryInbucket(5, func() error {
++			var innerErr error
++			mailbox, innerErr = mail.GetMailBox(recipient.Email)
++			return innerErr
++		}))
++		require.Len(t, mailbox, 1)
++
++		message, err := mail.GetMessageFromMailbox(recipient.Email, mailbox[0].ID)
++		require.NoError(t, err)
++		return post, message
++	}
++
++	t.Run("full contents include the message", func(t *testing.T) {
++		post, message := sendAndReceive(t, model.EmailNotificationContentsFull)
++		require.Contains(t, message.Body.HTML, post.Message)
++	})
++
++	t.Run("generic contents omit the message", func(t *testing.T) {
++		post, message := sendAndReceive(t, model.EmailNotificationContentsGeneric)
++		require.Contains(t, message.Body.HTML, th.BasicUser.Username)
++		require.NotContains(t, message.Body.HTML, post.Message)
++		require.NotContains(t, message.Body.Text, post.Message)
++	})
++}
+diff --git a/webapp/channels/src/components/admin_console/admin_definition.tsx b/webapp/channels/src/components/admin_console/admin_definition.tsx
+index 2dc7f19b1ef1..f94966aca3c7 100644
+--- a/webapp/channels/src/components/admin_console/admin_definition.tsx
++++ b/webapp/channels/src/components/admin_console/admin_definition.tsx
+@@ -3192,7 +3192,6 @@ const AdminDefinition: AdminDefinitionType = {
+                                     display_name: defineMessage({id: 'admin.environment.notifications.contents.generic', defaultMessage: 'Send generic description with only sender name'}),
+                                 },
+                             ],
+-                            isHidden: it.not(it.licensedForFeature('EmailNotificationContents')),
+                             isDisabled: it.not(it.userHasWritePermissionOnResource(RESOURCE_KEYS.SITE.NOTIFICATIONS)),
+                         },
+                         {
+diff --git a/webapp/channels/src/components/admin_console/admin_definition_email_notification_contents.test.tsx b/webapp/channels/src/components/admin_console/admin_definition_email_notification_contents.test.tsx
+new file mode 100644
+index 000000000000..24602126b1e6
+--- /dev/null
++++ b/webapp/channels/src/components/admin_console/admin_definition_email_notification_contents.test.tsx
+@@ -0,0 +1,18 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++import AdminDefinition from './admin_definition';
++import type {AdminDefinitionSubSectionSchema} from './types';
++
++describe('AdminDefinition - Email Notification Contents', () => {
++    test('is shown without a license', () => {
++        const schema = AdminDefinition.site.subsections.notifications.schema as AdminDefinitionSubSectionSchema;
++        const settings = 'settings' in schema && schema.settings ? schema.settings : [];
++        const setting = settings.find((s) => s.key === 'EmailSettings.EmailNotificationContentsType');
++        const isHidden = setting?.isHidden;
++        const hidden = typeof isHidden === 'function' ? isHidden({}, {}, {IsLicensed: 'false'}) : Boolean(isHidden);
++
++        expect(setting).toBeDefined();
++        expect(hidden).toBe(false);
++    });
++});

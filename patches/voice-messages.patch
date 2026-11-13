@@ -1,0 +1,1623 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Karan Sharma <hello@mrkaran.dev>
+Date: Thu, 12 Nov 2026 23:52:50 +0530
+Subject: [PATCH] feat: voice messages
+
+Mattermax-Patch: voice-messages.patch
+---
+ .../advanced_text_editor.tsx                  |   3 +-
+ .../use_upload_files.test.tsx                 |   6 +-
+ .../advanced_text_editor/use_upload_files.tsx |  23 +-
+ .../file_attachment_list.test.tsx             |  69 +++++
+ .../file_attachment_list.tsx                  |  19 +-
+ .../use_voice_message_uploads.test.ts         |  56 ++++
+ .../use_voice_message_uploads.ts              |  37 +++
+ .../voice_message/voice_message.test.ts       | 130 +++++++++
+ .../components/voice_message/voice_message.ts | 143 ++++++++++
+ .../voice_message/voice_message_button.scss   |  39 +++
+ .../voice_message_button.test.tsx             | 180 ++++++++++++
+ .../voice_message/voice_message_button.tsx    | 269 ++++++++++++++++++
+ .../voice_message/voice_message_player.scss   |  82 ++++++
+ .../voice_message_player.test.tsx             |  93 ++++++
+ .../voice_message/voice_message_player.tsx    | 176 ++++++++++++
+ webapp/channels/src/i18n/en.json              |  56 ++++
+ 16 files changed, 1370 insertions(+), 11 deletions(-)
+ create mode 100644 webapp/channels/src/components/voice_message/use_voice_message_uploads.test.ts
+ create mode 100644 webapp/channels/src/components/voice_message/use_voice_message_uploads.ts
+ create mode 100644 webapp/channels/src/components/voice_message/voice_message.test.ts
+ create mode 100644 webapp/channels/src/components/voice_message/voice_message.ts
+ create mode 100644 webapp/channels/src/components/voice_message/voice_message_button.scss
+ create mode 100644 webapp/channels/src/components/voice_message/voice_message_button.test.tsx
+ create mode 100644 webapp/channels/src/components/voice_message/voice_message_button.tsx
+ create mode 100644 webapp/channels/src/components/voice_message/voice_message_player.scss
+ create mode 100644 webapp/channels/src/components/voice_message/voice_message_player.test.tsx
+ create mode 100644 webapp/channels/src/components/voice_message/voice_message_player.tsx
+
+diff --git a/webapp/channels/src/components/advanced_text_editor/advanced_text_editor.tsx b/webapp/channels/src/components/advanced_text_editor/advanced_text_editor.tsx
+index 30e95eab806b..60c190846cce 100644
+--- a/webapp/channels/src/components/advanced_text_editor/advanced_text_editor.tsx
++++ b/webapp/channels/src/components/advanced_text_editor/advanced_text_editor.tsx
+@@ -442,7 +442,7 @@ const AdvancedTextEditor = ({
+     const hasAIActionsMenu = (aiActionMenuItems?.length ?? 0) > 0 || (aiRewriteEnabled && Boolean(rewriteMenuProps));
+     const isDisabled = Boolean(readOnlyChannel || (!enableSharedChannelsDMs && isDMOrGMRemote) || rewriteIsProcessing);
+ 
+-    const [attachmentPreview, fileUploadJSX] = useUploadFiles(
++    const [attachmentPreview, fileUploadJSX, voiceMessageJSX] = useUploadFiles(
+         draft,
+         rootId,
+         channelId,
+@@ -1013,6 +1013,7 @@ const AdvancedTextEditor = ({
+                                 />
+                                 <Separator/>
+                                 {fileUploadJSX}
++                                {voiceMessageJSX}
+                                 {emojiPicker}
+                                 {sendButton}
+                             </TexteditorActions>
+diff --git a/webapp/channels/src/components/advanced_text_editor/use_upload_files.test.tsx b/webapp/channels/src/components/advanced_text_editor/use_upload_files.test.tsx
+index 18a8a7894988..28224143da3e 100644
+--- a/webapp/channels/src/components/advanced_text_editor/use_upload_files.test.tsx
++++ b/webapp/channels/src/components/advanced_text_editor/use_upload_files.test.tsx
+@@ -58,21 +58,21 @@ describe('useUploadFiles ABAC upload gate', () => {
+     test('renders the upload control enabled when policy allows upload', () => {
+         const {result} = renderUpload(stateWithDecision({allowed: true, evaluated: true}));
+ 
+-        const [, fileUploadJSX] = result.current as [unknown, React.ReactElement<any>];
++        const [, fileUploadJSX] = result.current as [unknown, React.ReactElement<any>, unknown];
+         expect(fileUploadJSX.props.disabledByPolicy).toBe(false);
+     });
+ 
+     test('renders the upload control disabled when policy denies upload', () => {
+         const {result} = renderUpload(stateWithDecision({allowed: false, evaluated: true}));
+ 
+-        const [, fileUploadJSX] = result.current as [unknown, React.ReactElement<any>];
++        const [, fileUploadJSX] = result.current as [unknown, React.ReactElement<any>, unknown];
+         expect(fileUploadJSX.props.disabledByPolicy).toBe(true);
+     });
+ 
+     test('renders the upload control enabled while no decision is cached', () => {
+         const {result} = renderUpload(stateWithDecision());
+ 
+-        const [, fileUploadJSX] = result.current as [unknown, React.ReactElement<any>];
++        const [, fileUploadJSX] = result.current as [unknown, React.ReactElement<any>, unknown];
+         expect(fileUploadJSX.props.disabledByPolicy).toBe(false);
+     });
+ });
+diff --git a/webapp/channels/src/components/advanced_text_editor/use_upload_files.tsx b/webapp/channels/src/components/advanced_text_editor/use_upload_files.tsx
+index b5b987154fa3..8a18726e89e7 100644
+--- a/webapp/channels/src/components/advanced_text_editor/use_upload_files.tsx
++++ b/webapp/channels/src/components/advanced_text_editor/use_upload_files.tsx
+@@ -20,6 +20,8 @@ import FilePreview from 'components/file_preview';
+ import type {FilePreviewInfo} from 'components/file_preview/file_preview';
+ import FileUpload from 'components/file_upload';
+ import type {FileUpload as FileUploadClass, TextEditorLocationType} from 'components/file_upload/file_upload';
++import useVoiceMessageUploads from 'components/voice_message/use_voice_message_uploads';
++import VoiceMessageButton from 'components/voice_message/voice_message_button';
+ 
+ import type {GlobalState} from 'types/store';
+ import type {PostDraft} from 'types/store/draft';
+@@ -40,7 +42,7 @@ const useUploadFiles = (
+     focusTextbox: (forceFocust?: boolean) => void,
+     setServerError: (err: (ServerError & {submittedMessage?: string}) | null) => void,
+     isPostBeingEdited?: boolean,
+-): [React.ReactNode, React.ReactNode] => {
++): [React.ReactNode, React.ReactNode, React.ReactNode] => {
+     const intl = useIntl();
+     const locale = useSelector(getCurrentLocale);
+     const canEditAttachments = useSelector((state: GlobalState) => {
+@@ -56,6 +58,7 @@ const useUploadFiles = (
+     const [uploadsProgressPercent, setUploadsProgressPercent] = useState<{[clientID: string]: FilePreviewInfo}>({});
+ 
+     const fileUploadRef = useRef<FileUploadClass>(null);
++    const {uploadVoiceMessage, withVoiceMessages} = useVoiceMessageUploads(fileUploadRef);
+ 
+     const removeTooltip = useMemo(() => {
+         return editAttachmentsDisabled ? intl.formatMessage({
+@@ -91,14 +94,14 @@ const useUploadFiles = (
+         const clientIdsSet = new Set(clientIds);
+         const uploadsInProgress = (draftToUpdate.uploadsInProgress || []).filter((v) => !clientIdsSet.has(v));
+ 
+-        const modifiedDraft = {
++        const modifiedDraft = withVoiceMessages({
+             ...draftToUpdate,
+             fileInfos: newFileInfos,
+             uploadsInProgress,
+-        };
++        }, fileInfos);
+ 
+         handleDraftChange(modifiedDraft, {instant: true});
+-    }, [locale, handleDraftChange, storedDrafts]);
++    }, [locale, handleDraftChange, storedDrafts, withVoiceMessages]);
+ 
+     const handleUploadStart = useCallback((clientIds: string[]) => {
+         const uploadsInProgress = [...draft.uploadsInProgress, ...clientIds];
+@@ -200,7 +203,17 @@ const useUploadFiles = (
+         />
+     );
+ 
+-    return [attachmentPreview, fileUploadJSX];
++    const voiceMessageJSX = (isDisabled || isPostBeingEdited) ? null : (
++        <VoiceMessageButton
++            channelId={channelId}
++            rootId={postId}
++            disabledByPolicy={!uploadAllowedByPolicy}
++            onRecorded={uploadVoiceMessage}
++            onError={handleUploadError}
++        />
++    );
++
++    return [attachmentPreview, fileUploadJSX, voiceMessageJSX];
+ };
+ 
+ export default useUploadFiles;
+diff --git a/webapp/channels/src/components/file_attachment_list/file_attachment_list.test.tsx b/webapp/channels/src/components/file_attachment_list/file_attachment_list.test.tsx
+index a931a918102a..df18d051fb7e 100644
+--- a/webapp/channels/src/components/file_attachment_list/file_attachment_list.test.tsx
++++ b/webapp/channels/src/components/file_attachment_list/file_attachment_list.test.tsx
+@@ -170,6 +170,75 @@ describe('FileAttachmentList', () => {
+         expect(screen.getByTestId('fileAttachmentList').querySelector('.post-image__column')).toBeInTheDocument();
+     });
+ 
++    describe('voice messages', () => {
++        const voiceFile = TestHelper.getFileInfoMock({id: 'voice_file', name: 'voice-message-1.weba', extension: 'weba', mime_type: 'audio/webm', delete_at: 0, post_id: 'voice_post'});
++        const audioFile = TestHelper.getFileInfoMock({id: 'audio_file', name: 'song.mp3', extension: 'mp3', mime_type: 'audio/mpeg', delete_at: 0, post_id: 'voice_post'});
++
++        function renderPost(files: typeof fileInfos, props: Record<string, unknown>) {
++            const voicePost = TestHelper.getPostMock({id: 'voice_post', file_ids: files.map((f) => f.id), props});
++            const state = {
++                ...defaultState,
++                entities: {
++                    ...defaultState.entities,
++                    files: {
++                        files: Object.fromEntries(files.map((f) => [f.id, f])),
++                        fileIdsByPostId: {voice_post: files.map((f) => f.id)},
++                    },
++                },
++            } as unknown as GlobalState;
++
++            renderWithContext(
++                <FileAttachmentList
++                    {...baseProps}
++                    post={voicePost}
++                />,
++                state,
++            );
++        }
++
++        const voiceMessages = {voice_messages: {voice_file: {duration: 4000, waveform: [10, 50, 100]}}};
++
++        test('should render an inline player for a voice message', () => {
++            renderPost([voiceFile], voiceMessages);
++
++            expect(screen.getByTestId('voiceMessagePlayer')).toBeInTheDocument();
++            expect(screen.getByText('0:04')).toBeInTheDocument();
++            expect(screen.queryByText('voice-message-1.weba')).not.toBeInTheDocument();
++            expect(screen.queryByTestId('media-gallery-tile')).not.toBeInTheDocument();
++        });
++
++        test('should keep the upstream attachment for an audio file without voice message props', () => {
++            renderPost([audioFile], {});
++
++            expect(screen.queryByTestId('voiceMessagePlayer')).not.toBeInTheDocument();
++            expect(screen.getByTestId('fileAttachmentList').querySelector('.post-image__column')?.textContent).toContain('song.mp3');
++        });
++
++        test('should render a player only for the voice file when a post has other attachments', () => {
++            renderPost([voiceFile, audioFile], voiceMessages);
++
++            expect(screen.getAllByTestId('voiceMessagePlayer')).toHaveLength(1);
++            expect(screen.getByTestId('fileAttachmentList').querySelector('.post-image__column')?.textContent).toContain('song.mp3');
++        });
++
++        test.each([
++            ['a PDF', TestHelper.getFileInfoMock({id: 'voice_file', name: 'report.pdf', extension: 'pdf', mime_type: 'application/pdf', delete_at: 0, post_id: 'voice_post'}), 'report.pdf'],
++            ['an image', TestHelper.getFileInfoMock({id: 'voice_file', name: 'photo.png', extension: 'png', mime_type: 'image/png', delete_at: 0, post_id: 'voice_post'}), 'photo.png'],
++            ['a video', TestHelper.getFileInfoMock({id: 'voice_file', name: 'clip.webm', extension: 'webm', mime_type: 'video/webm', delete_at: 0, post_id: 'voice_post'}), 'clip.webm'],
++        ])('should keep the upstream attachment when voice message props point at %s', (_, file, name) => {
++            renderPost([file, audioFile], voiceMessages);
++
++            expect(screen.queryByTestId('voiceMessagePlayer')).not.toBeInTheDocument();
++            expect(screen.getByTestId('fileAttachmentList').textContent).toContain(name);
++        });
++
++        test('should keep the upstream attachment for a deleted voice file', () => {
++            renderPost([{...voiceFile, delete_at: 5}], voiceMessages);
++
++            expect(screen.queryByTestId('voiceMessagePlayer')).not.toBeInTheDocument();
++        });
++    });
++
+     test('should render deleted files', () => {
+         const state = {
+             ...defaultState,
+diff --git a/webapp/channels/src/components/file_attachment_list/file_attachment_list.tsx b/webapp/channels/src/components/file_attachment_list/file_attachment_list.tsx
+index 16e15c08b8f2..24a5d0392344 100644
+--- a/webapp/channels/src/components/file_attachment_list/file_attachment_list.tsx
++++ b/webapp/channels/src/components/file_attachment_list/file_attachment_list.tsx
+@@ -8,6 +8,8 @@ import {sortFileInfos} from 'mattermost-redux/utils/file_utils';
+ import FileAttachment from 'components/file_attachment';
+ import FilePreviewModal from 'components/file_preview_modal';
+ import SingleImageView from 'components/single_image_view';
++import {parseVoiceMessages, voiceMessageForFile} from 'components/voice_message/voice_message';
++import VoiceMessagePlayer from 'components/voice_message/voice_message_player';
+ 
+ import {FileTypes, ModalIdentifiers} from 'utils/constants';
+ import {getFileType} from 'utils/utils';
+@@ -45,6 +47,7 @@ export default function FileAttachmentList(props: Props) {
+     } = props;
+ 
+     const sortedFileInfos = useMemo(() => sortFileInfos(fileInfos ? [...fileInfos] : [], locale), [fileInfos, locale]);
++    const voiceMessages = useMemo(() => parseVoiceMessages(props.post.props), [props.post.props]);
+ 
+     if (fileInfos.length === 0) {
+         return null;
+@@ -52,8 +55,9 @@ export default function FileAttachmentList(props: Props) {
+ 
+     const hasDeletedFile = sortedFileInfos.some((f) => f.delete_at > 0);
+     const isEditHistory = Boolean(props.isEditHistory);
++    const hasVoiceMessage = sortedFileInfos.some((f) => voiceMessageForFile(voiceMessages, f));
+ 
+-    if (!isInPermalink && !props.firstFileRejected && !hasDeletedFile && !isEditHistory) {
++    if (!hasVoiceMessage && !isInPermalink && !props.firstFileRejected && !hasDeletedFile && !isEditHistory) {
+         const isMulti = fileInfos.length > 1;
+         const isSingleVideo = fileInfos.length === 1 &&
+             !fileInfos[0].archived &&
+@@ -80,7 +84,7 @@ export default function FileAttachmentList(props: Props) {
+ 
+     // For single image files, use SingleImageView UNLESS the file is rejected
+     // If rejected, we want to show the file attachment card instead
+-    if (fileInfos && fileInfos.length === 1 && !fileInfos[0].archived && !props.firstFileRejected) {
++    if (!hasVoiceMessage && fileInfos && fileInfos.length === 1 && !fileInfos[0].archived && !props.firstFileRejected) {
+         const fileType = getFileType(fileInfos[0].extension);
+ 
+         if (fileType === FileTypes.IMAGE || (fileType === FileTypes.SVG && enableSVGs)) {
+@@ -106,6 +110,17 @@ export default function FileAttachmentList(props: Props) {
+         for (let i = 0; i < sortedFileInfos.length; i++) {
+             const fileInfo = sortedFileInfos[i];
+             const isDeleted = fileInfo.delete_at > 0;
++            const voiceMessage = voiceMessageForFile(voiceMessages, fileInfo);
++            if (voiceMessage) {
++                postFiles.push(
++                    <VoiceMessagePlayer
++                        key={fileInfo.id}
++                        fileInfo={fileInfo}
++                        voiceMessage={voiceMessage}
++                    />,
++                );
++                continue;
++            }
+             postFiles.push(
+                 <FileAttachment
+                     key={fileInfo.id}
+diff --git a/webapp/channels/src/components/voice_message/use_voice_message_uploads.test.ts b/webapp/channels/src/components/voice_message/use_voice_message_uploads.test.ts
+new file mode 100644
+index 000000000000..b3cc143c5c27
+--- /dev/null
++++ b/webapp/channels/src/components/voice_message/use_voice_message_uploads.test.ts
+@@ -0,0 +1,56 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++import {renderHook} from '@testing-library/react';
++
++import type {FileUpload} from 'components/file_upload/file_upload';
++
++import {TestHelper} from 'utils/test_helper';
++
++import type {PostDraft} from 'types/store/draft';
++
++import useVoiceMessageUploads from './use_voice_message_uploads';
++
++describe('useVoiceMessageUploads', () => {
++    const voiceMessage = {duration: 3100, waveform: [20, 80, 100]};
++    const file = new File(['opus'], 'voice-message-1731420000000.weba', {type: 'audio/webm'});
++
++    function setup() {
++        const checkPluginHooksAndUploadFiles = jest.fn();
++        const fileUploadRef = {current: {checkPluginHooksAndUploadFiles} as unknown as FileUpload};
++        const {result} = renderHook(() => useVoiceMessageUploads(fileUploadRef));
++        return {result, checkPluginHooksAndUploadFiles};
++    }
++
++    function draftWith(fileInfos: PostDraft['fileInfos']): PostDraft {
++        return {message: '', fileInfos, uploadsInProgress: [], channelId: 'channel1', rootId: '', createAt: 0, updateAt: 0};
++    }
++
++    test('uploads the recording through the regular upload path', () => {
++        const {result, checkPluginHooksAndUploadFiles} = setup();
++
++        result.current.uploadVoiceMessage({file, voiceMessage});
++
++        expect(checkPluginHooksAndUploadFiles).toHaveBeenCalledWith([file]);
++    });
++
++    test('stores duration and waveform under the uploaded file id once the upload finishes', () => {
++        const {result} = setup();
++        const uploaded = TestHelper.getFileInfoMock({id: 'file1', name: file.name});
++
++        result.current.uploadVoiceMessage({file, voiceMessage});
++        const draft = result.current.withVoiceMessages(draftWith([uploaded]), [uploaded]);
++
++        expect(draft.props).toEqual({voice_messages: {file1: voiceMessage}});
++    });
++
++    test('leaves drafts alone for ordinary uploads', () => {
++        const {result} = setup();
++        const uploaded = TestHelper.getFileInfoMock({id: 'file2', name: 'notes.mp3'});
++        const draft = draftWith([uploaded]);
++
++        result.current.uploadVoiceMessage({file, voiceMessage});
++
++        expect(result.current.withVoiceMessages(draft, [uploaded])).toBe(draft);
++    });
++});
+diff --git a/webapp/channels/src/components/voice_message/use_voice_message_uploads.ts b/webapp/channels/src/components/voice_message/use_voice_message_uploads.ts
+new file mode 100644
+index 000000000000..b2f98ddda3dc
+--- /dev/null
++++ b/webapp/channels/src/components/voice_message/use_voice_message_uploads.ts
+@@ -0,0 +1,37 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++import type React from 'react';
++import {useCallback, useRef} from 'react';
++
++import type {FileInfo} from '@mattermost/types/files';
++
++import type {FileUpload} from 'components/file_upload/file_upload';
++
++import type {PostDraft} from 'types/store/draft';
++
++import {addVoiceMessages} from './voice_message';
++import type {VoiceMessage, VoiceRecording} from './voice_message';
++
++export default function useVoiceMessageUploads(fileUploadRef: React.RefObject<FileUpload | null>) {
++    const pending = useRef(new Map<string, VoiceMessage>());
++
++    const uploadVoiceMessage = useCallback(({file, voiceMessage}: VoiceRecording) => {
++        pending.current.set(file.name, voiceMessage);
++        fileUploadRef.current?.checkPluginHooksAndUploadFiles([file]);
++    }, [fileUploadRef]);
++
++    const withVoiceMessages = useCallback((draft: PostDraft, uploaded: FileInfo[]) => {
++        const added: Record<string, VoiceMessage> = {};
++        for (const fileInfo of uploaded) {
++            const voiceMessage = pending.current.get(fileInfo.name);
++            if (voiceMessage) {
++                added[fileInfo.id] = voiceMessage;
++                pending.current.delete(fileInfo.name);
++            }
++        }
++        return addVoiceMessages(draft, added);
++    }, []);
++
++    return {uploadVoiceMessage, withVoiceMessages};
++}
+diff --git a/webapp/channels/src/components/voice_message/voice_message.test.ts b/webapp/channels/src/components/voice_message/voice_message.test.ts
+new file mode 100644
+index 000000000000..5f3fa9b0d34a
+--- /dev/null
++++ b/webapp/channels/src/components/voice_message/voice_message.test.ts
+@@ -0,0 +1,130 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++import {TestHelper} from 'utils/test_helper';
++
++import type {PostDraft} from 'types/store/draft';
++
++import {addVoiceMessages, computeWaveform, formatDuration, parseVoiceMessages, pickRecorderFormat} from './voice_message';
++
++describe('parseVoiceMessages', () => {
++    test('keeps valid entries keyed by file id', () => {
++        const waveform = Array.from({length: 64}, (_, i) => i);
++
++        expect(parseVoiceMessages({voice_messages: {file1: {duration: 2400, waveform}}})).toEqual({
++            file1: {duration: 2400, waveform},
++        });
++    });
++
++    test('drops entries without a usable duration and posts without the prop', () => {
++        expect(parseVoiceMessages({voice_messages: {
++            file1: {waveform: [1, 2]},
++            file2: {duration: 'long', waveform: []},
++            file3: {duration: -5, waveform: []},
++            file4: null,
++        }})).toEqual({});
++        expect(parseVoiceMessages({})).toEqual({});
++        expect(parseVoiceMessages(undefined)).toEqual({});
++        expect(parseVoiceMessages({voice_messages: ['file1']})).toEqual({});
++    });
++
++    test('clamps bar heights and caps the waveform at 64 bars', () => {
++        const waveform = [150, -3, 'x', 42.6, ...new Array(100).fill(10)];
++
++        const parsed = parseVoiceMessages({voice_messages: {file1: {duration: 1000, waveform}}}).file1;
++
++        expect(parsed.waveform).toHaveLength(64);
++        expect(parsed.waveform.slice(0, 4)).toEqual([100, 0, 0, 43]);
++    });
++
++    test('treats a missing waveform as empty', () => {
++        expect(parseVoiceMessages({voice_messages: {file1: {duration: 1000}}})).toEqual({file1: {duration: 1000, waveform: []}});
++    });
++});
++
++describe('addVoiceMessages', () => {
++    const draft = (fileIds: string[], props?: Record<string, unknown>) => ({
++        message: '',
++        fileInfos: fileIds.map((id) => TestHelper.getFileInfoMock({id})),
++        uploadsInProgress: [],
++        channelId: 'channel1',
++        rootId: '',
++        createAt: 0,
++        updateAt: 0,
++        props,
++    } as PostDraft);
++
++    test('adds the recording under its uploaded file id and keeps other props', () => {
++        const result = addVoiceMessages(draft(['file1'], {other: 'value'}), {file1: {duration: 1000, waveform: [5]}});
++
++        expect(result.props).toEqual({other: 'value', voice_messages: {file1: {duration: 1000, waveform: [5]}}});
++    });
++
++    test('drops entries for files the user removed from the draft', () => {
++        const existing = draft(['file2'], {voice_messages: {file1: {duration: 1000, waveform: []}, file2: {duration: 2000, waveform: []}}});
++
++        const result = addVoiceMessages({...existing, fileInfos: [...existing.fileInfos, TestHelper.getFileInfoMock({id: 'file3'})]}, {file3: {duration: 3000, waveform: []}});
++
++        expect(Object.keys(result.props.voice_messages)).toEqual(['file2', 'file3']);
++    });
++
++    test('leaves the draft untouched when no recording was uploaded', () => {
++        const unchanged = draft(['file1']);
++
++        expect(addVoiceMessages(unchanged, {})).toBe(unchanged);
++    });
++});
++
++describe('computeWaveform', () => {
++    test('returns 64 bars scaled so the loudest is 100', () => {
++        const samples = new Float32Array(64 * 100);
++        samples.fill(0.25, 0, 3200);
++        samples.fill(-0.5, 3200);
++
++        const waveform = computeWaveform(samples);
++
++        expect(waveform).toHaveLength(64);
++        expect(waveform[0]).toBe(50);
++        expect(waveform[63]).toBe(100);
++    });
++
++    test('returns flat bars for silence', () => {
++        expect(computeWaveform(new Float32Array(6400))).toEqual(new Array(64).fill(0));
++    });
++});
++
++describe('formatDuration', () => {
++    test.each([
++        [0, '0:00'],
++        [2400, '0:02'],
++        [65_500, '1:06'],
++        [300_000, '5:00'],
++    ])('%i ms is %s', (ms, text) => {
++        expect(formatDuration(ms)).toBe(text);
++    });
++});
++
++describe('pickRecorderFormat', () => {
++    const originalMediaRecorder = (global as any).MediaRecorder;
++    const originalMediaDevices = navigator.mediaDevices;
++
++    function mockSupport(supported: string[]) {
++        (global as any).MediaRecorder = {isTypeSupported: (mimeType: string) => supported.includes(mimeType)};
++        Object.defineProperty(navigator, 'mediaDevices', {value: {getUserMedia: jest.fn()}, configurable: true});
++    }
++
++    afterEach(() => {
++        (global as any).MediaRecorder = originalMediaRecorder;
++        Object.defineProperty(navigator, 'mediaDevices', {value: originalMediaDevices, configurable: true});
++    });
++
++    it('prefers MP4 so recordings play on iOS', () => {
++        mockSupport(['audio/mp4;codecs=mp4a.40.2', 'audio/mp4', 'audio/webm;codecs=opus']);
++        expect(pickRecorderFormat()).toEqual({mimeType: 'audio/mp4;codecs=mp4a.40.2', extension: 'm4a'});
++    });
++
++    it('falls back to WebM when MP4 recording is not supported', () => {
++        mockSupport(['audio/webm;codecs=opus']);
++        expect(pickRecorderFormat()).toEqual({mimeType: 'audio/webm;codecs=opus', extension: 'weba'});
++    });
++});
+diff --git a/webapp/channels/src/components/voice_message/voice_message.ts b/webapp/channels/src/components/voice_message/voice_message.ts
+new file mode 100644
+index 000000000000..0401729d19e8
+--- /dev/null
++++ b/webapp/channels/src/components/voice_message/voice_message.ts
+@@ -0,0 +1,143 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++import type {FileInfo} from '@mattermost/types/files';
++
++import type {PostDraft} from 'types/store/draft';
++
++export const VOICE_MESSAGES_PROP = 'voice_messages';
++export const MAX_RECORDING_MS = 5 * 60 * 1000;
++export const WAVEFORM_BARS = 64;
++const WAVEFORM_MAX = 100;
++
++export type VoiceMessage = {
++    duration: number;
++    waveform: number[];
++};
++
++export type VoiceRecording = {
++    file: File;
++    voiceMessage: VoiceMessage;
++};
++
++type RecorderFormat = {
++    mimeType: string;
++    extension: string;
++};
++
++const RECORDER_FORMATS: RecorderFormat[] = [
++    {mimeType: 'audio/mp4;codecs=mp4a.40.2', extension: 'm4a'},
++    {mimeType: 'audio/mp4', extension: 'm4a'},
++    {mimeType: 'audio/webm;codecs=opus', extension: 'weba'},
++];
++
++export function pickRecorderFormat(): RecorderFormat | undefined {
++    if (typeof MediaRecorder === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
++        return undefined;
++    }
++    return RECORDER_FORMATS.find((format) => MediaRecorder.isTypeSupported(format.mimeType));
++}
++
++export function voiceMessageFile(blob: Blob, format: RecorderFormat): File {
++    return new File([blob], `voice-message-${Date.now()}.${format.extension}`, {type: format.mimeType.split(';')[0]});
++}
++
++function clampBar(value: unknown): number {
++    if (typeof value !== 'number' || !Number.isFinite(value)) {
++        return 0;
++    }
++    return Math.min(WAVEFORM_MAX, Math.max(0, Math.round(value)));
++}
++
++function parseVoiceMessage(entry: unknown): VoiceMessage | undefined {
++    if (!entry || typeof entry !== 'object') {
++        return undefined;
++    }
++    const {duration, waveform} = entry as Record<string, unknown>;
++    if (typeof duration !== 'number' || !Number.isFinite(duration) || duration <= 0) {
++        return undefined;
++    }
++    return {
++        duration: Math.round(duration),
++        waveform: Array.isArray(waveform) ? waveform.slice(0, WAVEFORM_BARS).map(clampBar) : [],
++    };
++}
++
++export function parseVoiceMessages(props: unknown): Record<string, VoiceMessage> {
++    const raw = (props as Record<string, unknown> | undefined)?.[VOICE_MESSAGES_PROP];
++    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
++        return {};
++    }
++
++    const voiceMessages: Record<string, VoiceMessage> = {};
++    for (const [fileId, entry] of Object.entries(raw)) {
++        const voiceMessage = parseVoiceMessage(entry);
++        if (voiceMessage) {
++            voiceMessages[fileId] = voiceMessage;
++        }
++    }
++    return voiceMessages;
++}
++
++export function voiceMessageForFile(voiceMessages: Record<string, VoiceMessage>, fileInfo: FileInfo): VoiceMessage | undefined {
++    if (fileInfo.delete_at > 0 || fileInfo.archived || !fileInfo.mime_type.startsWith('audio/')) {
++        return undefined;
++    }
++    return voiceMessages[fileInfo.id];
++}
++
++export function addVoiceMessages(draft: PostDraft, added: Record<string, VoiceMessage>): PostDraft {
++    if (Object.keys(added).length === 0) {
++        return draft;
++    }
++
++    const attached = new Set(draft.fileInfos.map((fileInfo) => fileInfo.id));
++    const kept = Object.entries(parseVoiceMessages(draft.props)).filter(([fileId]) => attached.has(fileId));
++
++    return {
++        ...draft,
++        props: {
++            ...draft.props,
++            [VOICE_MESSAGES_PROP]: {...Object.fromEntries(kept), ...added},
++        },
++    };
++}
++
++export function computeWaveform(samples: Float32Array, bars = WAVEFORM_BARS): number[] {
++    const bucketSize = Math.floor(samples.length / bars);
++    if (bucketSize === 0) {
++        return [];
++    }
++
++    const levels: number[] = [];
++    for (let bar = 0; bar < bars; bar++) {
++        let sum = 0;
++        for (let i = bar * bucketSize; i < (bar + 1) * bucketSize; i++) {
++            sum += samples[i] * samples[i];
++        }
++        levels.push(Math.sqrt(sum / bucketSize));
++    }
++
++    const peak = Math.max(...levels);
++    return levels.map((level) => (peak > 0 ? Math.round((level / peak) * WAVEFORM_MAX) : 0));
++}
++
++export async function analyzeRecording(blob: Blob, elapsed: number): Promise<VoiceMessage> {
++    const context = new AudioContext();
++    try {
++        const buffer = await context.decodeAudioData(await blob.arrayBuffer());
++        return {
++            duration: Math.round(buffer.duration * 1000),
++            waveform: computeWaveform(buffer.getChannelData(0)),
++        };
++    } catch {
++        return {duration: elapsed, waveform: []};
++    } finally {
++        context.close();
++    }
++}
++
++export function formatDuration(ms: number): string {
++    const seconds = Math.round(ms / 1000);
++    return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
++}
+diff --git a/webapp/channels/src/components/voice_message/voice_message_button.scss b/webapp/channels/src/components/voice_message/voice_message_button.scss
+new file mode 100644
+index 000000000000..0ca2cbb000ca
+--- /dev/null
++++ b/webapp/channels/src/components/voice_message/voice_message_button.scss
+@@ -0,0 +1,39 @@
++.VoiceMessageRecorder {
++    display: flex;
++    align-items: center;
++    padding-left: 8px;
++    border-radius: 4px;
++    background: rgba(var(--dnd-indicator-rgb), 0.08);
++    gap: 4px;
++
++    &__indicator {
++        width: 8px;
++        height: 8px;
++        border-radius: 50%;
++        animation: voice-message-recording 1.2s ease-in-out infinite;
++        background: var(--dnd-indicator);
++    }
++
++    &__time {
++        min-width: 72px;
++        color: var(--center-channel-color);
++        font-size: 12px;
++        font-variant-numeric: tabular-nums;
++    }
++
++    &__stop {
++        color: var(--button-bg);
++    }
++}
++
++@keyframes voice-message-recording {
++    50% {
++        opacity: 0.3;
++    }
++}
++
++@media (prefers-reduced-motion: reduce) {
++    .VoiceMessageRecorder__indicator {
++        animation: none;
++    }
++}
+diff --git a/webapp/channels/src/components/voice_message/voice_message_button.test.tsx b/webapp/channels/src/components/voice_message/voice_message_button.test.tsx
+new file mode 100644
+index 000000000000..f74c53740556
+--- /dev/null
++++ b/webapp/channels/src/components/voice_message/voice_message_button.test.tsx
+@@ -0,0 +1,180 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++import {act, screen, waitFor} from '@testing-library/react';
++import React from 'react';
++
++import {renderWithContext, userEvent} from 'tests/react_testing_utils';
++import {TestHelper} from 'utils/test_helper';
++
++import VoiceMessageButton from './voice_message_button';
++
++class FakeMediaRecorder {
++    static isTypeSupported = jest.fn((mimeType: string) => mimeType === 'audio/webm;codecs=opus');
++    state = 'inactive';
++    ondataavailable: ((e: {data: Blob}) => void) | null = null;
++    onstop: (() => void) | null = null;
++    constructor(public stream: MediaStream, public options: MediaRecorderOptions) {}
++    start() {
++        this.state = 'recording';
++    }
++    stop() {
++        this.state = 'inactive';
++        this.ondataavailable?.({data: new Blob(['opus'], {type: 'audio/webm'})});
++        this.onstop?.();
++    }
++}
++
++class FakeAudioContext {
++    async decodeAudioData() {
++        const samples = new Float32Array(6400);
++        samples.fill(0.5, 3200);
++        return {duration: 2.4, getChannelData: () => samples};
++    }
++    close() {
++        return Promise.resolve();
++    }
++}
++
++describe('VoiceMessageButton', () => {
++    const channel = TestHelper.getChannelMock({id: 'channel1', team_id: 'team1'});
++    const user = TestHelper.getUserMock({id: 'user1', roles: 'system_user'});
++    const track = {stop: jest.fn()};
++    const getUserMedia = jest.fn();
++
++    function state({enableFileAttachments = 'true', permissions = ['upload_file']} = {}) {
++        return {
++            entities: {
++                general: {config: {EnableFileAttachments: enableFileAttachments}},
++                channels: {channels: {[channel.id]: channel}},
++                users: {currentUserId: user.id, profiles: {[user.id]: user}},
++                roles: {roles: {system_user: TestHelper.getRoleMock({name: 'system_user', permissions})}},
++            },
++        };
++    }
++
++    function renderButton(initialState = state(), props: Partial<React.ComponentProps<typeof VoiceMessageButton>> = {}) {
++        const onRecorded = jest.fn();
++        const onError = jest.fn();
++        renderWithContext(
++            <VoiceMessageButton
++                channelId={channel.id}
++                rootId=''
++                disabledByPolicy={false}
++                onRecorded={onRecorded}
++                onError={onError}
++                {...props}
++            />,
++            initialState,
++        );
++        return {onRecorded, onError};
++    }
++
++    beforeAll(() => {
++        Blob.prototype.arrayBuffer ??= () => Promise.resolve(new ArrayBuffer(0));
++    });
++
++    beforeEach(() => {
++        (global as any).MediaRecorder = FakeMediaRecorder;
++        (global as any).AudioContext = FakeAudioContext;
++        getUserMedia.mockReset().mockResolvedValue({getTracks: () => [track]});
++        Object.defineProperty(navigator, 'mediaDevices', {value: {getUserMedia}, configurable: true});
++    });
++
++    afterEach(() => {
++        delete (global as any).MediaRecorder;
++        delete (global as any).AudioContext;
++    });
++
++    test('shows the microphone button when the user can upload files in the channel', () => {
++        renderButton();
++
++        expect(screen.getByRole('button', {name: 'Record voice message'})).toBeInTheDocument();
++    });
++
++    test('hides the button when file attachments are disabled', () => {
++        renderButton(state({enableFileAttachments: 'false'}));
++
++        expect(screen.queryByRole('button', {name: 'Record voice message'})).not.toBeInTheDocument();
++    });
++
++    test('hides the button when the user lacks the upload_file permission', () => {
++        renderButton(state({permissions: []}));
++
++        expect(screen.queryByRole('button', {name: 'Record voice message'})).not.toBeInTheDocument();
++    });
++
++    test('hides the button when an access policy denies uploads in the channel', () => {
++        renderButton(state(), {disabledByPolicy: true});
++
++        expect(screen.queryByRole('button', {name: 'Record voice message'})).not.toBeInTheDocument();
++    });
++
++    test('hides the button when the browser cannot record audio', () => {
++        delete (global as any).MediaRecorder;
++        renderButton();
++
++        expect(screen.queryByRole('button', {name: 'Record voice message'})).not.toBeInTheDocument();
++    });
++
++    test('explains a denied microphone permission', async () => {
++        getUserMedia.mockRejectedValue(new DOMException('denied', 'NotAllowedError'));
++        const {onError} = renderButton();
++
++        await userEvent.click(screen.getByRole('button', {name: 'Record voice message'}));
++
++        expect(onError).toHaveBeenLastCalledWith('Microphone access is blocked. Allow microphone access for this site in your browser settings to record voice messages.');
++        expect(screen.getByRole('button', {name: 'Record voice message'})).toBeEnabled();
++    });
++
++    test('records, then hands over a file with its duration and waveform on stop', async () => {
++        const {onRecorded} = renderButton();
++
++        await userEvent.click(screen.getByRole('button', {name: 'Record voice message'}));
++
++        expect(screen.getByRole('group', {name: 'Recording voice message'})).toBeInTheDocument();
++        expect(screen.getByRole('timer')).toHaveTextContent('0:00 / 5:00');
++        expect(screen.getByRole('button', {name: 'Stop and attach recording'})).toHaveFocus();
++
++        await userEvent.click(screen.getByRole('button', {name: 'Stop and attach recording'}));
++
++        await waitFor(() => expect(onRecorded).toHaveBeenCalledTimes(1));
++        const {file, voiceMessage} = onRecorded.mock.calls[0][0];
++        expect(file.name).toMatch(/^voice-message-\d+\.weba$/);
++        expect(file.type).toBe('audio/webm');
++        expect(voiceMessage.duration).toBe(2400);
++        expect(voiceMessage.waveform).toHaveLength(64);
++        expect(voiceMessage.waveform[0]).toBe(0);
++        expect(voiceMessage.waveform[63]).toBe(100);
++        expect(track.stop).toHaveBeenCalled();
++        expect(screen.getByRole('button', {name: 'Record voice message'})).toBeInTheDocument();
++    });
++
++    test('discards the recording when Escape is pressed', async () => {
++        const {onRecorded} = renderButton();
++
++        await userEvent.click(screen.getByRole('button', {name: 'Record voice message'}));
++        await userEvent.keyboard('{Escape}');
++
++        expect(screen.getByRole('button', {name: 'Record voice message'})).toHaveFocus();
++        expect(onRecorded).not.toHaveBeenCalled();
++    });
++
++    test('stops on its own at the five minute limit', async () => {
++        jest.useFakeTimers({doNotFake: ['queueMicrotask', 'nextTick']});
++        try {
++            const {onRecorded} = renderButton();
++
++            await act(async () => {
++                screen.getByRole('button', {name: 'Record voice message'}).click();
++            });
++            await act(async () => {
++                jest.advanceTimersByTime(5 * 60 * 1000);
++            });
++
++            await waitFor(() => expect(onRecorded).toHaveBeenCalledTimes(1));
++        } finally {
++            jest.useRealTimers();
++        }
++    });
++});
+diff --git a/webapp/channels/src/components/voice_message/voice_message_button.tsx b/webapp/channels/src/components/voice_message/voice_message_button.tsx
+new file mode 100644
+index 000000000000..d0b42d9b0463
+--- /dev/null
++++ b/webapp/channels/src/components/voice_message/voice_message_button.tsx
+@@ -0,0 +1,269 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
++import {defineMessages, useIntl} from 'react-intl';
++import {useSelector} from 'react-redux';
++
++import {CheckIcon, CloseIcon, MicrophoneOutlineIcon} from '@mattermost/compass-icons/components';
++import {WithTooltip} from '@mattermost/shared/components/tooltip';
++
++import Permissions from 'mattermost-redux/constants/permissions';
++import {getChannel} from 'mattermost-redux/selectors/entities/channels';
++import {getConfig} from 'mattermost-redux/selectors/entities/general';
++import {haveIChannelPermission} from 'mattermost-redux/selectors/entities/roles';
++
++import {canUploadFiles} from 'utils/file_utils';
++
++import type {GlobalState} from 'types/store';
++
++import {MAX_RECORDING_MS, analyzeRecording, formatDuration, pickRecorderFormat, voiceMessageFile} from './voice_message';
++import type {VoiceRecording} from './voice_message';
++
++import './voice_message_button.scss';
++
++const messages = defineMessages({
++    record: {id: 'voice_message.record', defaultMessage: 'Record voice message', description: 'Tooltip and accessible label of the microphone button in the message composer that starts recording a voice message.'},
++    recorder: {id: 'voice_message.recorder', defaultMessage: 'Recording voice message', description: 'Accessible label of the composer control group shown while a voice message is being recorded.'},
++    cancel: {id: 'voice_message.cancel', defaultMessage: 'Cancel recording', description: 'Tooltip and accessible label of the button that discards the voice message being recorded.'},
++    stop: {id: 'voice_message.stop', defaultMessage: 'Stop and attach recording', description: 'Tooltip and accessible label of the button that stops recording and attaches the voice message to the draft.'},
++    permissionDenied: {id: 'voice_message.permission_denied', defaultMessage: 'Microphone access is blocked. Allow microphone access for this site in your browser settings to record voice messages.', description: 'Error shown under the message composer when the browser denies microphone access for recording a voice message.'},
++    noMicrophone: {id: 'voice_message.no_microphone', defaultMessage: 'No microphone was found. Connect a microphone to record voice messages.', description: 'Error shown under the message composer when no microphone is available for recording a voice message.'},
++    elapsed: {id: 'voice_message.elapsed', defaultMessage: '{elapsed} / {limit}', description: 'Elapsed recording time next to the five minute limit, shown while recording a voice message; both are times like 0:12 and 5:00.'},
++    startFailed: {id: 'voice_message.start_failed', defaultMessage: 'Recording could not be started.', description: 'Error shown under the message composer when voice recording fails to start for any other reason.'},
++});
++
++type RecorderState = 'idle' | 'starting' | 'recording' | 'processing';
++
++type Session = {
++    recorder: MediaRecorder;
++    stream: MediaStream;
++    timer: number;
++    keep: boolean;
++};
++
++type Props = {
++    channelId: string;
++    rootId: string;
++    disabledByPolicy: boolean;
++    onRecorded: (recording: VoiceRecording) => void;
++    onError: (message: string | null) => void;
++};
++
++function startErrorMessage(err: unknown) {
++    const name = (err as DOMException | undefined)?.name;
++    if (name === 'NotAllowedError' || name === 'SecurityError') {
++        return messages.permissionDenied;
++    }
++    if (name === 'NotFoundError' || name === 'OverconstrainedError') {
++        return messages.noMicrophone;
++    }
++    return messages.startFailed;
++}
++
++export default function VoiceMessageButton({channelId, rootId, disabledByPolicy, onRecorded, onError}: Props) {
++    const {formatMessage} = useIntl();
++    const canUpload = useSelector((state: GlobalState) => {
++        const channel = getChannel(state, channelId);
++        if (!channel || !canUploadFiles(getConfig(state))) {
++            return false;
++        }
++        return haveIChannelPermission(state, channel.team_id, channelId, Permissions.UPLOAD_FILE);
++    });
++    const format = useMemo(() => pickRecorderFormat(), []);
++    const hidden = !format || !canUpload || disabledByPolicy;
++
++    const [recorderState, setRecorderState] = useState<RecorderState>('idle');
++    const [elapsed, setElapsed] = useState(0);
++    const session = useRef<Session | undefined>(undefined);
++    const generation = useRef(0);
++    const onRecordedRef = useRef(onRecorded);
++    onRecordedRef.current = onRecorded;
++    const micButtonRef = useRef<HTMLButtonElement>(null);
++    const refocusMicButton = useRef(false);
++    const stopButtonRef = useRef<HTMLButtonElement>(null);
++
++    const finish = useCallback((keep: boolean) => {
++        const current = session.current;
++        if (!current) {
++            return;
++        }
++        current.keep = keep;
++        window.clearInterval(current.timer);
++        current.recorder.stop();
++    }, []);
++
++    useEffect(() => () => {
++        generation.current++;
++        finish(false);
++    }, [channelId, rootId, finish]);
++
++    useEffect(() => {
++        if (hidden) {
++            finish(false);
++        }
++    }, [hidden, finish]);
++
++    useEffect(() => {
++        if (recorderState === 'recording') {
++            stopButtonRef.current?.focus();
++        } else if (recorderState === 'idle' && refocusMicButton.current) {
++            refocusMicButton.current = false;
++            micButtonRef.current?.focus();
++        }
++    }, [recorderState]);
++
++    const start = useCallback(async () => {
++        if (!format || session.current) {
++            return;
++        }
++        onError(null);
++        setRecorderState('starting');
++        const startGeneration = generation.current;
++
++        let stream: MediaStream;
++        let recorder: MediaRecorder;
++        try {
++            stream = await navigator.mediaDevices.getUserMedia({audio: true});
++        } catch (err) {
++            setRecorderState('idle');
++            onError(formatMessage(startErrorMessage(err)));
++            return;
++        }
++        if (startGeneration !== generation.current) {
++            stream.getTracks().forEach((track) => track.stop());
++            setRecorderState('idle');
++            return;
++        }
++        try {
++            recorder = new MediaRecorder(stream, {mimeType: format.mimeType, audioBitsPerSecond: 32000});
++        } catch {
++            stream.getTracks().forEach((track) => track.stop());
++            setRecorderState('idle');
++            onError(formatMessage(messages.startFailed));
++            return;
++        }
++
++        const chunks: Blob[] = [];
++        const startedAt = Date.now();
++        const current: Session = {recorder, stream, timer: 0, keep: false};
++
++        recorder.ondataavailable = (e) => chunks.push(e.data);
++        recorder.onstop = async () => {
++            const duration = Math.min(Date.now() - startedAt, MAX_RECORDING_MS);
++            stream.getTracks().forEach((track) => track.stop());
++            session.current = undefined;
++            if (!current.keep) {
++                setRecorderState('idle');
++                return;
++            }
++
++            setRecorderState('processing');
++            const blob = new Blob(chunks, {type: format.mimeType});
++            const voiceMessage = await analyzeRecording(blob, duration);
++            setRecorderState('idle');
++            if (startGeneration === generation.current) {
++                onRecordedRef.current({file: voiceMessageFile(blob, format), voiceMessage});
++            }
++        };
++
++        current.timer = window.setInterval(() => {
++            const now = Date.now() - startedAt;
++            setElapsed(now);
++            if (now >= MAX_RECORDING_MS) {
++                finish(true);
++            }
++        }, 250);
++        session.current = current;
++        setElapsed(0);
++        recorder.start();
++        setRecorderState('recording');
++    }, [format, finish, formatMessage, onError]);
++
++    if (hidden) {
++        return null;
++    }
++
++    if (recorderState === 'idle' || recorderState === 'starting') {
++        return (
++            <WithTooltip title={formatMessage(messages.record)}>
++                <button
++                    ref={micButtonRef}
++                    type='button'
++                    id='voiceMessageButton'
++                    aria-label={formatMessage(messages.record)}
++                    className='style--none AdvancedTextEditor__action-button'
++                    disabled={recorderState === 'starting'}
++                    onClick={start}
++                >
++                    <MicrophoneOutlineIcon
++                        size={18}
++                        color='currentColor'
++                    />
++                </button>
++            </WithTooltip>
++        );
++    }
++
++    const cancel = () => {
++        refocusMicButton.current = true;
++        finish(false);
++    };
++
++    const handleKeyDown = (e: React.KeyboardEvent) => {
++        if (e.key === 'Escape') {
++            e.preventDefault();
++            e.stopPropagation();
++            cancel();
++        }
++    };
++
++    return (
++        <div
++            className='VoiceMessageRecorder'
++            role='group'
++            aria-label={formatMessage(messages.recorder)}
++            onKeyDownCapture={handleKeyDown}
++        >
++            <span
++                className='VoiceMessageRecorder__indicator'
++                aria-hidden={true}
++            />
++            <span
++                className='VoiceMessageRecorder__time'
++                role='timer'
++            >
++                {formatMessage(messages.elapsed, {elapsed: formatDuration(elapsed), limit: formatDuration(MAX_RECORDING_MS)})}
++            </span>
++            <WithTooltip title={formatMessage(messages.cancel)}>
++                <button
++                    type='button'
++                    aria-label={formatMessage(messages.cancel)}
++                    className='style--none AdvancedTextEditor__action-button'
++                    onClick={cancel}
++                    disabled={recorderState === 'processing'}
++                >
++                    <CloseIcon
++                        size={18}
++                        color='currentColor'
++                    />
++                </button>
++            </WithTooltip>
++            <WithTooltip title={formatMessage(messages.stop)}>
++                <button
++                    ref={stopButtonRef}
++                    type='button'
++                    aria-label={formatMessage(messages.stop)}
++                    className='style--none AdvancedTextEditor__action-button VoiceMessageRecorder__stop'
++                    onClick={() => finish(true)}
++                    disabled={recorderState === 'processing'}
++                >
++                    <CheckIcon
++                        size={18}
++                        color='currentColor'
++                    />
++                </button>
++            </WithTooltip>
++        </div>
++    );
++}
+diff --git a/webapp/channels/src/components/voice_message/voice_message_player.scss b/webapp/channels/src/components/voice_message/voice_message_player.scss
+new file mode 100644
+index 000000000000..ced1389f3093
+--- /dev/null
++++ b/webapp/channels/src/components/voice_message/voice_message_player.scss
+@@ -0,0 +1,82 @@
++.VoiceMessagePlayer {
++    display: flex;
++    width: 100%;
++    max-width: 420px;
++    box-sizing: border-box;
++    align-items: center;
++    padding: 8px 12px 8px 8px;
++    border: 1px solid rgba(var(--center-channel-color-rgb), 0.16);
++    border-radius: 24px;
++    margin: 4px 0;
++    background: var(--center-channel-bg);
++    gap: 12px;
++
++    &__play {
++        display: flex;
++        width: 32px;
++        height: 32px;
++        flex-shrink: 0;
++        align-items: center;
++        justify-content: center;
++        padding: 0;
++        border: none;
++        border-radius: 50%;
++        background: var(--button-bg);
++        color: var(--button-color);
++
++        &:hover {
++            background: linear-gradient(0deg, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.08)), var(--button-bg);
++        }
++    }
++
++    &__waveform {
++        display: flex;
++        height: 28px;
++        flex: 1;
++        align-items: center;
++        border-radius: 4px;
++        cursor: pointer;
++        gap: 2px;
++
++        &:focus-visible {
++            outline: 2px solid var(--button-bg);
++            outline-offset: 2px;
++        }
++    }
++
++    &__bar {
++        min-width: 2px;
++        flex: 1;
++        border-radius: 2px;
++        background: rgba(var(--center-channel-color-rgb), 0.32);
++
++        &--played {
++            background: var(--button-bg);
++        }
++    }
++
++    &__time {
++        min-width: 32px;
++        color: rgba(var(--center-channel-color-rgb), 0.72);
++        font-size: 12px;
++        font-variant-numeric: tabular-nums;
++        text-align: right;
++    }
++
++    &__speed {
++        min-width: 40px;
++        height: 24px;
++        flex-shrink: 0;
++        padding: 0 6px;
++        border: none;
++        border-radius: 12px;
++        background: rgba(var(--center-channel-color-rgb), 0.08);
++        color: rgba(var(--center-channel-color-rgb), 0.72);
++        font-size: 11px;
++        font-weight: 600;
++
++        &:hover {
++            background: rgba(var(--center-channel-color-rgb), 0.16);
++        }
++    }
++}
+diff --git a/webapp/channels/src/components/voice_message/voice_message_player.test.tsx b/webapp/channels/src/components/voice_message/voice_message_player.test.tsx
+new file mode 100644
+index 000000000000..6fa12994122d
+--- /dev/null
++++ b/webapp/channels/src/components/voice_message/voice_message_player.test.tsx
+@@ -0,0 +1,93 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++import {fireEvent, screen} from '@testing-library/react';
++import React from 'react';
++
++import {renderWithContext, userEvent} from 'tests/react_testing_utils';
++import {TestHelper} from 'utils/test_helper';
++
++import VoiceMessagePlayer from './voice_message_player';
++
++describe('VoiceMessagePlayer', () => {
++    const fileInfo = TestHelper.getFileInfoMock({id: 'file1', name: 'voice-message-1.weba', extension: 'weba', mime_type: 'audio/webm'});
++    const waveform = Array.from({length: 64}, (_, i) => i);
++
++    beforeEach(() => {
++        jest.spyOn(HTMLMediaElement.prototype, 'play').mockImplementation(function(this: HTMLMediaElement) {
++            Object.defineProperty(this, 'paused', {value: false, configurable: true});
++            this.dispatchEvent(new Event('play'));
++            return Promise.resolve();
++        });
++        jest.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(function(this: HTMLMediaElement) {
++            Object.defineProperty(this, 'paused', {value: true, configurable: true});
++            this.dispatchEvent(new Event('pause'));
++        });
++    });
++
++    afterEach(() => {
++        jest.restoreAllMocks();
++    });
++
++    function renderPlayer(duration = 23_000) {
++        const {container} = renderWithContext(
++            <VoiceMessagePlayer
++                fileInfo={fileInfo}
++                voiceMessage={{duration, waveform}}
++            />,
++        );
++        return container.querySelector('audio')!;
++    }
++
++    test('shows the stored duration and one bar per waveform value before playback', () => {
++        const audio = renderPlayer();
++
++        expect(screen.getByText('0:23')).toBeInTheDocument();
++        expect(screen.getByRole('slider', {name: 'Voice message position'})).toHaveAttribute('aria-valuetext', '0:00 of 0:23');
++        expect(document.querySelectorAll('.VoiceMessagePlayer__bar')).toHaveLength(64);
++        expect(audio.getAttribute('src')).toContain('/api/v4/files/file1');
++    });
++
++    test('toggles between play and pause', async () => {
++        renderPlayer();
++
++        await userEvent.click(screen.getByRole('button', {name: 'Play voice message'}));
++        expect(screen.getByRole('button', {name: 'Pause voice message'})).toBeInTheDocument();
++
++        await userEvent.click(screen.getByRole('button', {name: 'Pause voice message'}));
++        expect(screen.getByRole('button', {name: 'Play voice message'})).toBeInTheDocument();
++    });
++
++    test('cycles playback speed through 1x, 1.5x and 2x', async () => {
++        const audio = renderPlayer();
++        const speed = () => screen.getByRole('button', {name: /Playback speed/});
++
++        expect(speed()).toHaveTextContent('1x');
++        await userEvent.click(speed());
++        expect(speed()).toHaveTextContent('1.5x');
++        expect(audio.playbackRate).toBe(1.5);
++        await userEvent.click(speed());
++        expect(speed()).toHaveTextContent('2x');
++        await userEvent.click(speed());
++        expect(speed()).toHaveTextContent('1x');
++    });
++
++    test('seeks with the keyboard and marks played bars', () => {
++        const audio = renderPlayer(20_000);
++        const slider = screen.getByRole('slider');
++
++        fireEvent.keyDown(slider, {key: 'ArrowRight'});
++        fireEvent.keyDown(slider, {key: 'ArrowRight'});
++
++        expect(audio.currentTime).toBe(10);
++        expect(slider).toHaveAttribute('aria-valuenow', '10');
++        expect(screen.getByText('0:10')).toBeInTheDocument();
++        expect(document.querySelectorAll('.VoiceMessagePlayer__bar--played')).toHaveLength(32);
++
++        fireEvent.keyDown(slider, {key: 'End'});
++        expect(slider).toHaveAttribute('aria-valuenow', '20');
++
++        fireEvent.keyDown(slider, {key: 'Home'});
++        expect(document.querySelectorAll('.VoiceMessagePlayer__bar--played')).toHaveLength(0);
++    });
++});
+diff --git a/webapp/channels/src/components/voice_message/voice_message_player.tsx b/webapp/channels/src/components/voice_message/voice_message_player.tsx
+new file mode 100644
+index 000000000000..7a39ba77e84e
+--- /dev/null
++++ b/webapp/channels/src/components/voice_message/voice_message_player.tsx
+@@ -0,0 +1,176 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++import classNames from 'classnames';
++import React, {useCallback, useEffect, useRef, useState} from 'react';
++import {defineMessages, useIntl} from 'react-intl';
++
++import {PauseIcon, PlayIcon} from '@mattermost/compass-icons/components';
++import type {FileInfo} from '@mattermost/types/files';
++
++import {getFileUrl} from 'mattermost-redux/utils/file_utils';
++
++import {WAVEFORM_BARS, formatDuration} from './voice_message';
++import type {VoiceMessage} from './voice_message';
++
++import './voice_message_player.scss';
++
++const messages = defineMessages({
++    play: {id: 'voice_message.play', defaultMessage: 'Play voice message', description: 'Accessible label of the play button on a voice message in a post.'},
++    pause: {id: 'voice_message.pause', defaultMessage: 'Pause voice message', description: 'Accessible label of the pause button on a voice message in a post.'},
++    seek: {id: 'voice_message.seek', defaultMessage: 'Voice message position', description: 'Accessible label of the waveform slider used to move through a voice message.'},
++    position: {id: 'voice_message.position', defaultMessage: '{position} of {duration}', description: 'Screen reader value of the voice message slider; position and duration are times like 0:07 and 0:23.'},
++    speed: {id: 'voice_message.speed', defaultMessage: '{speed, number}x', description: 'Text of the voice message playback speed button, e.g. 1.5x; speed is a number.'},
++    speedLabel: {id: 'voice_message.speed_label', defaultMessage: 'Playback speed {speed, number}x', description: 'Accessible label of the voice message playback speed button; speed is a number.'},
++});
++
++const SPEEDS = [1, 1.5, 2];
++const SEEK_STEP_SECONDS = 5;
++const MIN_BAR_HEIGHT = 10;
++const FLAT_WAVEFORM = new Array(WAVEFORM_BARS).fill(0);
++
++type Props = {
++    fileInfo: FileInfo;
++    voiceMessage: VoiceMessage;
++};
++
++export default function VoiceMessagePlayer({fileInfo, voiceMessage}: Props) {
++    const {formatMessage} = useIntl();
++    const audioRef = useRef<HTMLAudioElement>(null);
++    const [playing, setPlaying] = useState(false);
++    const [position, setPosition] = useState(0);
++    const [speed, setSpeed] = useState(SPEEDS[0]);
++
++    const durationSeconds = voiceMessage.duration / 1000;
++    const progress = Math.min(1, position / durationSeconds);
++    const bars = voiceMessage.waveform.length > 0 ? voiceMessage.waveform : FLAT_WAVEFORM;
++
++    useEffect(() => {
++        const audio = audioRef.current;
++        if (audio) {
++            audio.defaultPlaybackRate = speed;
++            audio.playbackRate = speed;
++        }
++    }, [speed]);
++
++    useEffect(() => {
++        if (!playing) {
++            return undefined;
++        }
++        let frame = 0;
++        const tick = () => {
++            setPosition(audioRef.current?.currentTime ?? 0);
++            frame = requestAnimationFrame(tick);
++        };
++        frame = requestAnimationFrame(tick);
++        return () => cancelAnimationFrame(frame);
++    }, [playing]);
++
++    const togglePlay = useCallback(() => {
++        const audio = audioRef.current;
++        if (!audio) {
++            return;
++        }
++        if (audio.paused) {
++            audio.play()?.catch(() => setPlaying(false));
++        } else {
++            audio.pause();
++        }
++    }, []);
++
++    const seek = useCallback((seconds: number) => {
++        const target = Math.min(durationSeconds, Math.max(0, seconds));
++        if (audioRef.current) {
++            audioRef.current.currentTime = target;
++        }
++        setPosition(target);
++    }, [durationSeconds]);
++
++    const handleWaveformClick = (e: React.MouseEvent<HTMLDivElement>) => {
++        const rect = e.currentTarget.getBoundingClientRect();
++        seek(((e.clientX - rect.left) / rect.width) * durationSeconds);
++    };
++
++    const handleWaveformKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
++        const targets: Record<string, number> = {
++            ArrowRight: position + SEEK_STEP_SECONDS,
++            ArrowUp: position + SEEK_STEP_SECONDS,
++            ArrowLeft: position - SEEK_STEP_SECONDS,
++            ArrowDown: position - SEEK_STEP_SECONDS,
++            Home: 0,
++            End: durationSeconds,
++        };
++        if (e.key in targets) {
++            e.preventDefault();
++            seek(targets[e.key]);
++        }
++    };
++
++    const handleEnded = () => {
++        setPlaying(false);
++        seek(0);
++    };
++
++    const cycleSpeed = () => setSpeed((current) => SPEEDS[(SPEEDS.indexOf(current) + 1) % SPEEDS.length]);
++
++    const started = playing || position > 0;
++    const positionText = formatDuration(position * 1000);
++    const durationText = formatDuration(voiceMessage.duration);
++
++    return (
++        <div
++            className='VoiceMessagePlayer'
++            data-testid='voiceMessagePlayer'
++        >
++            <button
++                type='button'
++                className='VoiceMessagePlayer__play'
++                aria-label={formatMessage(playing ? messages.pause : messages.play)}
++                onClick={togglePlay}
++            >
++                {playing ? <PauseIcon size={18}/> : <PlayIcon size={18}/>}
++            </button>
++            <div
++                className='VoiceMessagePlayer__waveform'
++                role='slider'
++                tabIndex={0}
++                aria-label={formatMessage(messages.seek)}
++                aria-valuemin={0}
++                aria-valuemax={Math.round(durationSeconds)}
++                aria-valuenow={Math.round(position)}
++                aria-valuetext={formatMessage(messages.position, {position: positionText, duration: durationText})}
++                onClick={handleWaveformClick}
++                onKeyDown={handleWaveformKeyDown}
++            >
++                {bars.map((bar, index) => (
++                    <span
++                        key={index}
++                        className={classNames('VoiceMessagePlayer__bar', {
++                            'VoiceMessagePlayer__bar--played': (index + 0.5) / bars.length <= progress,
++                        })}
++                        style={{height: `${Math.max(MIN_BAR_HEIGHT, bar)}%`}}
++                    />
++                ))}
++            </div>
++            <span className='VoiceMessagePlayer__time'>
++                {started ? positionText : durationText}
++            </span>
++            <button
++                type='button'
++                className='VoiceMessagePlayer__speed'
++                aria-label={formatMessage(messages.speedLabel, {speed})}
++                onClick={cycleSpeed}
++            >
++                {formatMessage(messages.speed, {speed})}
++            </button>
++            <audio
++                ref={audioRef}
++                src={getFileUrl(fileInfo.id)}
++                preload='none'
++                onPlay={() => setPlaying(true)}
++                onPause={() => setPlaying(false)}
++                onEnded={handleEnded}
++            />
++        </div>
++    );
++}
+diff --git a/webapp/channels/src/i18n/en.json b/webapp/channels/src/i18n/en.json
+index b60cb34f082f..bf8582e94cc5 100644
+--- a/webapp/channels/src/i18n/en.json
++++ b/webapp/channels/src/i18n/en.json
+@@ -33839,6 +33839,62 @@
+     "defaultMessage": "Plugin SYNCED",
+     "description": "Uppercase tag in the user group modal header indicating the group's membership is managed by a plugin; compact space."
+   },
++  "voice_message.cancel": {
++    "defaultMessage": "Cancel recording",
++    "description": "Tooltip and accessible label of the button that discards the voice message being recorded."
++  },
++  "voice_message.elapsed": {
++    "defaultMessage": "{elapsed} / {limit}",
++    "description": "Elapsed recording time next to the five minute limit, shown while recording a voice message; both are times like 0:12 and 5:00."
++  },
++  "voice_message.no_microphone": {
++    "defaultMessage": "No microphone was found. Connect a microphone to record voice messages.",
++    "description": "Error shown under the message composer when no microphone is available for recording a voice message."
++  },
++  "voice_message.pause": {
++    "defaultMessage": "Pause voice message",
++    "description": "Accessible label of the pause button on a voice message in a post."
++  },
++  "voice_message.permission_denied": {
++    "defaultMessage": "Microphone access is blocked. Allow microphone access for this site in your browser settings to record voice messages.",
++    "description": "Error shown under the message composer when the browser denies microphone access for recording a voice message."
++  },
++  "voice_message.play": {
++    "defaultMessage": "Play voice message",
++    "description": "Accessible label of the play button on a voice message in a post."
++  },
++  "voice_message.position": {
++    "defaultMessage": "{position} of {duration}",
++    "description": "Screen reader value of the voice message slider; position and duration are times like 0:07 and 0:23."
++  },
++  "voice_message.record": {
++    "defaultMessage": "Record voice message",
++    "description": "Tooltip and accessible label of the microphone button in the message composer that starts recording a voice message."
++  },
++  "voice_message.recorder": {
++    "defaultMessage": "Recording voice message",
++    "description": "Accessible label of the composer control group shown while a voice message is being recorded."
++  },
++  "voice_message.seek": {
++    "defaultMessage": "Voice message position",
++    "description": "Accessible label of the waveform slider used to move through a voice message."
++  },
++  "voice_message.speed": {
++    "defaultMessage": "{speed, number}x",
++    "description": "Text of the voice message playback speed button, e.g. 1.5x; speed is a number."
++  },
++  "voice_message.speed_label": {
++    "defaultMessage": "Playback speed {speed, number}x",
++    "description": "Accessible label of the voice message playback speed button; speed is a number."
++  },
++  "voice_message.start_failed": {
++    "defaultMessage": "Recording could not be started.",
++    "description": "Error shown under the message composer when voice recording fails to start for any other reason."
++  },
++  "voice_message.stop": {
++    "defaultMessage": "Stop and attach recording",
++    "description": "Tooltip and accessible label of the button that stops recording and attaches the voice message to the draft."
++  },
+   "web.footer.about": {
+     "defaultMessage": "About",
+     "description": "Footer link on login/signup pages to the About page."

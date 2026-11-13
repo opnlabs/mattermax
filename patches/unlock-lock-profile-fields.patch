@@ -1,0 +1,171 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Karan Sharma <hello@mrkaran.dev>
+Date: Fri, 13 Nov 2026 00:52:40 +0530
+Subject: [PATCH] feat: locked profile fields for email users without a license
+
+Mattermax-Patch: unlock-lock-profile-fields.patch
+---
+ server/channels/api4/team_test.go                | 12 +-----------
+ server/channels/api4/user_test.go                | 16 +---------------
+ server/channels/app/team.go                      |  4 ----
+ server/channels/app/user.go                      |  5 +----
+ server/config/client.go                          |  6 +-----
+ server/config/client_test.go                     |  4 ++--
+ .../admin_console/admin_definition.tsx           |  1 -
+ 7 files changed, 6 insertions(+), 42 deletions(-)
+
+diff --git a/server/channels/api4/team_test.go b/server/channels/api4/team_test.go
+index 7ce0808f500f..457dea43165b 100644
+--- a/server/channels/api4/team_test.go
++++ b/server/channels/api4/team_test.go
+@@ -4415,6 +4415,7 @@ func TestLocalInviteUsersToTeamDeactivatedUser(t *testing.T) {
+ func TestInviteUsersToTeamWithProfiles(t *testing.T) {
+ 	mainHelper.Parallel(t)
+ 	th := Setup(t).InitBasic(t)
++	require.Nil(t, th.App.Srv().License())
+ 
+ 	th.App.UpdateConfig(func(cfg *model.Config) { *cfg.ServiceSettings.EnableEmailInvitations = true })
+ 
+@@ -4452,17 +4453,6 @@ func TestInviteUsersToTeamWithProfiles(t *testing.T) {
+ 		return nil
+ 	}
+ 
+-	t.Run("rejected without an Enterprise license", func(t *testing.T) {
+-		th.App.Srv().SetLicense(model.NewTestLicenseSKU(model.LicenseShortSkuProfessional))
+-
+-		_, resp, err := th.Client.InviteMembersToTeamGracefully(context.Background(), th.BasicTeam.Id, newInvite())
+-		require.Error(t, err)
+-		CheckBadRequestStatus(t, resp)
+-		CheckErrorID(t, err, "api.team.invite_members.profiles_license.app_error")
+-	})
+-
+-	th.App.Srv().SetLicense(model.NewTestLicenseSKU(model.LicenseShortSkuEnterprise))
+-
+ 	t.Run("rejected when locked profile fields are disabled", func(t *testing.T) {
+ 		_, resp, err := th.Client.InviteMembersToTeamGracefully(context.Background(), th.BasicTeam.Id, newInvite())
+ 		require.Error(t, err)
+diff --git a/server/channels/api4/user_test.go b/server/channels/api4/user_test.go
+index c6e8a1c71988..8774a5ca2a02 100644
+--- a/server/channels/api4/user_test.go
++++ b/server/channels/api4/user_test.go
+@@ -10392,6 +10392,7 @@ func TestSetProfileImageWithProviderAttributes(t *testing.T) {
+ func TestLockProfileFieldsForEmailUsers(t *testing.T) {
+ 	mainHelper.Parallel(t)
+ 	th := Setup(t).InitBasic(t)
++	require.Nil(t, th.App.Srv().License())
+ 
+ 	setLock := func(value string) {
+ 		th.App.UpdateConfig(func(cfg *model.Config) {
+@@ -10420,21 +10421,6 @@ func TestLockProfileFieldsForEmailUsers(t *testing.T) {
+ 		require.NoError(t, err)
+ 	})
+ 
+-	t.Run("setting on without Enterprise license is inert", func(t *testing.T) {
+-		th.App.Srv().SetLicense(model.NewTestLicenseSKU(model.LicenseShortSkuProfessional))
+-		setLock(model.TeamSettingsLockProfileFieldsAll)
+-		setNames("First", "Last")
+-
+-		_, _, err := th.Client.PatchUser(context.Background(), th.BasicUser.Id, &model.UserPatch{
+-			Username:  new("un_" + model.NewId()),
+-			FirstName: new("NewFirst"),
+-			Nickname:  new("NewNick"),
+-		})
+-		require.NoError(t, err)
+-	})
+-
+-	th.App.Srv().SetLicense(model.NewTestLicenseSKU(model.LicenseShortSkuEnterprise))
+-
+ 	t.Run("name_and_username locks username and non-empty names", func(t *testing.T) {
+ 		setLock(model.TeamSettingsLockProfileFieldsNameAndUsername)
+ 		setNames("First", "Last")
+diff --git a/server/channels/app/team.go b/server/channels/app/team.go
+index ff68a0ef4d6b..47afabd7eff3 100644
+--- a/server/channels/app/team.go
++++ b/server/channels/app/team.go
+@@ -1656,10 +1656,6 @@ func (a *App) validateAndNormalizeMemberInviteProfiles(memberInvite *model.Membe
+ 		return nil
+ 	}
+ 
+-	if !model.MinimumEnterpriseLicense(a.License()) {
+-		return model.NewAppError("InviteNewUsersToTeamGracefully", "api.team.invite_members.profiles_license.app_error", nil, "", http.StatusBadRequest)
+-	}
+-
+ 	if *a.Config().TeamSettings.LockProfileFieldsForEmailUsers == model.TeamSettingsLockProfileFieldsNone {
+ 		return model.NewAppError("InviteNewUsersToTeamGracefully", "api.team.invite_members.profiles_disabled.app_error", nil, "", http.StatusBadRequest)
+ 	}
+diff --git a/server/channels/app/user.go b/server/channels/app/user.go
+index e17623bed0dc..dbac1a759e1e 100644
+--- a/server/channels/app/user.go
++++ b/server/channels/app/user.go
+@@ -1419,11 +1419,9 @@ func (a *App) CheckProviderAttributes(rctx request.CTX, user *model.User, patch
+ 
+ // CheckLockedProfileFields returns the name of the first profile field in the patch that
+ // conflicts with TeamSettings.LockProfileFieldsForEmailUsers, or "" when there is no conflict.
+-// It only applies to email/password users on Enterprise-licensed servers and exempts sessions
+-// with the edit_other_users permission.
++// It only applies to email/password users and exempts sessions with the edit_other_users permission.
+ func (a *App) CheckLockedProfileFields(session model.Session, user *model.User, patch *model.UserPatch) string {
+ 	if a.SessionHasPermissionTo(session, model.PermissionEditOtherUsers) ||
+-		!model.MinimumEnterpriseLicense(a.License()) ||
+ 		user.AuthService != "" {
+ 		return ""
+ 	}
+@@ -1463,7 +1461,6 @@ func (a *App) CheckLockedProfileFields(session model.Session, user *model.User,
+ // edit_other_users permission.
+ func (a *App) IsProfileImageLockedForUser(session model.Session, user *model.User) bool {
+ 	return !a.SessionHasPermissionTo(session, model.PermissionEditOtherUsers) &&
+-		model.MinimumEnterpriseLicense(a.License()) &&
+ 		user.AuthService == "" &&
+ 		*a.Config().TeamSettings.LockProfileFieldsForEmailUsers == model.TeamSettingsLockProfileFieldsAll
+ }
+diff --git a/server/config/client.go b/server/config/client.go
+index 69b767013951..70ebff4c6ba9 100644
+--- a/server/config/client.go
++++ b/server/config/client.go
+@@ -23,7 +23,7 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
+ 	props["RestrictDirectMessage"] = *c.TeamSettings.RestrictDirectMessage
+ 	props["TeammateNameDisplay"] = *c.TeamSettings.TeammateNameDisplay
+ 	props["LockTeammateNameDisplay"] = strconv.FormatBool(*c.TeamSettings.LockTeammateNameDisplay)
+-	props["LockProfileFieldsForEmailUsers"] = model.TeamSettingsLockProfileFieldsNone
++	props["LockProfileFieldsForEmailUsers"] = *c.TeamSettings.LockProfileFieldsForEmailUsers
+ 	props["ExperimentalPrimaryTeam"] = *c.TeamSettings.ExperimentalPrimaryTeam
+ 	props["EnableJoinLeaveMessageByDefault"] = strconv.FormatBool(*c.TeamSettings.EnableJoinLeaveMessageByDefault)
+ 	props["EnableChannelCategorySorting"] = strconv.FormatBool(*c.TeamSettings.EnableChannelCategorySorting)
+@@ -223,10 +223,6 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
+ 			props["DataRetentionFileRetentionHours"] = strconv.FormatInt(int64(c.DataRetentionSettings.GetFileRetentionHours()), 10)
+ 		}
+ 
+-		if model.MinimumEnterpriseLicense(license) {
+-			props["LockProfileFieldsForEmailUsers"] = *c.TeamSettings.LockProfileFieldsForEmailUsers
+-		}
+-
+ 		if model.MinimumEnterpriseAdvancedLicense(license) {
+ 			props["MobileEnableSecureFilePreview"] = strconv.FormatBool(*c.NativeAppSettings.MobileEnableSecureFilePreview)
+ 			props["MobileAllowPdfLinkNavigation"] = strconv.FormatBool(*c.NativeAppSettings.MobileAllowPdfLinkNavigation)
+diff --git a/server/config/client_test.go b/server/config/client_test.go
+index 36e504b27fee..ddf7720b4608 100644
+--- a/server/config/client_test.go
++++ b/server/config/client_test.go
+@@ -1038,8 +1038,8 @@ func TestGenerateClientConfigLockProfileFieldsForEmailUsers(t *testing.T) {
+ 		license  *model.License
+ 		expected string
+ 	}{
+-		"unlicensed":   {expected: model.TeamSettingsLockProfileFieldsNone},
+-		"professional": {license: model.NewTestLicenseSKU(model.LicenseShortSkuProfessional), expected: model.TeamSettingsLockProfileFieldsNone},
++		"unlicensed":   {expected: model.TeamSettingsLockProfileFieldsAll},
++		"professional": {license: model.NewTestLicenseSKU(model.LicenseShortSkuProfessional), expected: model.TeamSettingsLockProfileFieldsAll},
+ 		"enterprise":   {license: model.NewTestLicenseSKU(model.LicenseShortSkuEnterprise), expected: model.TeamSettingsLockProfileFieldsAll},
+ 	} {
+ 		t.Run(name, func(t *testing.T) {
+diff --git a/webapp/channels/src/components/admin_console/admin_definition.tsx b/webapp/channels/src/components/admin_console/admin_definition.tsx
+index 947ff1882c7f..40b13b655adb 100644
+--- a/webapp/channels/src/components/admin_console/admin_definition.tsx
++++ b/webapp/channels/src/components/admin_console/admin_definition.tsx
+@@ -3027,7 +3027,6 @@ const AdminDefinition: AdminDefinitionType = {
+                                     display_name: defineMessage({id: 'admin.team.lockProfileFields.all', defaultMessage: 'Lock entire profile'}),
+                                 },
+                             ],
+-                            isHidden: it.not(it.minLicenseTier(LicenseSkus.Enterprise)),
+                             isDisabled: it.not(it.userHasWritePermissionOnResource(RESOURCE_KEYS.SITE.USERS_AND_TEAMS)),
+                         },
+                         {

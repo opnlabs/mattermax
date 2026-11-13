@@ -1,0 +1,993 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Karan Sharma <hello@mrkaran.dev>
+Date: Fri, 13 Nov 2026 00:51:50 +0530
+Subject: [PATCH] feat: custom profile attributes without a license
+
+Mattermax-Patch: unlock-custom-profile-attributes.patch
+---
+ .../api4/custom_profile_attributes.go         |   8 -
+ .../api4/custom_profile_attributes_test.go    |  95 ++++++-----
+ server/channels/app/server.go                 |   7 -
+ .../src/actions/websocket_actions.test.ts     |   5 +-
+ .../channels/src/actions/websocket_actions.ts |   5 +-
+ .../admin_console/admin_definition.tsx        |  31 ----
+ ...dmin_definition_global_attributes.test.tsx |  23 +--
+ .../admin_definition_user_attributes.test.tsx |  54 +-----
+ .../__snapshots__/admin_sidebar.test.tsx.snap | 161 +++---------------
+ .../admin_console/system_user_detail/index.ts |  10 +-
+ .../src/components/logged_in/index.test.ts    |   8 +-
+ .../src/components/logged_in/index.ts         |   3 +-
+ .../profile_popover/profile_popover.test.tsx  |  16 +-
+ .../profile_popover/profile_popover.tsx       |   7 +-
+ .../components/user_settings/general/index.ts |   9 +-
+ webapp/channels/src/i18n/en.json              |   4 -
+ 16 files changed, 120 insertions(+), 326 deletions(-)
+
+diff --git a/server/channels/api4/custom_profile_attributes.go b/server/channels/api4/custom_profile_attributes.go
+index cbf89a5c22d2..4c9ada6e6f70 100644
+--- a/server/channels/api4/custom_profile_attributes.go
++++ b/server/channels/api4/custom_profile_attributes.go
+@@ -318,14 +318,6 @@ func deleteCPAField(c *Context, w http.ResponseWriter, r *http.Request) {
+ }
+ 
+ func getCPAGroup(c *Context, w http.ResponseWriter, r *http.Request) {
+-	// Every other CPA endpoint enforces MinimumEnterpriseLicense via the
+-	// LicenseCheckHook on field/value operations. GetPropertyGroup is not
+-	// hooked, so we enforce the same contract here inline.
+-	if !model.MinimumEnterpriseLicense(c.App.License()) {
+-		c.Err = model.NewAppError("getCPAGroup", "app.property.license_error", nil, "an Enterprise license is required", http.StatusForbidden)
+-		return
+-	}
+-
+ 	group, appErr := c.App.GetPropertyGroup(c.AppContext, model.AccessControlPropertyGroupName)
+ 	if appErr != nil {
+ 		c.Err = appErr
+diff --git a/server/channels/api4/custom_profile_attributes_test.go b/server/channels/api4/custom_profile_attributes_test.go
+index 87d96dc2c423..f84ab8c6987e 100644
+--- a/server/channels/api4/custom_profile_attributes_test.go
++++ b/server/channels/api4/custom_profile_attributes_test.go
+@@ -7,6 +7,7 @@ import (
+ 	"context"
+ 	"encoding/json"
+ 	"fmt"
++	"net/http"
+ 	"strings"
+ 	"testing"
+ 	"time"
+@@ -33,11 +34,10 @@ func TestCreateCPAField(t *testing.T) {
+ 		field := &model.PropertyField{Name: celSafeName(), Type: model.PropertyFieldTypeText}
+ 
+ 		createdField, resp, err := client.CreateCPAField(context.Background(), field)
+-		CheckForbiddenStatus(t, resp)
+-		require.Error(t, err)
+-		CheckErrorID(t, err, "app.property.license_error")
+-		require.Empty(t, createdField)
+-	}, "endpoint should not work if no valid license is present")
++		CheckCreatedStatus(t, resp)
++		require.NoError(t, err)
++		require.NotZero(t, createdField.ID)
++	}, "endpoint should work without a license")
+ 
+ 	// add a valid license
+ 	th.App.Srv().SetLicense(model.NewTestLicenseSKU(model.LicenseShortSkuEnterprise))
+@@ -135,6 +135,23 @@ func TestCreateCPAField(t *testing.T) {
+ 	})
+ }
+ 
++func TestGetCPAGroupWithoutLicense(t *testing.T) {
++	mainHelper.Parallel(t)
++	th := Setup(t).InitBasic(t)
++
++	group, appErr := th.App.GetPropertyGroup(th.Context, model.AccessControlPropertyGroupName)
++	require.Nil(t, appErr)
++
++	resp, err := th.Client.DoAPIGet(context.Background(), "/custom_profile_attributes/group", "")
++	require.NoError(t, err)
++	defer resp.Body.Close()
++	require.Equal(t, http.StatusOK, resp.StatusCode)
++
++	var body map[string]string
++	require.NoError(t, json.NewDecoder(resp.Body).Decode(&body))
++	require.Equal(t, group.ID, body["id"])
++}
++
+ func TestCPAFieldLimit(t *testing.T) {
+ 	mainHelper.Parallel(t)
+ 	th := Setup(t).InitBasic(t)
+@@ -197,15 +214,15 @@ func TestListCPAFields(t *testing.T) {
+ 	require.NoError(t, err)
+ 	require.NotNil(t, createdField)
+ 
+-	t.Run("endpoint should not work if no valid license is present", func(t *testing.T) {
++	t.Run("endpoint should work without a license", func(t *testing.T) {
+ 		th.App.Srv().SetLicense(nil)
+ 		defer th.App.Srv().SetLicense(model.NewTestLicenseSKU(model.LicenseShortSkuEnterprise))
+ 
+ 		fields, resp, err := th.Client.ListCPAFields(context.Background())
+-		CheckForbiddenStatus(t, resp)
+-		require.Error(t, err)
+-		CheckErrorID(t, err, "app.property.license_error")
+-		require.Empty(t, fields)
++		CheckOKStatus(t, resp)
++		require.NoError(t, err)
++		require.Len(t, fields, 1)
++		require.Equal(t, createdField.ID, fields[0].ID)
+ 	})
+ 
+ 	t.Run("any user should be able to list fields", func(t *testing.T) {
+@@ -236,22 +253,18 @@ func TestPatchCPAField(t *testing.T) {
+ 	})
+ 
+ 	th.TestForSystemAdminAndLocal(t, func(t *testing.T, client *model.Client4) {
+-		// Create a field with a license so we can test the license check on patch.
+-		th.App.Srv().SetLicense(model.NewTestLicenseSKU(model.LicenseShortSkuEnterprise))
+ 		field := &model.PropertyField{Name: celSafeName(), Type: model.PropertyFieldTypeText}
+ 		createdField, _, createErr := th.SystemAdminClient.CreateCPAField(context.Background(), field)
+ 		require.NoError(t, createErr)
+ 		require.NotNil(t, createdField)
+ 
+-		// Remove the license and verify patch is blocked.
+-		th.App.Srv().SetLicense(nil)
+-		patch := &model.PropertyFieldPatch{Name: model.NewPointer(celSafeName())}
++		newName := celSafeName()
++		patch := &model.PropertyFieldPatch{Name: model.NewPointer(newName)}
+ 		patchedField, resp, err := client.PatchCPAField(context.Background(), createdField.ID, patch)
+-		CheckForbiddenStatus(t, resp)
+-		require.Error(t, err)
+-		CheckErrorID(t, err, "app.property.license_error")
+-		require.Empty(t, patchedField)
+-	}, "endpoint should not work if no valid license is present")
++		CheckOKStatus(t, resp)
++		require.NoError(t, err)
++		require.Equal(t, newName, patchedField.Name)
++	}, "endpoint should work without a license")
+ 
+ 	// add a valid license
+ 	th.App.Srv().SetLicense(model.NewTestLicenseSKU(model.LicenseShortSkuEnterprise))
+@@ -586,20 +599,15 @@ func TestDeleteCPAField(t *testing.T) {
+ 	th := Setup(t)
+ 
+ 	th.TestForSystemAdminAndLocal(t, func(t *testing.T, client *model.Client4) {
+-		// Create a field with a license so we can test the license check on delete.
+-		th.App.Srv().SetLicense(model.NewTestLicenseSKU(model.LicenseShortSkuEnterprise))
+ 		field := &model.PropertyField{Name: celSafeName(), Type: model.PropertyFieldTypeText}
+ 		createdField, _, createErr := th.SystemAdminClient.CreateCPAField(context.Background(), field)
+ 		require.NoError(t, createErr)
+ 		require.NotNil(t, createdField)
+ 
+-		// Remove the license and verify delete is blocked.
+-		th.App.Srv().SetLicense(nil)
+ 		resp, err := client.DeleteCPAField(context.Background(), createdField.ID)
+-		CheckForbiddenStatus(t, resp)
+-		require.Error(t, err)
+-		CheckErrorID(t, err, "app.property.license_error")
+-	}, "endpoint should not work if no valid license is present")
++		CheckOKStatus(t, resp)
++		require.NoError(t, err)
++	}, "endpoint should work without a license")
+ 
+ 	// add a valid license
+ 	th.App.Srv().SetLicense(model.NewTestLicenseSKU(model.LicenseShortSkuEnterprise))
+@@ -692,15 +700,14 @@ func TestListCPAValues(t *testing.T) {
+ 	CheckOKStatus(t, resp)
+ 	require.NoError(t, err)
+ 
+-	t.Run("endpoint should not work if no valid license is present", func(t *testing.T) {
++	t.Run("endpoint should work without a license", func(t *testing.T) {
+ 		th.App.Srv().SetLicense(nil)
+ 		defer th.App.Srv().SetLicense(model.NewTestLicenseSKU(model.LicenseShortSkuEnterprise))
+ 
+ 		values, resp, err := th.Client.ListCPAValues(context.Background(), th.BasicUser.Id)
+-		CheckForbiddenStatus(t, resp)
+-		require.Error(t, err)
+-		CheckErrorID(t, err, "app.property.license_error")
+-		require.Empty(t, values)
++		CheckOKStatus(t, resp)
++		require.NoError(t, err)
++		require.Equal(t, json.RawMessage(`"Field Value"`), values[createdField.ID])
+ 	})
+ 
+ 	// login with Client2 from this point on
+@@ -778,16 +785,15 @@ func TestPatchCPAValues(t *testing.T) {
+ 	require.NoError(t, err)
+ 	require.NotNil(t, createdField)
+ 
+-	t.Run("endpoint should not work if no valid license is present", func(t *testing.T) {
++	t.Run("endpoint should work without a license", func(t *testing.T) {
+ 		th.App.Srv().SetLicense(nil)
+ 		defer th.App.Srv().SetLicense(model.NewTestLicenseSKU(model.LicenseShortSkuEnterprise))
+ 
+-		values := map[string]json.RawMessage{createdField.ID: json.RawMessage(`"Field Value"`)}
++		values := map[string]json.RawMessage{createdField.ID: json.RawMessage(`"Unlicensed Value"`)}
+ 		patchedValues, resp, err := th.Client.PatchCPAValues(context.Background(), values)
+-		CheckForbiddenStatus(t, resp)
+-		require.Error(t, err)
+-		CheckErrorID(t, err, "app.property.license_error")
+-		require.Empty(t, patchedValues)
++		CheckOKStatus(t, resp)
++		require.NoError(t, err)
++		require.Equal(t, json.RawMessage(`"Unlicensed Value"`), patchedValues[createdField.ID])
+ 	})
+ 
+ 	t.Run("any team member should be able to create their own values", func(t *testing.T) {
+@@ -1235,16 +1241,15 @@ func TestPatchCPAValuesForUser(t *testing.T) {
+ 	require.NoError(t, err)
+ 	require.NotNil(t, createdField)
+ 
+-	t.Run("endpoint should not work if no valid license is present", func(t *testing.T) {
++	t.Run("endpoint should work without a license", func(t *testing.T) {
+ 		th.App.Srv().SetLicense(nil)
+ 		defer th.App.Srv().SetLicense(model.NewTestLicenseSKU(model.LicenseShortSkuEnterprise))
+ 
+-		values := map[string]json.RawMessage{createdField.ID: json.RawMessage(`"Field Value"`)}
++		values := map[string]json.RawMessage{createdField.ID: json.RawMessage(`"Unlicensed Value"`)}
+ 		patchedValues, resp, err := th.Client.PatchCPAValuesForUser(context.Background(), th.BasicUser.Id, values)
+-		CheckForbiddenStatus(t, resp)
+-		require.Error(t, err)
+-		CheckErrorID(t, err, "app.property.license_error")
+-		require.Empty(t, patchedValues)
++		CheckOKStatus(t, resp)
++		require.NoError(t, err)
++		require.Equal(t, json.RawMessage(`"Unlicensed Value"`), patchedValues[createdField.ID])
+ 	})
+ 
+ 	// add a valid license
+diff --git a/server/channels/app/server.go b/server/channels/app/server.go
+index 5a48eb70e8c3..c6c9e5e912b0 100644
+--- a/server/channels/app/server.go
++++ b/server/channels/app/server.go
+@@ -326,13 +326,6 @@ func NewServer(options ...Option) (*Server, error) {
+ 		return nil, errors.Wrap(err, "failed to look up CPA property group")
+ 	}
+ 
+-	// License check hook — must run before other hooks so unlicensed
+-	// operations are rejected early.
+-	licenseCheckHook := properties.NewLicenseCheckHook(func() *model.License {
+-		return s.License()
+-	}, cpaGroup.ID)
+-	s.propertyService.AddHook(licenseCheckHook)
+-
+ 	pluginChecker := func(pluginID string) bool {
+ 		_, err := s.ch.GetPluginStatus(pluginID)
+ 		return err == nil
+diff --git a/webapp/channels/src/actions/websocket_actions.test.ts b/webapp/channels/src/actions/websocket_actions.test.ts
+index 2c4bfff7ca06..e4a72a673909 100644
+--- a/webapp/channels/src/actions/websocket_actions.test.ts
++++ b/webapp/channels/src/actions/websocket_actions.test.ts
+@@ -975,9 +975,10 @@ describe('reconnect', () => {
+     });
+ 
+     test.each([
++        {SkuShortName: ''},
+         {SkuShortName: 'starter'},
+         {SkuShortName: 'professional'},
+-    ])('should not reload custom profile attribute fields on reconnect without an Enterprise license', ({SkuShortName}) => {
++    ])('should reload custom profile attribute fields on reconnect without an Enterprise license', ({SkuShortName}) => {
+         const clonedMockState = cloneDeep(mockState);
+ 
+         mockState = mergeObjects(
+@@ -994,7 +995,7 @@ describe('reconnect', () => {
+         );
+ 
+         reconnect();
+-        expect(getCustomProfileAttributeFields).not.toHaveBeenCalled();
++        expect(getCustomProfileAttributeFields).toHaveBeenCalled();
+ 
+         // Restore mock state
+         mockState = clonedMockState;
+diff --git a/webapp/channels/src/actions/websocket_actions.ts b/webapp/channels/src/actions/websocket_actions.ts
+index 1387600fcb4c..764046adb94f 100644
+--- a/webapp/channels/src/actions/websocket_actions.ts
++++ b/webapp/channels/src/actions/websocket_actions.ts
+@@ -184,7 +184,6 @@ import {ActionTypes, Constants, AnnouncementBarMessages, JobStatuses, SocketEven
+ import DesktopApp from 'utils/desktop_api';
+ import {getIntl} from 'utils/i18n';
+ import {MAX_OPEN_DIALOGS, getOpenDialogCount} from 'utils/interactive_dialog';
+-import {isEnterpriseLicense} from 'utils/license_utils';
+ import {isChannelPopoutWindow} from 'utils/popouts/popout_windows';
+ import {isWithheldPropertyValue} from 'utils/properties';
+ import {getSiteURL} from 'utils/url';
+@@ -351,9 +350,7 @@ export function reconnect() {
+     });
+ 
+     // Refresh custom profile attributes on reconnect
+-    if (isEnterpriseLicense(getLicense(state))) {
+-        dispatch(getCustomProfileAttributeFields());
+-    }
++    dispatch(getCustomProfileAttributeFields());
+ 
+     // Refresh classification fields and values on reconnect when the feature flag is active
+     if (getFeatureFlagValue(state, 'ClassificationMarkings') === 'true') {
+diff --git a/webapp/channels/src/components/admin_console/admin_definition.tsx b/webapp/channels/src/components/admin_console/admin_definition.tsx
+index 2e8b8c463521..227166cc57ed 100644
+--- a/webapp/channels/src/components/admin_console/admin_definition.tsx
++++ b/webapp/channels/src/components/admin_console/admin_definition.tsx
+@@ -94,7 +94,6 @@ import AutoTranslationFeatureDiscovery from './feature_discovery/features/auto_t
+ import BurnOnReadSVG from './feature_discovery/features/images/burn_on_read_svg';
+ import IntuneMAMSvg from './feature_discovery/features/images/intune_mam_svg';
+ import SessionAttributesFeatureDiscovery from './feature_discovery/features/session_attributes';
+-import UserAttributesFeatureDiscovery from './feature_discovery/features/user_attributes';
+ import FeatureFlags, {messages as featureFlagsMessages} from './feature_flags';
+ import GlobalAttributes, {searchableStrings as globalAttributesSearchableStrings} from './global_attributes';
+ import AttributeDetails from './global_attributes/attribute_details';
+@@ -639,35 +638,8 @@ const AdminDefinition: AdminDefinitionType = {
+         sectionTitle: defineMessage({id: 'admin.sidebar.systemAttributes', defaultMessage: 'System Attributes'}),
+         isHidden: it.not(it.userHasReadPermissionOnSomeResources(RESOURCE_KEYS.USER_MANAGEMENT)),
+         subsections: {
+-            user_attributes_feature_discovery: {
+-                url: 'system_attributes/user_attributes',
+-                isDiscovery: true,
+-                title: defineMessage({id: 'admin.sidebar.user_attributes', defaultMessage: 'User Attributes'}),
+-                isHidden: it.minLicenseTier(LicenseSkus.Enterprise),
+-                schema: {
+-                    id: 'SystemProperties',
+-                    name: defineMessage({id: 'admin.sidebar.user_attributes', defaultMessage: 'User Attributes'}),
+-                    settings: [
+-                        {
+-                            type: 'custom',
+-                            component: UserAttributesFeatureDiscovery,
+-                            key: 'UserAttributesFeatureDiscovery',
+-                            isDisabled: it.not(it.userHasWritePermissionOnResource(RESOURCE_KEYS.ABOUT.EDITION_AND_LICENSE)),
+-                        },
+-                    ],
+-                },
+-                restrictedIndicator: getRestrictedIndicator(true, LicenseSkus.EnterpriseAdvanced),
+-            },
+             user_attributes_redirect: {
+                 url: 'system_attributes/user_attributes',
+-
+-                // Exact complement of user_attributes_feature_discovery's
+-                // isHidden above: Enterprise+ has no page of its own here
+-                // anymore (CPA fields now show in Manage Attributes as
+-                // non-template fields), so this URL redirects there instead
+-                // of falling through to the admin console's unrelated
+-                // default-page redirect.
+-                isHidden: it.not(it.minLicenseTier(LicenseSkus.Enterprise)),
+                 schema: {
+                     id: 'UserAttributesRedirect',
+                     component: UserAttributesRedirect,
+@@ -704,7 +676,6 @@ const AdminDefinition: AdminDefinitionType = {
+             },
+             global_attribute_details_edit: {
+                 url: `system_attributes/manage_attributes/attribute_details/:field_id(${ID_PATH_PATTERN})`,
+-                isHidden: it.not(it.minLicenseTier(LicenseSkus.Enterprise)),
+                 isDisabled: it.not(it.isSystemAdmin),
+                 schema: {
+                     id: 'GlobalAttributeDetails',
+@@ -713,7 +684,6 @@ const AdminDefinition: AdminDefinitionType = {
+             },
+             global_attribute_details: {
+                 url: 'system_attributes/manage_attributes/attribute_details',
+-                isHidden: it.not(it.minLicenseTier(LicenseSkus.Enterprise)),
+                 isDisabled: it.not(it.isSystemAdmin),
+                 schema: {
+                     id: 'GlobalAttributeDetails',
+@@ -724,7 +694,6 @@ const AdminDefinition: AdminDefinitionType = {
+                 url: 'system_attributes/manage_attributes',
+                 title: defineMessage({id: 'admin.sidebar.global_attributes', defaultMessage: 'Attribute Management'}),
+                 searchableStrings: globalAttributesSearchableStrings,
+-                isHidden: it.not(it.minLicenseTier(LicenseSkus.Enterprise)),
+                 isDisabled: it.not(it.isSystemAdmin),
+                 schema: {
+                     id: 'GlobalAttributes',
+diff --git a/webapp/channels/src/components/admin_console/admin_definition_global_attributes.test.tsx b/webapp/channels/src/components/admin_console/admin_definition_global_attributes.test.tsx
+index 4321d472b447..eb8c6d7af14e 100644
+--- a/webapp/channels/src/components/admin_console/admin_definition_global_attributes.test.tsx
++++ b/webapp/channels/src/components/admin_console/admin_definition_global_attributes.test.tsx
+@@ -26,10 +26,11 @@ const unlicensed = {
+ 
+ const consoleAccess = {read: {}, write: {}} as ConsoleAccess;
+ 
+-function isHidden(config: Partial<AdminConfig>, license: ClientLicense) {
+-    const subsection = AdminDefinition.system_attributes.subsections.global_attributes;
+-    const check = subsection.isHidden as Extract<Check, (...args: any[]) => boolean>;
+-    return check(config, {}, license, true, consoleAccess);
++type GlobalAttributesSubsection = 'global_attributes' | 'global_attribute_details' | 'global_attribute_details_edit';
++
++function isHidden(subsectionKey: GlobalAttributesSubsection, license: ClientLicense) {
++    const check = AdminDefinition.system_attributes.subsections[subsectionKey].isHidden;
++    return typeof check === 'function' ? check(config, {}, license, true, consoleAccess) : Boolean(check);
+ }
+ 
+ function isDisabled(isSystemAdmin: boolean) {
+@@ -39,16 +40,18 @@ function isDisabled(isSystemAdmin: boolean) {
+ }
+ 
+ describe('AdminDefinition - Global Attributes access gate', () => {
+-    test('is hidden below Enterprise license', () => {
+-        expect(isHidden(config, professionalLicense)).toBe(true);
++    const subsections: GlobalAttributesSubsection[] = ['global_attributes', 'global_attribute_details', 'global_attribute_details_edit'];
++
++    test.each(subsections)('%s is visible when unlicensed', (subsectionKey) => {
++        expect(isHidden(subsectionKey, unlicensed)).toBe(false);
+     });
+ 
+-    test('is hidden when unlicensed', () => {
+-        expect(isHidden(config, unlicensed)).toBe(true);
++    test.each(subsections)('%s is visible below Enterprise license', (subsectionKey) => {
++        expect(isHidden(subsectionKey, professionalLicense)).toBe(false);
+     });
+ 
+-    test('is visible on Enterprise+ license', () => {
+-        expect(isHidden(config, enterpriseLicense)).toBe(false);
++    test.each(subsections)('%s is visible on Enterprise+ license', (subsectionKey) => {
++        expect(isHidden(subsectionKey, enterpriseLicense)).toBe(false);
+     });
+ 
+     test('disables the page for non-sysadmins', () => {
+diff --git a/webapp/channels/src/components/admin_console/admin_definition_user_attributes.test.tsx b/webapp/channels/src/components/admin_console/admin_definition_user_attributes.test.tsx
+index 80a68d60d039..4dcf248ed193 100644
+--- a/webapp/channels/src/components/admin_console/admin_definition_user_attributes.test.tsx
++++ b/webapp/channels/src/components/admin_console/admin_definition_user_attributes.test.tsx
+@@ -6,7 +6,7 @@ import type {AdminConfig, ClientLicense} from '@mattermost/types/config';
+ import {LicenseSkus} from 'utils/constants';
+ 
+ import AdminDefinition from './admin_definition';
+-import type {Check, ConsoleAccess} from './types';
++import type {ConsoleAccess} from './types';
+ 
+ const config = {} as Partial<AdminConfig>;
+ 
+@@ -26,59 +26,21 @@ const unlicensed = {
+ 
+ const consoleAccess = {read: {}, write: {}} as ConsoleAccess;
+ 
+-function isDiscoveryHidden(license: ClientLicense) {
+-    const subsection = AdminDefinition.system_attributes.subsections.user_attributes_feature_discovery;
+-    const check = subsection.isHidden as Extract<Check, (...args: any[]) => boolean>;
+-    return check(config, {}, license, true, consoleAccess);
+-}
+-
+ function isRedirectHidden(license: ClientLicense) {
+-    const subsection = AdminDefinition.system_attributes.subsections.user_attributes_redirect;
+-    const check = subsection.isHidden as Extract<Check, (...args: any[]) => boolean>;
+-    return check(config, {}, license, true, consoleAccess);
++    const check = AdminDefinition.system_attributes.subsections.user_attributes_redirect.isHidden;
++    return typeof check === 'function' ? check(config, {}, license, true, consoleAccess) : Boolean(check);
+ }
+ 
+-describe('AdminDefinition - user_attributes_feature_discovery access gate', () => {
+-    test('is visible below Enterprise license', () => {
+-        expect(isDiscoveryHidden(professionalLicense)).toBe(false);
+-    });
+-
+-    test('is visible when unlicensed', () => {
+-        expect(isDiscoveryHidden(unlicensed)).toBe(false);
+-    });
+-
+-    test('is hidden on Enterprise+ license', () => {
+-        expect(isDiscoveryHidden(enterpriseLicense)).toBe(true);
+-    });
+-});
+-
+ describe('AdminDefinition - user_attributes_redirect access gate', () => {
+-    test('is hidden below Enterprise license', () => {
+-        expect(isRedirectHidden(professionalLicense)).toBe(true);
+-    });
+-
+-    test('is hidden when unlicensed', () => {
+-        expect(isRedirectHidden(unlicensed)).toBe(true);
++    test('has no feature discovery page', () => {
++        expect(AdminDefinition.system_attributes.subsections).not.toHaveProperty('user_attributes_feature_discovery');
+     });
+ 
+-    test('is visible on Enterprise+ license', () => {
+-        expect(isRedirectHidden(enterpriseLicense)).toBe(false);
+-    });
+-});
+-
+-describe('AdminDefinition - system_attributes/user_attributes always has a registered route', () => {
+-    // Both subsections above are registered at the same URL. If both are ever
+-    // hidden for a given license, the admin console has no route for that URL
+-    // and silently redirects elsewhere (admin_console.tsx's catch-all
+-    // <Redirect>) instead of showing anything -- this is exactly the
+-    // regression this test exists to catch.
+-    const cases: Array<[string, ClientLicense]> = [
++    test.each([
+         ['unlicensed', unlicensed],
+         ['below Enterprise', professionalLicense],
+         ['Enterprise+', enterpriseLicense],
+-    ];
+-
+-    test.each(cases)('at least one of the two is visible when %s', (_name, license) => {
+-        expect(isDiscoveryHidden(license) && isRedirectHidden(license)).toBe(false);
++    ])('is visible when %s', (_name, license) => {
++        expect(isRedirectHidden(license)).toBe(false);
+     });
+ });
+diff --git a/webapp/channels/src/components/admin_console/admin_sidebar/__snapshots__/admin_sidebar.test.tsx.snap b/webapp/channels/src/components/admin_console/admin_sidebar/__snapshots__/admin_sidebar.test.tsx.snap
+index 177e4906cf8a..405a91265a52 100644
+--- a/webapp/channels/src/components/admin_console/admin_sidebar/__snapshots__/admin_sidebar.test.tsx.snap
++++ b/webapp/channels/src/components/admin_console/admin_sidebar/__snapshots__/admin_sidebar.test.tsx.snap
+@@ -834,32 +834,17 @@ exports[`components/AdminSidebar should match snapshot 1`] = `
+                         >
+                           <li
+                             class="sidebar-section"
+-                            data-testid="system_attributes.user_attributes_feature_discovery"
++                            data-testid="system_attributes.global_attributes"
+                           >
+                             <a
+                               class="sidebar-section-title"
+-                              href="/admin_console/system_attributes/user_attributes"
+-                              id="system_attributes/user_attributes"
++                              href="/admin_console/system_attributes/manage_attributes"
++                              id="system_attributes/manage_attributes"
+                             >
+                               <span
+                                 class="sidebar-section-title__text"
+                               >
+-                                User Attributes
+-                              </span>
+-                              <span
+-                                class="sidebar-section-indicator"
+-                              >
+-                                <span
+-                                  class="RestrictedIndicator__icon-tooltip-container"
+-                                >
+-                                  <div
+-                                    class="RestrictedIndicator__content"
+-                                  >
+-                                    <i
+-                                      class="RestrictedIndicator__icon-tooltip icon icon-key-variant"
+-                                    />
+-                                  </div>
+-                                </span>
++                                Attribute Management
+                               </span>
+                             </a>
+                             <ul
+@@ -6449,32 +6434,17 @@ exports[`components/AdminSidebar should match snapshot with license with profess
+                         >
+                           <li
+                             class="sidebar-section"
+-                            data-testid="system_attributes.user_attributes_feature_discovery"
++                            data-testid="system_attributes.global_attributes"
+                           >
+                             <a
+                               class="sidebar-section-title"
+-                              href="/admin_console/system_attributes/user_attributes"
+-                              id="system_attributes/user_attributes"
++                              href="/admin_console/system_attributes/manage_attributes"
++                              id="system_attributes/manage_attributes"
+                             >
+                               <span
+                                 class="sidebar-section-title__text"
+                               >
+-                                User Attributes
+-                              </span>
+-                              <span
+-                                class="sidebar-section-indicator"
+-                              >
+-                                <span
+-                                  class="RestrictedIndicator__icon-tooltip-container"
+-                                >
+-                                  <div
+-                                    class="RestrictedIndicator__content"
+-                                  >
+-                                    <i
+-                                      class="RestrictedIndicator__icon-tooltip icon icon-key-variant"
+-                                    />
+-                                  </div>
+-                                </span>
++                                Attribute Management
+                               </span>
+                             </a>
+                             <ul
+@@ -8300,32 +8270,17 @@ exports[`components/AdminSidebar should match snapshot with workspace optimizati
+                         >
+                           <li
+                             class="sidebar-section"
+-                            data-testid="system_attributes.user_attributes_feature_discovery"
++                            data-testid="system_attributes.global_attributes"
+                           >
+                             <a
+                               class="sidebar-section-title"
+-                              href="/admin_console/system_attributes/user_attributes"
+-                              id="system_attributes/user_attributes"
++                              href="/admin_console/system_attributes/manage_attributes"
++                              id="system_attributes/manage_attributes"
+                             >
+                               <span
+                                 class="sidebar-section-title__text"
+                               >
+-                                User Attributes
+-                              </span>
+-                              <span
+-                                class="sidebar-section-indicator"
+-                              >
+-                                <span
+-                                  class="RestrictedIndicator__icon-tooltip-container"
+-                                >
+-                                  <div
+-                                    class="RestrictedIndicator__content"
+-                                  >
+-                                    <i
+-                                      class="RestrictedIndicator__icon-tooltip icon icon-key-variant"
+-                                    />
+-                                  </div>
+-                                </span>
++                                Attribute Management
+                               </span>
+                             </a>
+                             <ul
+@@ -10241,32 +10196,17 @@ exports[`components/AdminSidebar should match snapshot, not prevent the console
+                         >
+                           <li
+                             class="sidebar-section"
+-                            data-testid="system_attributes.user_attributes_feature_discovery"
++                            data-testid="system_attributes.global_attributes"
+                           >
+                             <a
+                               class="sidebar-section-title"
+-                              href="/admin_console/system_attributes/user_attributes"
+-                              id="system_attributes/user_attributes"
++                              href="/admin_console/system_attributes/manage_attributes"
++                              id="system_attributes/manage_attributes"
+                             >
+                               <span
+                                 class="sidebar-section-title__text"
+                               >
+-                                User Attributes
+-                              </span>
+-                              <span
+-                                class="sidebar-section-indicator"
+-                              >
+-                                <span
+-                                  class="RestrictedIndicator__icon-tooltip-container"
+-                                >
+-                                  <div
+-                                    class="RestrictedIndicator__content"
+-                                  >
+-                                    <i
+-                                      class="RestrictedIndicator__icon-tooltip icon icon-key-variant"
+-                                    />
+-                                  </div>
+-                                </span>
++                                Attribute Management
+                               </span>
+                             </a>
+                             <ul
+@@ -12073,32 +12013,17 @@ exports[`components/AdminSidebar should match snapshot, render plugins without a
+                         >
+                           <li
+                             class="sidebar-section"
+-                            data-testid="system_attributes.user_attributes_feature_discovery"
++                            data-testid="system_attributes.global_attributes"
+                           >
+                             <a
+                               class="sidebar-section-title"
+-                              href="/admin_console/system_attributes/user_attributes"
+-                              id="system_attributes/user_attributes"
++                              href="/admin_console/system_attributes/manage_attributes"
++                              id="system_attributes/manage_attributes"
+                             >
+                               <span
+                                 class="sidebar-section-title__text"
+                               >
+-                                User Attributes
+-                              </span>
+-                              <span
+-                                class="sidebar-section-indicator"
+-                              >
+-                                <span
+-                                  class="RestrictedIndicator__icon-tooltip-container"
+-                                >
+-                                  <div
+-                                    class="RestrictedIndicator__content"
+-                                  >
+-                                    <i
+-                                      class="RestrictedIndicator__icon-tooltip icon icon-key-variant"
+-                                    />
+-                                  </div>
+-                                </span>
++                                Attribute Management
+                               </span>
+                             </a>
+                             <ul
+@@ -13875,32 +13800,17 @@ exports[`components/AdminSidebar should match snapshot, with license (with all f
+                         >
+                           <li
+                             class="sidebar-section"
+-                            data-testid="system_attributes.user_attributes_feature_discovery"
++                            data-testid="system_attributes.global_attributes"
+                           >
+                             <a
+                               class="sidebar-section-title"
+-                              href="/admin_console/system_attributes/user_attributes"
+-                              id="system_attributes/user_attributes"
++                              href="/admin_console/system_attributes/manage_attributes"
++                              id="system_attributes/manage_attributes"
+                             >
+                               <span
+                                 class="sidebar-section-title__text"
+                               >
+-                                User Attributes
+-                              </span>
+-                              <span
+-                                class="sidebar-section-indicator"
+-                              >
+-                                <span
+-                                  class="RestrictedIndicator__icon-tooltip-container"
+-                                >
+-                                  <div
+-                                    class="RestrictedIndicator__content"
+-                                  >
+-                                    <i
+-                                      class="RestrictedIndicator__icon-tooltip icon icon-key-variant"
+-                                    />
+-                                  </div>
+-                                </span>
++                                Attribute Management
+                               </span>
+                             </a>
+                             <ul
+@@ -15610,32 +15520,17 @@ exports[`components/AdminSidebar should match snapshot, with license (without an
+                         >
+                           <li
+                             class="sidebar-section"
+-                            data-testid="system_attributes.user_attributes_feature_discovery"
++                            data-testid="system_attributes.global_attributes"
+                           >
+                             <a
+                               class="sidebar-section-title"
+-                              href="/admin_console/system_attributes/user_attributes"
+-                              id="system_attributes/user_attributes"
++                              href="/admin_console/system_attributes/manage_attributes"
++                              id="system_attributes/manage_attributes"
+                             >
+                               <span
+                                 class="sidebar-section-title__text"
+                               >
+-                                User Attributes
+-                              </span>
+-                              <span
+-                                class="sidebar-section-indicator"
+-                              >
+-                                <span
+-                                  class="RestrictedIndicator__icon-tooltip-container"
+-                                >
+-                                  <div
+-                                    class="RestrictedIndicator__content"
+-                                  >
+-                                    <i
+-                                      class="RestrictedIndicator__icon-tooltip icon icon-key-variant"
+-                                    />
+-                                  </div>
+-                                </span>
++                                Attribute Management
+                               </span>
+                             </a>
+                             <ul
+diff --git a/webapp/channels/src/components/admin_console/system_user_detail/index.ts b/webapp/channels/src/components/admin_console/system_user_detail/index.ts
+index 5cc5d4b2efad..05489988a3af 100644
+--- a/webapp/channels/src/components/admin_console/system_user_detail/index.ts
++++ b/webapp/channels/src/components/admin_console/system_user_detail/index.ts
+@@ -10,22 +10,18 @@ import {getCustomProfileAttributeFields} from 'mattermost-redux/actions/general'
+ import {getUserPreferences} from 'mattermost-redux/actions/preferences';
+ import {addUserToTeam} from 'mattermost-redux/actions/teams';
+ import {updateUserActive, updateUserAuth, getUser, patchUser, updateUserMfa, getCustomProfileAttributeValues, saveCustomProfileAttribute, uploadProfileImage, setDefaultProfileImage} from 'mattermost-redux/actions/users';
+-import {getConfig, getCustomProfileAttributes, getLicense} from 'mattermost-redux/selectors/entities/general';
++import {getConfig, getCustomProfileAttributes} from 'mattermost-redux/selectors/entities/general';
+ import {getCurrentUserId} from 'mattermost-redux/selectors/entities/users';
+ 
+ import {setNavigationBlocked} from 'actions/admin_actions';
+ import {openModal} from 'actions/views/modals';
+ import {getShowLockedManageUserSettings, getShowManageUserSettings} from 'selectors/admin_console';
+ 
+-import {isEnterpriseLicense} from 'utils/license_utils';
+-
+ import SystemUserDetail from './system_user_detail';
+ 
+ function mapStateToProps(state: GlobalState) {
+-    const license = getLicense(state);
+     const config = getConfig(state);
+-    const customProfileAttributeEnabled = isEnterpriseLicense(license);
+-    const customProfileAttributeFields = customProfileAttributeEnabled ? getCustomProfileAttributes(state) : [];
++    const customProfileAttributeFields = getCustomProfileAttributes(state);
+ 
+     const showManageUserSettings = getShowManageUserSettings(state);
+     const showLockedManageUserSettings = getShowLockedManageUserSettings(state);
+@@ -35,7 +31,7 @@ function mapStateToProps(state: GlobalState) {
+         mfaEnabled: config?.EnableMultifactorAuthentication === 'true' || false,
+         maxFileSize: parseInt(config?.MaxFileSize || '', 10),
+         ldapPictureAttributeSet: config?.LdapPictureAttributeSet === 'true',
+-        customProfileAttributeEnabled,
++        customProfileAttributeEnabled: true,
+         customProfileAttributeFields,
+         showManageUserSettings,
+         showLockedManageUserSettings,
+diff --git a/webapp/channels/src/components/logged_in/index.test.ts b/webapp/channels/src/components/logged_in/index.test.ts
+index 6f602ab5668a..fb5d109e42d8 100644
+--- a/webapp/channels/src/components/logged_in/index.test.ts
++++ b/webapp/channels/src/components/logged_in/index.test.ts
+@@ -55,7 +55,7 @@ describe('LoggedIn mapStateToProps', () => {
+     });
+ 
+     describe('customProfileAttributesEnabled', () => {
+-        it('should be false when not Enterprise license', () => {
++        it('should be true without a license', () => {
+             const state = mergeObjects(baseState, {
+                 entities: {
+                     general: {
+@@ -68,7 +68,7 @@ describe('LoggedIn mapStateToProps', () => {
+ 
+             const props = mapStateToProps(state, baseProps);
+ 
+-            expect(props.customProfileAttributesEnabled).toBe(false);
++            expect(props.customProfileAttributesEnabled).toBe(true);
+         });
+ 
+         it('should be true when Enterprise license', () => {
+@@ -88,7 +88,7 @@ describe('LoggedIn mapStateToProps', () => {
+             expect(props.customProfileAttributesEnabled).toBe(true);
+         });
+ 
+-        it('should be false when no license information available', () => {
++        it('should be true when no license information available', () => {
+             const state = mergeObjects(baseState, {
+                 entities: {
+                     general: {
+@@ -99,7 +99,7 @@ describe('LoggedIn mapStateToProps', () => {
+ 
+             const props = mapStateToProps(state, baseProps);
+ 
+-            expect(props.customProfileAttributesEnabled).toBe(false);
++            expect(props.customProfileAttributesEnabled).toBe(true);
+         });
+     });
+ 
+diff --git a/webapp/channels/src/components/logged_in/index.ts b/webapp/channels/src/components/logged_in/index.ts
+index c6753eb484f9..0dbc92218d15 100644
+--- a/webapp/channels/src/components/logged_in/index.ts
++++ b/webapp/channels/src/components/logged_in/index.ts
+@@ -15,7 +15,6 @@ import {getCurrentUser, shouldShowTermsOfService} from 'mattermost-redux/selecto
+ import {getChannelURL} from 'selectors/urls';
+ 
+ import {getHistory} from 'utils/browser_history';
+-import {isEnterpriseLicense} from 'utils/license_utils';
+ import {checkIfMFARequired} from 'utils/route';
+ import {isPermalinkURL} from 'utils/url';
+ 
+@@ -41,7 +40,7 @@ export function mapStateToProps(state: GlobalState, ownProps: Props) {
+         isCurrentChannelManuallyUnread: isManuallyUnread(state, currentChannelId),
+         mfaRequired: checkIfMFARequired(getCurrentUser(state), license, config, ownProps.match.url),
+         showTermsOfService,
+-        customProfileAttributesEnabled: isEnterpriseLicense(license),
++        customProfileAttributesEnabled: true,
+     };
+ }
+ 
+diff --git a/webapp/channels/src/components/profile_popover/profile_popover.test.tsx b/webapp/channels/src/components/profile_popover/profile_popover.test.tsx
+index 3e85a19728f1..7e24538dc854 100644
+--- a/webapp/channels/src/components/profile_popover/profile_popover.test.tsx
++++ b/webapp/channels/src/components/profile_popover/profile_popover.test.tsx
+@@ -585,9 +585,7 @@ describe('components/ProfilePopover', () => {
+         };
+ 
+         renderWithPluginReducers(<ProfilePopover {...props}/>, initialState);
+-        await act(async () => {
+-            expect(await screen.findByLabelText('Start Call')).toBeInTheDocument();
+-        });
++        expect(await screen.findByLabelText('Start Call')).toBeInTheDocument();
+     });
+ 
+     test('should display attributes if attribute exists for user', async () => {
+@@ -703,7 +701,7 @@ describe('components/ProfilePopover', () => {
+         });
+     });
+ 
+-    test('should not display attributes without Enterprise license', async () => {
++    test('should display attributes without a license', async () => {
+         const [props, initialState] = getBasePropsAndState();
+         (Client4.getUserCustomProfileAttributesValues as jest.Mock).mockImplementation(async () => {
+             return {
+@@ -722,12 +720,10 @@ describe('components/ProfilePopover', () => {
+         };
+ 
+         renderWithPluginReducers(<ProfilePopover {...props}/>, initialState);
+-        await act(async () => {
+-            expect(await screen.queryByText('Rank')).not.toBeInTheDocument();
+-            expect(await screen.queryByText('CO')).not.toBeInTheDocument();
+-            expect(await screen.queryByText('Private')).not.toBeInTheDocument();
+-            expect(await screen.queryByText('Seargent York')).not.toBeInTheDocument();
+-        });
++
++        expect(await screen.findByText('Rank')).toBeInTheDocument();
++        expect(await screen.findByText('Private')).toBeInTheDocument();
++        expect(await screen.findByText('Seargent York')).toBeInTheDocument();
+     });
+ 
+     test('should display attributes with Enterprise license and feature flag', async () => {
+diff --git a/webapp/channels/src/components/profile_popover/profile_popover.tsx b/webapp/channels/src/components/profile_popover/profile_popover.tsx
+index 24cc1f272558..a0cc32d338a3 100644
+--- a/webapp/channels/src/components/profile_popover/profile_popover.tsx
++++ b/webapp/channels/src/components/profile_popover/profile_popover.tsx
+@@ -5,7 +5,6 @@ import React, {useCallback, useEffect, useMemo, useState} from 'react';
+ import {useDispatch, useSelector} from 'react-redux';
+ 
+ import {getCurrentChannelId, getCurrentUserId} from 'mattermost-redux/selectors/entities/common';
+-import {getLicense} from 'mattermost-redux/selectors/entities/general';
+ import {getCurrentRelativeTeamUrl, getCurrentTeamId} from 'mattermost-redux/selectors/entities/teams';
+ import {getCurrentTimezone} from 'mattermost-redux/selectors/entities/timezone';
+ import {getStatusForUserId, getUser} from 'mattermost-redux/selectors/entities/users';
+@@ -21,7 +20,6 @@ import Pluggable from 'plugins/pluggable';
+ import {getHistory} from 'utils/browser_history';
+ import {A11yCustomEventTypes, UserStatuses} from 'utils/constants';
+ import type {A11yFocusEventDetail} from 'utils/constants';
+-import {isEnterpriseLicense} from 'utils/license_utils';
+ import * as Utils from 'utils/utils';
+ 
+ import type {GlobalState} from 'types/store';
+@@ -80,9 +78,6 @@ const ProfilePopover = ({
+     const status = useSelector((state: GlobalState) => getStatusForUserId(state, userId) || UserStatuses.OFFLINE);
+     const currentUserTimezone = useSelector(getCurrentTimezone);
+     const currentUserId = useSelector(getCurrentUserId);
+-    const license = useSelector((state: GlobalState) => getLicense(state));
+-    const isEnterprise = isEnterpriseLicense(license);
+-    const enableCustomProfileAttributes = isEnterprise && !fromWebhook;
+ 
+     const [loadingDMChannel, setLoadingDMChannel] = useState<string>();
+ 
+@@ -196,7 +191,7 @@ const ProfilePopover = ({
+                     />
+                 </div>
+ 
+-                {enableCustomProfileAttributes && !user.is_bot && (
++                {!fromWebhook && !user.is_bot && (
+                     <ProfilePopoverCustomAttributes
+                         userID={userId}
+                         hideStatus={hideStatus}
+diff --git a/webapp/channels/src/components/user_settings/general/index.ts b/webapp/channels/src/components/user_settings/general/index.ts
+index 580092c48c16..881667a02e9c 100644
+--- a/webapp/channels/src/components/user_settings/general/index.ts
++++ b/webapp/channels/src/components/user_settings/general/index.ts
+@@ -15,13 +15,12 @@ import {
+     getCustomProfileAttributeValues,
+ } from 'mattermost-redux/actions/users';
+ import {Permissions} from 'mattermost-redux/constants';
+-import {getConfig, getCustomProfileAttributes, getLicense} from 'mattermost-redux/selectors/entities/general';
++import {getConfig, getCustomProfileAttributes} from 'mattermost-redux/selectors/entities/general';
+ import {haveISystemPermission} from 'mattermost-redux/selectors/entities/roles';
+ 
+ import {getIsMobileView} from 'selectors/views/browser';
+ 
+ import {normalizeLockProfileFieldsSetting} from 'utils/constants';
+-import {isEnterpriseLicense} from 'utils/license_utils';
+ 
+ import type {GlobalState} from 'types/store';
+ 
+@@ -44,10 +43,6 @@ function mapStateToProps(state: GlobalState) {
+     const ldapPictureAttributeSet = config.LdapPictureAttributeSet === 'true';
+     const lockProfileFieldsForEmailUsers = normalizeLockProfileFieldsSetting(config.LockProfileFieldsForEmailUsers);
+ 
+-    const license = getLicense(state);
+-    const isEnterprise = isEnterpriseLicense(license);
+-    const enableCustomProfileAttributes = isEnterprise;
+-
+     return {
+         isMobileView: getIsMobileView(state),
+         requireEmailVerification,
+@@ -64,7 +59,7 @@ function mapStateToProps(state: GlobalState) {
+         ldapPictureAttributeSet,
+         lockProfileFieldsForEmailUsers,
+         canEditOtherUsers: haveISystemPermission(state, {permission: Permissions.EDIT_OTHER_USERS}),
+-        enableCustomProfileAttributes,
++        enableCustomProfileAttributes: true,
+     };
+ }
+ 
+diff --git a/webapp/channels/src/i18n/en.json b/webapp/channels/src/i18n/en.json
+index ebf1ac46debd..28da8e312120 100644
+--- a/webapp/channels/src/i18n/en.json
++++ b/webapp/channels/src/i18n/en.json
+@@ -14711,10 +14711,6 @@
+     "defaultMessage": "Team Statistics",
+     "description": "Navigation item in the System Console sidebar under Reporting; opens the per-team statistics page; compact space."
+   },
+-  "admin.sidebar.user_attributes": {
+-    "defaultMessage": "User Attributes",
+-    "description": "Navigation item in the System Console sidebar and title of the corresponding page for custom user profile attributes; compact space."
+-  },
+   "admin.sidebar.userManagement": {
+     "defaultMessage": "User Management",
+     "description": "Category heading in the System Console left navigation sidebar, grouping user, team, and permission pages; compact space."

@@ -1,0 +1,696 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Karan Sharma <hello@mrkaran.dev>
+Date: Fri, 13 Nov 2026 00:22:27 +0530
+Subject: [PATCH] feat: per-channel thread auto-archive
+
+Mattermax-Patch: thread-auto-archive.patch
+---
+ .../api4/channel_posting_rules_test.go        | 80 +++++++++++++++-
+ server/channels/app/channel_posting_rules.go  | 43 ++++++++-
+ .../app/channel_posting_rules_test.go         | 36 +++++++
+ server/i18n/en.json                           | 13 +++
+ server/public/model/channel_posting_rules.go  | 14 ++-
+ .../channel_settings_moderation_tab.test.tsx  | 17 +++-
+ .../channel_settings_moderation_tab.tsx       | 12 ++-
+ ...ettings_moderation_tab_visibility.test.tsx |  2 +-
+ .../posting_rules_options.ts                  |  9 ++
+ .../channel_posting_rules/slowmode.test.tsx   |  2 +-
+ .../thread_archived_notice.test.tsx           | 95 +++++++++++++++++++
+ .../thread_archived_notice.tsx                | 68 +++++++++++++
+ .../create_comment.tsx                        |  6 ++
+ webapp/channels/src/i18n/en.json              | 16 ++++
+ .../types/src/channel_posting_rules.ts        |  1 +
+ 15 files changed, 398 insertions(+), 16 deletions(-)
+ create mode 100644 server/channels/app/channel_posting_rules_test.go
+ create mode 100644 webapp/channels/src/components/channel_posting_rules/thread_archived_notice.test.tsx
+ create mode 100644 webapp/channels/src/components/channel_posting_rules/thread_archived_notice.tsx
+
+diff --git a/server/channels/api4/channel_posting_rules_test.go b/server/channels/api4/channel_posting_rules_test.go
+index 4a4f7103e3df..c4cddc55fd0a 100644
+--- a/server/channels/api4/channel_posting_rules_test.go
++++ b/server/channels/api4/channel_posting_rules_test.go
+@@ -68,10 +68,11 @@ func TestChannelPostingRulesAPI(t *testing.T) {
+ 		require.Equal(t, http.StatusForbidden, resp.StatusCode)
+ 	})
+ 
+-	t.Run("a channel admin sets slowmode and members can read it", func(t *testing.T) {
+-		_, err := storeChannelPostingRules(t, th.Client, channel.Id, model.ChannelPostingRules{SlowmodeSeconds: 30})
++	t.Run("a channel admin sets the rules and members can read them", func(t *testing.T) {
++		rules := model.ChannelPostingRules{SlowmodeSeconds: 30, ThreadArchiveDays: 7}
++		_, err := storeChannelPostingRules(t, th.Client, channel.Id, rules)
+ 		require.NoError(t, err)
+-		require.Equal(t, 30, fetchChannelPostingRules(t, memberClient, channel.Id).SlowmodeSeconds)
++		require.Equal(t, rules, fetchChannelPostingRules(t, memberClient, channel.Id))
+ 	})
+ 
+ 	t.Run("an interval outside the allowed options is rejected", func(t *testing.T) {
+@@ -291,3 +292,76 @@ func TestSlowmode(t *testing.T) {
+ 		require.NoError(t, postMessage(th.Client, dm.Id, ""))
+ 	})
+ }
++
++func TestThreadAutoArchive(t *testing.T) {
++	mainHelper.Parallel(t)
++	th := Setup(t).InitBasic(t)
++
++	channel := th.CreatePublicChannel(t)
++	_, err := storeChannelPostingRules(t, th.Client, channel.Id, model.ChannelPostingRules{ThreadArchiveDays: 1})
++	require.NoError(t, err)
++	member, memberClient := newChannelMemberClient(t, th, channel)
++
++	day := int64(24 * 60 * 60 * 1000)
++	savePost := func(t *testing.T, channelID, rootID string, createAt int64) *model.Post {
++		t.Helper()
++		post, err := th.App.Srv().Store().Post().Save(th.Context, &model.Post{
++			ChannelId: channelID,
++			RootId:    rootID,
++			UserId:    th.BasicUser2.Id,
++			Message:   "message_" + model.NewId(),
++			CreateAt:  createAt,
++		})
++		require.NoError(t, err)
++		return post
++	}
++
++	t.Run("a reply to a thread with no replies for longer than the period is rejected", func(t *testing.T) {
++		root := savePost(t, channel.Id, "", model.GetMillis()-2*day)
++		savePost(t, channel.Id, root.Id, model.GetMillis()-day-60*1000)
++
++		err := postMessage(memberClient, channel.Id, root.Id)
++		CheckErrorID(t, err, "api.post.create_post.thread_archived.app_error")
++		var appErr *model.AppError
++		require.ErrorAs(t, err, &appErr)
++		require.Equal(t, http.StatusForbidden, appErr.StatusCode)
++		require.Equal(t, "This thread was archived after 1 day without replies.", appErr.Message)
++	})
++
++	t.Run("a recent reply keeps an old thread open", func(t *testing.T) {
++		root := savePost(t, channel.Id, "", model.GetMillis()-3*day)
++		savePost(t, channel.Id, root.Id, model.GetMillis()-60*60*1000)
++		require.NoError(t, postMessage(memberClient, channel.Id, root.Id))
++	})
++
++	t.Run("a new thread without replies is open", func(t *testing.T) {
++		root := savePost(t, channel.Id, "", model.GetMillis()-60*60*1000)
++		require.NoError(t, postMessage(memberClient, channel.Id, root.Id))
++	})
++
++	t.Run("root posts and reactions are unaffected", func(t *testing.T) {
++		root := savePost(t, channel.Id, "", model.GetMillis()-2*day)
++		require.NoError(t, postMessage(memberClient, channel.Id, ""))
++		_, _, err := memberClient.SaveReaction(context.Background(), &model.Reaction{UserId: member.Id, PostId: root.Id, EmojiName: "smile"})
++		require.NoError(t, err)
++	})
++
++	t.Run("a channel admin can reply, which reopens the thread", func(t *testing.T) {
++		root := savePost(t, channel.Id, "", model.GetMillis()-2*day)
++		CheckErrorID(t, postMessage(memberClient, channel.Id, root.Id), "api.post.create_post.thread_archived.app_error")
++		require.NoError(t, postMessage(th.Client, channel.Id, root.Id))
++		require.NoError(t, postMessage(memberClient, channel.Id, root.Id))
++	})
++
++	t.Run("threads in direct messages are never archived", func(t *testing.T) {
++		dm := th.CreateDmChannel(t, th.BasicUser2)
++		require.NoError(t, th.App.Srv().Store().System().SaveOrUpdate(&model.System{Name: "channel_posting_rules_" + dm.Id, Value: `{"thread_archive_days":1}`}))
++		root := savePost(t, dm.Id, "", model.GetMillis()-2*day)
++		require.NoError(t, postMessage(th.Client, dm.Id, root.Id))
++	})
++
++	t.Run("a period outside the allowed options is rejected", func(t *testing.T) {
++		_, err := storeChannelPostingRules(t, th.Client, channel.Id, model.ChannelPostingRules{ThreadArchiveDays: 2})
++		CheckErrorID(t, err, "model.channel_posting_rules.thread_archive_days.app_error")
++	})
++}
+diff --git a/server/channels/app/channel_posting_rules.go b/server/channels/app/channel_posting_rules.go
+index 621c35763c11..7d650d611837 100644
+--- a/server/channels/app/channel_posting_rules.go
++++ b/server/channels/app/channel_posting_rules.go
+@@ -7,6 +7,7 @@ import (
+ 	"encoding/json"
+ 	"errors"
+ 	"net/http"
++	"time"
+ 
+ 	"github.com/mattermost/mattermost/server/public/model"
+ 	"github.com/mattermost/mattermost/server/public/shared/request"
+@@ -65,7 +66,7 @@ func (a *App) SaveChannelPostingRules(channel *model.Channel, rules *model.Chann
+ }
+ 
+ func isChannelPostingRulesError(appErr *model.AppError) bool {
+-	return appErr.Id == "api.post.create_post.slowmode.app_error"
++	return appErr.Id == "api.post.create_post.slowmode.app_error" || appErr.Id == "api.post.create_post.thread_archived.app_error"
+ }
+ 
+ func (a *App) enforceChannelPostingRules(rctx request.CTX, post *model.Post, channel *model.Channel, user *model.User, flags model.CreatePostFlags) (func(), *model.AppError) {
+@@ -97,7 +98,8 @@ func (a *App) checkChannelPostingRules(rctx request.CTX, post *model.Post, chann
+ 		return appErr
+ 	}
+ 
+-	if rules.SlowmodeSeconds == 0 {
++	checkThread := rules.ThreadArchiveDays > 0 && post.RootId != ""
++	if rules.SlowmodeSeconds == 0 && !checkThread {
+ 		return nil
+ 	}
+ 
+@@ -105,7 +107,42 @@ func (a *App) checkChannelPostingRules(rctx request.CTX, post *model.Post, chann
+ 		return nil
+ 	}
+ 
+-	return a.checkSlowmode(post, channel, rules.SlowmodeSeconds)
++	if checkThread {
++		if appErr := a.checkThreadArchived(rctx, post.RootId, rules.ThreadArchiveDays); appErr != nil {
++			return appErr
++		}
++	}
++
++	if rules.SlowmodeSeconds > 0 {
++		return a.checkSlowmode(post, channel, rules.SlowmodeSeconds)
++	}
++	return nil
++}
++
++func (a *App) checkThreadArchived(rctx request.CTX, rootID string, archiveDays int) *model.AppError {
++	root, err := a.Srv().Store().Post().GetSingle(rctx, rootID, false)
++	if err != nil {
++		var nfErr *store.ErrNotFound
++		if errors.As(err, &nfErr) {
++			return nil
++		}
++		return model.NewAppError("checkThreadArchived", "app.channel_posting_rules.get.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
++	}
++
++	thread, err := a.Srv().Store().Thread().Get(rootID)
++	if err != nil {
++		return model.NewAppError("checkThreadArchived", "app.channel_posting_rules.get.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
++	}
++
++	lastActivityAt := root.CreateAt
++	if thread != nil {
++		lastActivityAt = max(lastActivityAt, thread.LastReplyAt)
++	}
++
++	if model.GetMillis()-lastActivityAt < int64(archiveDays)*24*time.Hour.Milliseconds() {
++		return nil
++	}
++	return model.NewAppError("createPost", "api.post.create_post.thread_archived.app_error", map[string]any{"Count": archiveDays}, "", http.StatusForbidden)
+ }
+ 
+ func (a *App) checkSlowmode(post *model.Post, channel *model.Channel, slowmodeSeconds int) *model.AppError {
+diff --git a/server/channels/app/channel_posting_rules_test.go b/server/channels/app/channel_posting_rules_test.go
+new file mode 100644
+index 000000000000..dd7bca7c1d0e
+--- /dev/null
++++ b/server/channels/app/channel_posting_rules_test.go
+@@ -0,0 +1,36 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++package app
++
++import (
++	"errors"
++	"net/http"
++	"testing"
++
++	"github.com/stretchr/testify/mock"
++	"github.com/stretchr/testify/require"
++
++	"github.com/mattermost/mattermost/server/v8/channels/store"
++	"github.com/mattermost/mattermost/server/v8/channels/store/storetest/mocks"
++)
++
++func TestCheckThreadArchivedRootLookup(t *testing.T) {
++	mainHelper.Parallel(t)
++	th := SetupWithStoreMock(t)
++
++	mockPostStore := mocks.PostStore{}
++	mockPostStore.On("GetSingle", mock.Anything, "missing", false).Return(nil, store.NewErrNotFound("Post", "missing"))
++	mockPostStore.On("GetSingle", mock.Anything, "unreachable", false).Return(nil, errors.New("connection refused"))
++	th.App.Srv().Store().(*mocks.Store).On("Post").Return(&mockPostStore)
++
++	t.Run("a deleted root lets the reply through", func(t *testing.T) {
++		require.Nil(t, th.App.checkThreadArchived(th.Context, "missing", 1))
++	})
++
++	t.Run("a database error rejects the reply", func(t *testing.T) {
++		appErr := th.App.checkThreadArchived(th.Context, "unreachable", 1)
++		require.NotNil(t, appErr)
++		require.Equal(t, http.StatusInternalServerError, appErr.StatusCode)
++	})
++}
+diff --git a/server/i18n/en.json b/server/i18n/en.json
+index ce304e723042..dbedbb0fbc2e 100644
+--- a/server/i18n/en.json
++++ b/server/i18n/en.json
+@@ -3823,6 +3823,14 @@
+     "translation": "Slowmode is on in this channel. You can post again in {{.Seconds}} seconds.",
+     "description": "Error returned when a user posts in a channel with slowmode on before their per-user interval has passed. Seconds is the whole number of seconds until they can post again."
+   },
++  {
++    "id": "api.post.create_post.thread_archived.app_error",
++    "translation": {
++      "one": "This thread was archived after {{.Count}} day without replies.",
++      "other": "This thread was archived after {{.Count}} days without replies."
++    },
++    "description": "Error returned when a member replies to a thread that has had no replies for longer than the channel's thread auto-archive period. Count is that period in days."
++  },
+   {
+     "id": "api.post.create_webhook_post.creating.app_error",
+     "translation": "Error creating post.",
+@@ -15011,6 +15019,11 @@
+     "translation": "Invalid slowmode interval.",
+     "description": "Validation error returned when a channel's slowmode interval is not one of the allowed values."
+   },
++  {
++    "id": "model.channel_posting_rules.thread_archive_days.app_error",
++    "translation": "Invalid thread auto-archive period.",
++    "description": "Validation error returned when a channel's thread auto-archive period is not one of the allowed values."
++  },
+   {
+     "id": "model.cluster.is_valid.create_at.app_error",
+     "translation": "CreateAt must be set.",
+diff --git a/server/public/model/channel_posting_rules.go b/server/public/model/channel_posting_rules.go
+index 5437465a0620..2c6d3b9c84e6 100644
+--- a/server/public/model/channel_posting_rules.go
++++ b/server/public/model/channel_posting_rules.go
+@@ -8,15 +8,20 @@ import (
+ 	"slices"
+ )
+ 
+-var ChannelSlowmodeSecondsOptions = []int{0, 5, 10, 30, 60, 300, 900, 3600}
++var (
++	ChannelSlowmodeSecondsOptions   = []int{0, 5, 10, 30, 60, 300, 900, 3600}
++	ChannelThreadArchiveDaysOptions = []int{0, 1, 3, 7, 30}
++)
+ 
+ type ChannelPostingRules struct {
+-	SlowmodeSeconds int `json:"slowmode_seconds"`
++	SlowmodeSeconds   int `json:"slowmode_seconds"`
++	ThreadArchiveDays int `json:"thread_archive_days"`
+ }
+ 
+ func (r *ChannelPostingRules) Auditable() map[string]any {
+ 	return map[string]any{
+-		"slowmode_seconds": r.SlowmodeSeconds,
++		"slowmode_seconds":    r.SlowmodeSeconds,
++		"thread_archive_days": r.ThreadArchiveDays,
+ 	}
+ }
+ 
+@@ -24,5 +29,8 @@ func (r *ChannelPostingRules) IsValid() *AppError {
+ 	if !slices.Contains(ChannelSlowmodeSecondsOptions, r.SlowmodeSeconds) {
+ 		return NewAppError("ChannelPostingRules.IsValid", "model.channel_posting_rules.slowmode_seconds.app_error", nil, "", http.StatusBadRequest)
+ 	}
++	if !slices.Contains(ChannelThreadArchiveDaysOptions, r.ThreadArchiveDays) {
++		return NewAppError("ChannelPostingRules.IsValid", "model.channel_posting_rules.thread_archive_days.app_error", nil, "", http.StatusBadRequest)
++	}
+ 	return nil
+ }
+diff --git a/webapp/channels/src/components/channel_posting_rules/channel_settings_moderation_tab.test.tsx b/webapp/channels/src/components/channel_posting_rules/channel_settings_moderation_tab.test.tsx
+index a976f3d08fcf..008967eb8379 100644
+--- a/webapp/channels/src/components/channel_posting_rules/channel_settings_moderation_tab.test.tsx
++++ b/webapp/channels/src/components/channel_posting_rules/channel_settings_moderation_tab.test.tsx
+@@ -12,7 +12,7 @@ import ChannelSettingsModerationTab from './channel_settings_moderation_tab';
+ 
+ async function chooseOption(label: string, option: string) {
+     await userEvent.click(screen.getByLabelText(label));
+-    await userEvent.click(await screen.findByText(option));
++    await userEvent.click(await screen.findByRole('option', {name: option}));
+ }
+ 
+ describe('ChannelSettingsModerationTab', () => {
+@@ -20,7 +20,7 @@ describe('ChannelSettingsModerationTab', () => {
+     let updateRules: jest.SpyInstance;
+ 
+     beforeEach(() => {
+-        getRules = jest.spyOn(Client4, 'getChannelPostingRules').mockResolvedValue({slowmode_seconds: 30});
++        getRules = jest.spyOn(Client4, 'getChannelPostingRules').mockResolvedValue({slowmode_seconds: 30, thread_archive_days: 0});
+         updateRules = jest.spyOn(Client4, 'updateChannelPostingRules').mockImplementation(async (_channelId, rules) => rules);
+     });
+ 
+@@ -46,11 +46,22 @@ describe('ChannelSettingsModerationTab', () => {
+ 
+         await userEvent.click(screen.getByRole('button', {name: 'Save'}));
+ 
+-        expect(updateRules).toHaveBeenCalledWith('settings_channel', {slowmode_seconds: 60});
++        expect(updateRules).toHaveBeenCalledWith('settings_channel', {slowmode_seconds: 60, thread_archive_days: 0});
+         expect(await screen.findByText('Settings saved')).toBeInTheDocument();
+         expect(setAreThereUnsavedChanges).toHaveBeenLastCalledWith(false);
+     });
+ 
++    it('saves a thread auto-archive period alongside slowmode', async () => {
++        renderWithContext(<ChannelSettingsModerationTab channel={TestHelper.getChannelMock({id: 'archive_channel'})}/>);
++
++        expect(await screen.findByText('30 seconds')).toBeInTheDocument();
++        await chooseOption('Thread auto-archive', '7 days');
++        await userEvent.click(screen.getByRole('button', {name: 'Save'}));
++
++        expect(updateRules).toHaveBeenCalledWith('archive_channel', {slowmode_seconds: 30, thread_archive_days: 7});
++        expect(await screen.findByText('7 days')).toBeInTheDocument();
++    });
++
+     it('resets an unsaved change', async () => {
+         renderWithContext(<ChannelSettingsModerationTab channel={TestHelper.getChannelMock({id: 'reset_channel'})}/>);
+ 
+diff --git a/webapp/channels/src/components/channel_posting_rules/channel_settings_moderation_tab.tsx b/webapp/channels/src/components/channel_posting_rules/channel_settings_moderation_tab.tsx
+index 423efcf775b9..9e1dad7dae93 100644
+--- a/webapp/channels/src/components/channel_posting_rules/channel_settings_moderation_tab.tsx
++++ b/webapp/channels/src/components/channel_posting_rules/channel_settings_moderation_tab.tsx
+@@ -15,13 +15,13 @@ import DropdownInput from 'components/dropdown_input';
+ import type {SaveChangesPanelState} from 'components/widgets/modals/components/save_changes_panel';
+ import SaveChangesPanel from 'components/widgets/modals/components/save_changes_panel';
+ 
+-import {slowmodeOptions} from './posting_rules_options';
++import {slowmodeOptions, threadArchiveOptions} from './posting_rules_options';
+ import type {PostingRuleOption} from './posting_rules_options';
+ import {setChannelPostingRules, useChannelPostingRules} from './use_channel_posting_rules';
+ 
+ import './channel_settings_moderation_tab.scss';
+ 
+-const DEFAULT_RULES: ChannelPostingRules = {slowmode_seconds: 0};
++const DEFAULT_RULES: ChannelPostingRules = {slowmode_seconds: 0, thread_archive_days: 0};
+ 
+ type Props = {
+     channel: Channel;
+@@ -128,6 +128,14 @@ export default function ChannelSettingsModerationTab({channel, setAreThereUnsave
+                 value={rules.slowmode_seconds}
+                 onChange={(value) => updateRules({slowmode_seconds: value})}
+             />
++            <PostingRuleSection
++                name='channelThreadArchive'
++                heading={formatMessage({id: 'channel_settings.moderation.thread_archive.heading', defaultMessage: 'Thread auto-archive'})}
++                subheading={formatMessage({id: 'channel_settings.moderation.thread_archive.subheading', defaultMessage: 'Close threads to new replies after this long without one. Channel admins, team admins and system admins can still reply, which reopens the thread.'})}
++                options={threadArchiveOptions}
++                value={rules.thread_archive_days}
++                onChange={(value) => updateRules({thread_archive_days: value})}
++            />
+             {showPanel && (
+                 <SaveChangesPanel
+                     handleSubmit={handleSave}
+diff --git a/webapp/channels/src/components/channel_posting_rules/channel_settings_moderation_tab_visibility.test.tsx b/webapp/channels/src/components/channel_posting_rules/channel_settings_moderation_tab_visibility.test.tsx
+index 143b092d3360..f36ecd88cb98 100644
+--- a/webapp/channels/src/components/channel_posting_rules/channel_settings_moderation_tab_visibility.test.tsx
++++ b/webapp/channels/src/components/channel_posting_rules/channel_settings_moderation_tab_visibility.test.tsx
+@@ -47,7 +47,7 @@ function renderModal(channelType: ChannelType, channelPermissions: string[]) {
+ 
+ describe('Moderation tab in channel settings', () => {
+     beforeEach(() => {
+-        jest.spyOn(Client4, 'getChannelPostingRules').mockResolvedValue({slowmode_seconds: 0});
++        jest.spyOn(Client4, 'getChannelPostingRules').mockResolvedValue({slowmode_seconds: 0, thread_archive_days: 0});
+     });
+ 
+     afterEach(() => {
+diff --git a/webapp/channels/src/components/channel_posting_rules/posting_rules_options.ts b/webapp/channels/src/components/channel_posting_rules/posting_rules_options.ts
+index 0efbf3ca5f31..c9b59b9a3a14 100644
+--- a/webapp/channels/src/components/channel_posting_rules/posting_rules_options.ts
++++ b/webapp/channels/src/components/channel_posting_rules/posting_rules_options.ts
+@@ -9,6 +9,7 @@ const messages = defineMessages({
+     seconds: {id: 'channel_posting_rules.seconds', defaultMessage: '{count, plural, one {# second} other {# seconds}}'},
+     minutes: {id: 'channel_posting_rules.minutes', defaultMessage: '{count, plural, one {# minute} other {# minutes}}'},
+     hours: {id: 'channel_posting_rules.hours', defaultMessage: '{count, plural, one {# hour} other {# hours}}'},
++    days: {id: 'channel_posting_rules.days', defaultMessage: '{count, plural, one {# day} other {# days}}'},
+ });
+ 
+ export type PostingRuleOption = {
+@@ -27,3 +28,11 @@ export const slowmodeOptions: PostingRuleOption[] = [
+     {value: 900, label: messages.minutes, count: 15},
+     {value: 3600, label: messages.hours, count: 1},
+ ];
++
++export const threadArchiveOptions: PostingRuleOption[] = [
++    {value: 0, label: messages.off},
++    {value: 1, label: messages.days, count: 1},
++    {value: 3, label: messages.days, count: 3},
++    {value: 7, label: messages.days, count: 7},
++    {value: 30, label: messages.days, count: 30},
++];
+diff --git a/webapp/channels/src/components/channel_posting_rules/slowmode.test.tsx b/webapp/channels/src/components/channel_posting_rules/slowmode.test.tsx
+index b880a66cff69..8966455998f5 100644
+--- a/webapp/channels/src/components/channel_posting_rules/slowmode.test.tsx
++++ b/webapp/channels/src/components/channel_posting_rules/slowmode.test.tsx
+@@ -99,7 +99,7 @@ describe('slowmode in the composer', () => {
+     beforeEach(() => {
+         jest.useFakeTimers({now, doNotFake: ['queueMicrotask', 'nextTick']});
+         mockedOnSubmit.mockClear();
+-        getRules = jest.spyOn(Client4, 'getChannelPostingRules').mockResolvedValue({slowmode_seconds: 30});
++        getRules = jest.spyOn(Client4, 'getChannelPostingRules').mockResolvedValue({slowmode_seconds: 30, thread_archive_days: 0});
+     });
+ 
+     afterEach(() => {
+diff --git a/webapp/channels/src/components/channel_posting_rules/thread_archived_notice.test.tsx b/webapp/channels/src/components/channel_posting_rules/thread_archived_notice.test.tsx
+new file mode 100644
+index 000000000000..5ffa148a8cba
+--- /dev/null
++++ b/webapp/channels/src/components/channel_posting_rules/thread_archived_notice.test.tsx
+@@ -0,0 +1,95 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++import React from 'react';
++
++import type {ChannelType} from '@mattermost/types/channels';
++
++import {Client4} from 'mattermost-redux/client';
++import Permissions from 'mattermost-redux/constants/permissions';
++
++import CreateComment from 'components/threading/virtualized_thread_viewer/create_comment';
++
++import {act, renderWithContext, screen} from 'tests/react_testing_utils';
++import {TestHelper} from 'utils/test_helper';
++
++jest.mock('components/advanced_create_comment', () => () => <div data-testid='reply-box'/>);
++
++const day = 24 * 60 * 60 * 1000;
++const now = new Date('2026-11-12T12:00:00Z').getTime();
++
++function makeState(channelId: string, channelType: ChannelType, channelPermissions: string[], lastReplyAt: number) {
++    return {
++        entities: {
++            channels: {
++                channels: {[channelId]: TestHelper.getChannelMock({id: channelId, team_id: 'team_id', type: channelType})},
++                roles: {[channelId]: new Set(['channel_role'])},
++            },
++            posts: {
++                posts: {
++                    root: TestHelper.getPostMock({id: 'root', channel_id: channelId, type: '', create_at: now - (10 * day)}),
++                    reply: TestHelper.getPostMock({id: 'reply', channel_id: channelId, root_id: 'root', type: '', create_at: lastReplyAt}),
++                },
++                postsInThread: {root: ['reply']},
++            },
++            roles: {roles: {channel_role: {permissions: channelPermissions}}},
++            teams: {
++                currentTeamId: 'team_id',
++                myMembers: {team_id: TestHelper.getTeamMembershipMock({team_id: 'team_id', roles: ''})},
++            },
++            users: {
++                currentUserId: 'user_id',
++                profiles: {user_id: TestHelper.getUserMock({id: 'user_id', roles: ''})},
++            },
++        },
++    };
++}
++
++async function renderThread(state: ReturnType<typeof makeState>) {
++    renderWithContext(<CreateComment threadId='root'/>, state);
++    await act(async () => {
++        await Promise.resolve();
++    });
++}
++
++describe('thread auto-archive in the thread view', () => {
++    let getRules: jest.SpyInstance;
++
++    beforeEach(() => {
++        jest.useFakeTimers({now, doNotFake: ['queueMicrotask', 'nextTick']});
++        getRules = jest.spyOn(Client4, 'getChannelPostingRules').mockResolvedValue({slowmode_seconds: 0, thread_archive_days: 3});
++    });
++
++    afterEach(() => {
++        getRules.mockRestore();
++        jest.useRealTimers();
++    });
++
++    it('replaces the reply box with a notice once the thread has gone without replies for the period', async () => {
++        await renderThread(makeState('archived_channel', 'O', [Permissions.CREATE_POST], now - (4 * day)));
++
++        expect(screen.getByText('This thread was archived after 3 days without replies')).toBeInTheDocument();
++        expect(screen.queryByTestId('reply-box')).not.toBeInTheDocument();
++    });
++
++    it('keeps the reply box while the last reply is newer than the period', async () => {
++        await renderThread(makeState('active_channel', 'O', [Permissions.CREATE_POST], now - (2 * day)));
++
++        expect(screen.getByTestId('reply-box')).toBeInTheDocument();
++        expect(screen.queryByTestId('thread-archived-notice')).not.toBeInTheDocument();
++    });
++
++    it('keeps the reply box for channel admins so they can reopen the thread', async () => {
++        await renderThread(makeState('admin_channel', 'P', [Permissions.CREATE_POST, Permissions.MANAGE_CHANNEL_ROLES], now - (4 * day)));
++
++        expect(screen.getByTestId('reply-box')).toBeInTheDocument();
++        expect(screen.queryByTestId('thread-archived-notice')).not.toBeInTheDocument();
++    });
++
++    it('does not archive threads in direct messages', async () => {
++        await renderThread(makeState('dm_channel', 'D', [Permissions.CREATE_POST], now - (4 * day)));
++
++        expect(getRules).not.toHaveBeenCalled();
++        expect(screen.getByTestId('reply-box')).toBeInTheDocument();
++    });
++});
+diff --git a/webapp/channels/src/components/channel_posting_rules/thread_archived_notice.tsx b/webapp/channels/src/components/channel_posting_rules/thread_archived_notice.tsx
+new file mode 100644
+index 000000000000..85c4835b7da0
+--- /dev/null
++++ b/webapp/channels/src/components/channel_posting_rules/thread_archived_notice.tsx
+@@ -0,0 +1,68 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++import React, {useState} from 'react';
++import {FormattedMessage} from 'react-intl';
++import {useSelector} from 'react-redux';
++
++import {ArchiveOutlineIcon} from '@mattermost/compass-icons/components';
++import type {Channel} from '@mattermost/types/channels';
++import type {Post} from '@mattermost/types/posts';
++
++import {Permissions} from 'mattermost-redux/constants';
++import {getPostsInThread} from 'mattermost-redux/selectors/entities/posts';
++import {haveIChannelPermission} from 'mattermost-redux/selectors/entities/roles';
++import {getThread} from 'mattermost-redux/selectors/entities/threads';
++
++import BasicSeparator from 'components/widgets/separator/basic-separator';
++
++import type {GlobalState} from 'types/store';
++
++import {useChannelPostingRules} from './use_channel_posting_rules';
++import {isPostingRulesChannel} from './use_slowmode';
++
++const DAY_IN_MILLISECONDS = 24 * 60 * 60 * 1000;
++
++function getThreadLastActivityAt(state: GlobalState, rootPost: Post) {
++    let lastActivityAt = Math.max(rootPost.create_at, rootPost.last_reply_at ?? 0, getThread(state, rootPost.id)?.last_reply_at ?? 0);
++    for (const replyId of getPostsInThread(state)[rootPost.id] ?? []) {
++        lastActivityAt = Math.max(lastActivityAt, state.entities.posts.posts[replyId]?.create_at ?? 0);
++    }
++    return lastActivityAt;
++}
++
++export function useArchivedThreadDays(rootPost?: Post, channel?: Channel | null) {
++    const [now] = useState(Date.now);
++    const postingRulesChannel = isPostingRulesChannel(channel ?? undefined) ? channel : undefined;
++    const rules = useChannelPostingRules(rootPost ? postingRulesChannel?.id : undefined);
++    const archiveDays = rules?.thread_archive_days ?? 0;
++    const exempt = useSelector((state: GlobalState) => !postingRulesChannel || haveIChannelPermission(state, postingRulesChannel.team_id, postingRulesChannel.id, Permissions.MANAGE_CHANNEL_ROLES));
++    const lastActivityAt = useSelector((state: GlobalState) => (rootPost && archiveDays && !exempt ? getThreadLastActivityAt(state, rootPost) : 0));
++
++    if (!lastActivityAt || now - lastActivityAt < archiveDays * DAY_IN_MILLISECONDS) {
++        return 0;
++    }
++    return archiveDays;
++}
++
++export default function ThreadArchivedNotice({days}: {days: number}) {
++    return (
++        <div
++            className='channel-archived-warning__container'
++            data-testid='thread-archived-notice'
++        >
++            <BasicSeparator/>
++            <div className='channel-archived-warning__content'>
++                <ArchiveOutlineIcon
++                    size={20}
++                    color={'rgba(var(--center-channel-color-rgb), 0.75)'}
++                />
++                <FormattedMessage
++                    id='channel_posting_rules.thread_archived'
++                    defaultMessage='This thread was archived after {days, plural, one {# day} other {# days}} without replies'
++                    values={{days}}
++                />
++            </div>
++        </div>
++    );
++}
+diff --git a/webapp/channels/src/components/threading/virtualized_thread_viewer/create_comment.tsx b/webapp/channels/src/components/threading/virtualized_thread_viewer/create_comment.tsx
+index 84eebb4fab09..758e547fa071 100644
+--- a/webapp/channels/src/components/threading/virtualized_thread_viewer/create_comment.tsx
++++ b/webapp/channels/src/components/threading/virtualized_thread_viewer/create_comment.tsx
+@@ -11,6 +11,7 @@ import {makeGetChannel} from 'mattermost-redux/selectors/entities/channels';
+ import {getPost, getLimitedViews} from 'mattermost-redux/selectors/entities/posts';
+ 
+ import AdvancedCreateComment from 'components/advanced_create_comment';
++import ThreadArchivedNotice, {useArchivedThreadDays} from 'components/channel_posting_rules/thread_archived_notice';
+ import {compassIconForName, useChannelIconOverrideName} from 'components/channel_type_icon';
+ import {ChannelComposerBanner} from 'components/channel_view/channel_composer_banner';
+ import BasicSeparator from 'components/widgets/separator/basic-separator';
+@@ -43,6 +44,7 @@ const CreateComment = forwardRef<HTMLDivElement, Props>(({
+         return getChannel(state, rootPost.channel_id);
+     });
+     const overrideName = useChannelIconOverrideName(channel ?? undefined);
++    const archivedAfterDays = useArchivedThreadDays(rootPost, channel);
+ 
+     if (!channel || threadIsLimited) {
+         return null;
+@@ -99,6 +101,10 @@ const CreateComment = forwardRef<HTMLDivElement, Props>(({
+         );
+     }
+ 
++    if (archivedAfterDays) {
++        return <ThreadArchivedNotice days={archivedAfterDays}/>;
++    }
++
+     return (
+         <div
+             className='post-create__container'
+diff --git a/webapp/channels/src/i18n/en.json b/webapp/channels/src/i18n/en.json
+index f7ae0328331a..ebf1ac46debd 100644
+--- a/webapp/channels/src/i18n/en.json
++++ b/webapp/channels/src/i18n/en.json
+@@ -19635,6 +19635,10 @@
+     "defaultMessage": "Thread reply notifications",
+     "description": "Section heading in the channel notification preferences modal for thread reply notification options."
+   },
++  "channel_posting_rules.days": {
++    "defaultMessage": "{count, plural, one {# day} other {# days}}",
++    "description": "Duration label in the thread auto-archive dropdown of the channel settings Moderation tab, for example '7 days'. count is the number of days."
++  },
+   "channel_posting_rules.hours": {
+     "defaultMessage": "{count, plural, one {# hour} other {# hours}}",
+     "description": "Duration label in the channel posting rules dropdowns and the slowmode indicator, for example '1 hour'. count is the number of hours."
+@@ -19659,6 +19663,10 @@
+     "defaultMessage": "Slowmode is on: one message every {interval}",
+     "description": "Small indicator above the message composer in a channel with slowmode on. interval is a duration such as '30 seconds' or '1 minute'."
+   },
++  "channel_posting_rules.thread_archived": {
++    "defaultMessage": "This thread was archived after {days, plural, one {# day} other {# days}} without replies",
++    "description": "Shown in place of the reply box in a thread that has had no replies for longer than the channel's thread auto-archive period. days is that period."
++  },
+   "channel_select.placeholder": {
+     "defaultMessage": "--- Select a channel ---",
+     "description": "Default (unselected) option of a channel dropdown in integration settings forms; the dashes are decorative."
+@@ -19915,6 +19923,14 @@
+     "defaultMessage": "Members must wait this long between messages, including replies. Channel admins, team admins and system admins are exempt.",
+     "description": "Help text under the slowmode setting in the channel settings Moderation tab, explaining who it applies to."
+   },
++  "channel_settings.moderation.thread_archive.heading": {
++    "defaultMessage": "Thread auto-archive",
++    "description": "Heading of the thread auto-archive setting in the channel settings Moderation tab. Archived threads no longer accept replies from members."
++  },
++  "channel_settings.moderation.thread_archive.subheading": {
++    "defaultMessage": "Close threads to new replies after this long without one. Channel admins, team admins and system admins can still reply, which reopens the thread.",
++    "description": "Help text under the thread auto-archive setting in the channel settings Moderation tab, explaining what archiving does and who can still reply."
++  },
+   "channel_settings.permissions_policy.action.download": {
+     "defaultMessage": "Download files",
+     "description": "Permission action name in the channel Permissions Policy rule editor; allows downloading files ('Download' as a verb)."
+diff --git a/webapp/platform/types/src/channel_posting_rules.ts b/webapp/platform/types/src/channel_posting_rules.ts
+index 75ff8eafa8a6..8c451693cd04 100644
+--- a/webapp/platform/types/src/channel_posting_rules.ts
++++ b/webapp/platform/types/src/channel_posting_rules.ts
+@@ -3,4 +3,5 @@
+ 
+ export type ChannelPostingRules = {
+     slowmode_seconds: number;
++    thread_archive_days: number;
+ };

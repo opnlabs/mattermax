@@ -1,0 +1,152 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Karan Sharma <hello@mrkaran.dev>
+Date: Fri, 13 Nov 2026 07:39:53 +0530
+Subject: [PATCH] feat: managed channel categories without a license
+
+Mattermax-Patch: unlock-managed-channel-categories.patch
+---
+ server/channels/api4/channel.go      |  9 ++----
+ server/channels/api4/channel_test.go | 42 ++++++++++++++++++++--------
+ server/channels/app/channel.go       |  2 +-
+ 3 files changed, 33 insertions(+), 20 deletions(-)
+
+diff --git a/server/channels/api4/channel.go b/server/channels/api4/channel.go
+index d5f0cbb6d9ab..0f571d8f4f60 100644
+--- a/server/channels/api4/channel.go
++++ b/server/channels/api4/channel.go
+@@ -695,7 +695,7 @@ func patchChannel(c *Context, w http.ResponseWriter, r *http.Request) {
+ 	}
+ 
+ 	if updatingManagedCategory {
+-		if model.MinimumEnterpriseLicense(c.App.Channels().License()) && c.App.Config().FeatureFlags.ManagedChannelCategories {
++		if c.App.Config().FeatureFlags.ManagedChannelCategories {
+ 			if ok, _ := c.App.SessionHasPermissionToChannel(c.AppContext, *c.AppContext.Session(), c.Params.ChannelId, model.PermissionManageChannelRoles); !ok {
+ 				c.Err = model.NewAppError("patchChannel", "api.channel.patch_update_channel.cannot_update_managed_category.app_error", nil, "", http.StatusForbidden)
+ 				return
+@@ -719,7 +719,7 @@ func patchChannel(c *Context, w http.ResponseWriter, r *http.Request) {
+ 	}
+ 
+ 	if updatingManagedCategory {
+-		if !model.MinimumEnterpriseLicense(c.App.Channels().License()) || !c.App.Config().FeatureFlags.ManagedChannelCategories {
++		if !c.App.Config().FeatureFlags.ManagedChannelCategories {
+ 			c.Logger.Info("Managed category update ignored: feature not available")
+ 		} else {
+ 			name := *patch.ManagedCategoryName
+@@ -3456,11 +3456,6 @@ func getManagedCategories(c *Context, w http.ResponseWriter, r *http.Request) {
+ 
+ 	teamID := c.Params.TeamId
+ 
+-	if !model.MinimumEnterpriseLicense(c.App.Channels().License()) {
+-		c.Err = model.NewAppError("Api4.getManagedCategories", "api.license_error", nil, "", http.StatusNotImplemented)
+-		return
+-	}
+-
+ 	mappings, appErr := c.App.GetVisibleManagedCategoryMappings(c.AppContext, teamID)
+ 	if appErr != nil {
+ 		c.Err = appErr
+diff --git a/server/channels/api4/channel_test.go b/server/channels/api4/channel_test.go
+index c8b188720166..64250f2ef658 100644
+--- a/server/channels/api4/channel_test.go
++++ b/server/channels/api4/channel_test.go
+@@ -818,21 +818,33 @@ func TestCreateChannelManagedCategory(t *testing.T) {
+ 	client := th.Client
+ 	team := th.BasicTeam
+ 
+-	t.Run("should ignore managed category when no enterprise license", func(t *testing.T) {
++	t.Run("should set managed category for members without a license", func(t *testing.T) {
+ 		appErr := th.App.Srv().RemoveLicense()
+ 		require.Nil(t, appErr)
+ 
+ 		channel := &model.Channel{
+ 			DisplayName:         "Managed No License",
+ 			Name:                GenerateTestChannelName(),
+-			Type:                model.ChannelTypeOpen,
++			Type:                model.ChannelTypePrivate,
+ 			TeamId:              team.Id,
+ 			ManagedCategoryName: "Operations",
+ 		}
+ 		created, resp, err := client.CreateChannel(context.Background(), channel)
+ 		require.NoError(t, err)
+ 		CheckCreatedStatus(t, resp)
+-		assert.Empty(t, created.ManagedCategoryName, "managed category should be cleared without license")
++		assert.Equal(t, "Operations", created.ManagedCategoryName)
++		th.AddUserToChannel(t, th.BasicUser2, created)
++
++		memberClient := th.CreateClient()
++		th.LoginBasic2WithClient(t, memberClient)
++
++		resp2, err := memberClient.DoAPIGet(context.Background(), fmt.Sprintf("/teams/%s/channels/managed_categories", team.Id), "")
++		require.NoError(t, err)
++		defer resp2.Body.Close()
++
++		var mappings map[string]string
++		require.NoError(t, json.NewDecoder(resp2.Body).Decode(&mappings))
++		assert.Equal(t, "Operations", mappings[created.Id])
+ 	})
+ 
+ 	t.Run("should ignore managed category when feature is disabled", func(t *testing.T) {
+@@ -9403,10 +9415,20 @@ func TestGetManagedCategories(t *testing.T) {
+ 	}).InitBasic(t)
+ 	client := th.Client
+ 
+-	t.Run("should return 501 without enterprise license", func(t *testing.T) {
++	t.Run("should return managed category mappings without a license", func(t *testing.T) {
++		appErr := th.App.SetChannelManagedCategory(th.Context, th.BasicChannel.Id, "Operations")
++		require.Nil(t, appErr)
++		defer func() {
++			_ = th.App.ClearChannelManagedCategory(th.Context, th.BasicChannel.Id)
++		}()
++
+ 		resp, err := client.DoAPIGet(context.Background(), fmt.Sprintf("/teams/%s/channels/managed_categories", th.BasicTeam.Id), "")
+-		require.Error(t, err)
+-		require.Equal(t, http.StatusNotImplemented, resp.StatusCode)
++		require.NoError(t, err)
++		defer resp.Body.Close()
++
++		var mappings map[string]string
++		require.NoError(t, json.NewDecoder(resp.Body).Decode(&mappings))
++		assert.Equal(t, "Operations", mappings[th.BasicChannel.Id])
+ 	})
+ 
+ 	t.Run("should return empty map when no managed categories exist", func(t *testing.T) {
+@@ -9508,7 +9530,7 @@ func TestPatchChannelManagedCategory(t *testing.T) {
+ 		CheckForbiddenStatus(t, resp)
+ 	})
+ 
+-	t.Run("should silently ignore when no enterprise license", func(t *testing.T) {
++	t.Run("should set managed category without a license", func(t *testing.T) {
+ 		removeLicense()
+ 
+ 		channel := th.CreatePublicChannel(t)
+@@ -9518,17 +9540,13 @@ func TestPatchChannelManagedCategory(t *testing.T) {
+ 		_, _, err := client.PatchChannel(context.Background(), channel.Id, patch)
+ 		require.NoError(t, err)
+ 
+-		enableManagedCategories()
+-		defer removeLicense()
+-
+ 		resp, err := client.DoAPIGet(context.Background(), fmt.Sprintf("/teams/%s/channels/managed_categories", th.BasicTeam.Id), "")
+ 		require.NoError(t, err)
+ 		defer resp.Body.Close()
+ 
+ 		var mappings map[string]string
+ 		require.NoError(t, json.NewDecoder(resp.Body).Decode(&mappings))
+-		_, exists := mappings[channel.Id]
+-		assert.False(t, exists, "managed category should not be set without license")
++		assert.Equal(t, "Operations", mappings[channel.Id])
+ 	})
+ 
+ 	t.Run("should silently ignore when feature is disabled", func(t *testing.T) {
+diff --git a/server/channels/app/channel.go b/server/channels/app/channel.go
+index a32191dd24cd..827f446b17fa 100644
+--- a/server/channels/app/channel.go
++++ b/server/channels/app/channel.go
+@@ -336,7 +336,7 @@ func (a *App) CreateChannel(rctx request.CTX, channel *model.Channel, addMember
+ 	}
+ 
+ 	if channel.ManagedCategoryName != "" {
+-		if !model.MinimumEnterpriseLicense(a.Channels().License()) || !a.Config().FeatureFlags.ManagedChannelCategories {
++		if !a.Config().FeatureFlags.ManagedChannelCategories {
+ 			rctx.Logger().Warn("Managed category update ignored: feature not available")
+ 			sc.ManagedCategoryName = ""
+ 		} else {

@@ -1,0 +1,2744 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Karan Sharma <hello@mrkaran.dev>
+Date: Fri, 13 Nov 2026 02:36:39 +0530
+Subject: [PATCH] feat: Prometheus metrics
+
+Mattermax-Patch: prometheus-metrics.patch
+---
+ .../channels/api4/metrics_prometheus_test.go  | 508 +++++++++
+ server/channels/api4/metrics_test.go          |  20 +-
+ .../app/platform/metrics_prometheus.go        | 584 +++++++++++
+ .../app/platform/metrics_prometheus_client.go | 152 +++
+ .../app/platform/metrics_prometheus_noop.go   |  77 ++
+ .../app/platform/metrics_prometheus_test.go   | 984 ++++++++++++++++++
+ server/channels/app/plugin_hooks_test.go      |  72 +-
+ server/config/client.go                       |  10 +-
+ server/config/client_test.go                  |  50 +
+ server/public/model/metrics.go                |  10 +
+ server/public/model/metrics_test.go           |  30 +
+ 11 files changed, 2409 insertions(+), 88 deletions(-)
+ create mode 100644 server/channels/api4/metrics_prometheus_test.go
+ create mode 100644 server/channels/app/platform/metrics_prometheus.go
+ create mode 100644 server/channels/app/platform/metrics_prometheus_client.go
+ create mode 100644 server/channels/app/platform/metrics_prometheus_noop.go
+ create mode 100644 server/channels/app/platform/metrics_prometheus_test.go
+
+diff --git a/server/channels/api4/metrics_prometheus_test.go b/server/channels/api4/metrics_prometheus_test.go
+new file mode 100644
+index 000000000000..b12e94a19fc2
+--- /dev/null
++++ b/server/channels/api4/metrics_prometheus_test.go
+@@ -0,0 +1,508 @@
++// Copyright (c) 2026-present the Mattermax authors.
++// See LICENSE.txt for license information.
++
++package api4
++
++import (
++	"encoding/json"
++	"fmt"
++	"io"
++	"maps"
++	"math/rand"
++	"net"
++	"net/http"
++	"net/http/httptest"
++	"os"
++	"path/filepath"
++	"slices"
++	"strings"
++	"testing"
++	"time"
++
++	"github.com/gorilla/websocket"
++	dto "github.com/prometheus/client_model/go"
++	"github.com/prometheus/common/expfmt"
++	prommodel "github.com/prometheus/common/model"
++	"github.com/stretchr/testify/assert"
++	"github.com/stretchr/testify/require"
++
++	"github.com/mattermost/mattermost/server/public/model"
++	"github.com/mattermost/mattermost/server/public/plugin/utils"
++	"github.com/mattermost/mattermost/server/v8/channels/app"
++	"github.com/mattermost/mattermost/server/v8/channels/app/platform"
++)
++
++func setupPrometheusMetrics(t *testing.T, updateConfig func(*model.Config)) *TestHelper {
++	platform.RegisterMetricsInterface(platform.NewPrometheusMetrics)
++	t.Cleanup(func() { platform.RegisterMetricsInterface(platform.NewPrometheusMetrics) })
++
++	th := SetupWithServerOptions(t, []app.Option{app.StartMetrics}).InitBasic(t)
++	require.Nil(t, th.App.Srv().License())
++
++	th.App.UpdateConfig(func(cfg *model.Config) {
++		*cfg.MetricsSettings.ListenAddress = "localhost:0"
++		*cfg.MetricsSettings.EnableClientMetrics = true
++		if updateConfig != nil {
++			updateConfig(cfg)
++		}
++		*cfg.MetricsSettings.Enable = true
++	})
++	return th
++}
++
++func scrapeMetricsRouter(t *testing.T, th *TestHelper) string {
++	router := th.Server.Platform().GetMetricsRouter()
++	require.NotNil(t, router)
++	rec := httptest.NewRecorder()
++	router.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/metrics", nil))
++	require.Equal(t, http.StatusOK, rec.Code)
++	return rec.Body.String()
++}
++
++func parseMetrics(t *testing.T, body string) map[string]*dto.MetricFamily {
++	parser := expfmt.NewTextParser(prommodel.LegacyValidation)
++	families, err := parser.TextToMetricFamilies(strings.NewReader(body))
++	require.NoError(t, err)
++	return families
++}
++
++func metricLabels(metric *dto.Metric) map[string]string {
++	labels := map[string]string{}
++	for _, l := range metric.Label {
++		labels[l.GetName()] = l.GetValue()
++	}
++	return labels
++}
++
++func metricValue(t *testing.T, th *TestHelper, family string, match map[string]string) float64 {
++	var total float64
++	for _, metric := range parseMetrics(t, scrapeMetricsRouter(t, th))[family].GetMetric() {
++		labels := metricLabels(metric)
++		matches := true
++		for k, v := range match {
++			matches = matches && labels[k] == v
++		}
++		if !matches {
++			continue
++		}
++		switch {
++		case metric.Counter != nil:
++			total += metric.GetCounter().GetValue()
++		case metric.Histogram != nil:
++			total += float64(metric.GetHistogram().GetSampleCount())
++		case metric.Gauge != nil:
++			total += metric.GetGauge().GetValue()
++		}
++	}
++	return total
++}
++
++func recordedValues(t *testing.T, th *TestHelper, prefixes ...string) map[string]float64 {
++	values := map[string]float64{}
++	for name, family := range parseMetrics(t, scrapeMetricsRouter(t, th)) {
++		if strings.HasPrefix(name, "mattermost_process_") || !slices.ContainsFunc(prefixes, func(p string) bool { return strings.HasPrefix(name, p) }) {
++			continue
++		}
++		for _, metric := range family.Metric {
++			key := name + fmt.Sprint(metricLabels(metric))
++			switch {
++			case metric.Counter != nil:
++				values[key] = metric.GetCounter().GetValue()
++			case metric.Histogram != nil:
++				values[key+"_count"] = float64(metric.GetHistogram().GetSampleCount())
++				values[key+"_sum"] = metric.GetHistogram().GetSampleSum()
++			}
++		}
++	}
++	return values
++}
++
++func performanceReport(counters, histograms []*model.MetricSample) *model.PerformanceReport {
++	now := time.Now()
++	return &model.PerformanceReport{
++		Version:    "0.1.0",
++		Labels:     map[string]string{"platform": "linux", "agent": "chrome"},
++		Start:      float64(now.Add(-time.Minute).UnixMilli()),
++		End:        float64(now.UnixMilli()),
++		Counters:   counters,
++		Histograms: histograms,
++	}
++}
++
++func pageLoadReport(ms float64) *model.PerformanceReport {
++	return performanceReport(nil, []*model.MetricSample{{Metric: model.ClientPageLoadDuration, Value: ms}})
++}
++
++func TestPrometheusMetricsWithoutLicense(t *testing.T) {
++	th := setupPrometheusMetrics(t, nil)
++
++	th.LoginBasic(t)
++	post, _, err := th.Client.CreatePost(th.Context.Context(), &model.Post{ChannelId: th.BasicChannel.Id, Message: "metrics without a license"})
++	require.NoError(t, err)
++	_, _, err = th.Client.SearchPosts(th.Context.Context(), th.BasicTeam.Id, "metrics", false)
++	require.NoError(t, err)
++	resp, err := th.Client.SubmitClientMetrics(th.Context.Context(), pageLoadReport(1500))
++	require.NoError(t, err)
++	require.Equal(t, http.StatusOK, resp.StatusCode)
++
++	assert.Positive(t, metricValue(t, th, "mattermost_http_requests_total", nil))
++	assert.GreaterOrEqual(t, metricValue(t, th, "mattermost_api_time", map[string]string{"handler": "createPost", "method": http.MethodPost}), 1.0)
++	assert.GreaterOrEqual(t, metricValue(t, th, "mattermost_post_total", nil), 1.0)
++	assert.GreaterOrEqual(t, metricValue(t, th, "mattermost_login_logins_total", nil), 1.0)
++	assert.GreaterOrEqual(t, metricValue(t, th, "mattermost_search_posts_searches_total", nil), 1.0)
++	assert.GreaterOrEqual(t, metricValue(t, th, "mattermost_webapp_page_load", map[string]string{"platform": "linux", "agent": "chrome"}), 1.0)
++
++	body := scrapeMetricsRouter(t, th)
++	for _, id := range []string{th.BasicUser.Id, th.BasicUser2.Id, th.SystemAdminUser.Id, th.BasicChannel.Id, th.BasicTeam.Id, post.Id} {
++		assert.NotContains(t, body, id)
++	}
++}
++
++func TestPrometheusMetricsHostileLabels(t *testing.T) {
++	th := setupPrometheusMetrics(t, nil)
++
++	platforms := []string{"linux", "macos", "ios", "android", "windows", "other"}
++	agents := []string{"desktop", "firefox", "chrome", "safari", "edge", "other"}
++	rng := rand.New(rand.NewSource(1))
++	pick := func(valid []string) string {
++		if rng.Intn(3) == 0 {
++			return valid[rng.Intn(len(valid))]
++		}
++		return model.NewId() + "/" + th.BasicUser.Id
++	}
++
++	for range 50 {
++		labels := map[string]string{
++			"region":                pick(slices.Sorted(maps.Keys(model.AcceptedLCPRegions))),
++			"interaction":           pick([]string{"keyboard", "pointer", "other"}),
++			"network_request_group": model.NewId(),
++		}
++		report := performanceReport(
++			[]*model.MetricSample{{Metric: model.ClientLongTasks, Value: 1}},
++			[]*model.MetricSample{
++				{Metric: model.ClientLargestContentfulPaint, Value: 900, Labels: labels},
++				{Metric: model.ClientInteractionToNextPaint, Value: 90, Labels: labels},
++				{Metric: model.ClientChannelSwitchDuration, Value: 400, Labels: map[string]string{"fresh": pick([]string{"true", "false"})}},
++				{Metric: model.MobileClientNetworkRequestsAverageSpeed, Value: 10, Labels: labels},
++			},
++		)
++		report.Labels = map[string]string{"platform": pick(platforms), "agent": pick(agents), "network_request_group": model.NewId()}
++		resp, err := th.Client.SubmitClientMetrics(th.Context.Context(), report)
++		require.NoError(t, err)
++		require.Equal(t, http.StatusOK, resp.StatusCode)
++	}
++
++	const buckets = 8 + 3
++	bounds := map[string]int{
++		"mattermost_webapp_long_tasks":                6 * 6,
++		"mattermost_webapp_largest_contentful_paint":  6 * 6 * 10 * buckets,
++		"mattermost_webapp_interaction_to_next_paint": 6 * 6 * 3 * buckets,
++		"mattermost_webapp_channel_switch":            6 * 6 * 3 * buckets,
++	}
++	families := parseMetrics(t, scrapeMetricsRouter(t, th))
++	total := 0
++	for name, family := range families {
++		if !strings.HasPrefix(name, "mattermost_webapp_") && !strings.HasPrefix(name, "mattermost_mobileapp_") {
++			continue
++		}
++		require.Contains(t, bounds, name)
++		series := len(family.Metric)
++		if family.GetType() == dto.MetricType_HISTOGRAM {
++			series *= buckets
++		}
++		assert.LessOrEqual(t, series, bounds[name], name)
++		total += series
++		for _, metric := range family.Metric {
++			labels := metricLabels(metric)
++			assert.Contains(t, platforms, labels["platform"])
++			assert.Contains(t, agents, labels["agent"])
++			if region, ok := labels["region"]; ok {
++				assert.Contains(t, model.AcceptedLCPRegions, region)
++			}
++			if interaction, ok := labels["interaction"]; ok {
++				assert.Contains(t, []string{"keyboard", "pointer", "other"}, interaction)
++			}
++		}
++	}
++	assert.Positive(t, total)
++	assert.NotContains(t, scrapeMetricsRouter(t, th), th.BasicUser.Id)
++}
++
++func TestPrometheusMetricsHostileValues(t *testing.T) {
++	th := setupPrometheusMetrics(t, nil)
++	clientFamilies := []string{"mattermost_webapp_", "mattermost_mobileapp_"}
++
++	rejected := map[string]*model.PerformanceReport{
++		"long tasks -1":       performanceReport([]*model.MetricSample{{Metric: model.ClientLongTasks, Value: -1}}, nil),
++		"long tasks 2.5":      performanceReport([]*model.MetricSample{{Metric: model.ClientLongTasks, Value: 2.5}}, nil),
++		"long tasks 1e9":      performanceReport([]*model.MetricSample{{Metric: model.ClientLongTasks, Value: 1e9}}, nil),
++		"page load -5":        pageLoadReport(-5),
++		"page load 1e308":     pageLoadReport(1e308),
++		"layout shift 1e6":    performanceReport(nil, []*model.MetricSample{{Metric: model.ClientCumulativeLayoutShift, Value: 1e6}}),
++		"mobile load 1e12 ms": performanceReport(nil, []*model.MetricSample{{Metric: model.MobileClientLoadDuration, Value: 1e12}}),
++	}
++	for name, report := range rejected {
++		t.Run(name, func(t *testing.T) {
++			before := recordedValues(t, th, clientFamilies...)
++			resp, err := th.Client.SubmitClientMetrics(th.Context.Context(), report)
++			require.NoError(t, err)
++			require.Equal(t, http.StatusOK, resp.StatusCode)
++			assert.Equal(t, before, recordedValues(t, th, clientFamilies...))
++		})
++	}
++
++	invalid := map[string]string{
++		"null counter":   `{"version":"0.1.0","start":%[1]d,"end":%[1]d,"counters":[null]}`,
++		"null histogram": `{"version":"0.1.0","start":%[1]d,"end":%[1]d,"histograms":[null]}`,
++	}
++	for name, body := range invalid {
++		t.Run(name, func(t *testing.T) {
++			before := recordedValues(t, th, clientFamilies...)
++			resp, err := th.Client.DoAPIPost(th.Context.Context(), "/client_perf", fmt.Sprintf(body, model.GetMillis()))
++			require.Error(t, err)
++			require.Equal(t, http.StatusBadRequest, resp.StatusCode)
++			assert.Equal(t, before, recordedValues(t, th, clientFamilies...))
++		})
++	}
++
++	t.Run("501 histograms", func(t *testing.T) {
++		samples := make([]*model.MetricSample, 501)
++		for i := range samples {
++			samples[i] = &model.MetricSample{Metric: model.ClientPageLoadDuration, Value: 1000}
++		}
++		before := recordedValues(t, th, clientFamilies...)
++		resp, err := th.Client.SubmitClientMetrics(th.Context.Context(), performanceReport(nil, samples))
++		require.Error(t, err)
++		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
++		assert.Equal(t, before, recordedValues(t, th, clientFamilies...))
++	})
++
++	t.Run("valid sample beside an invalid one", func(t *testing.T) {
++		before := metricValue(t, th, "mattermost_webapp_page_load", nil)
++		resp, err := th.Client.SubmitClientMetrics(th.Context.Context(), performanceReport(nil, []*model.MetricSample{
++			{Metric: model.ClientPageLoadDuration, Value: 2000},
++			{Metric: model.ClientPageLoadDuration, Value: -2000},
++		}))
++		require.NoError(t, err)
++		require.Equal(t, http.StatusOK, resp.StatusCode)
++		assert.Equal(t, before+1, metricValue(t, th, "mattermost_webapp_page_load", nil))
++	})
++
++	resp, err := th.Client.SubmitClientMetrics(th.Context.Context(), pageLoadReport(1000))
++	require.NoError(t, err)
++	require.Equal(t, http.StatusOK, resp.StatusCode)
++	assert.NotContains(t, th.LogBuffer.String(), "panic")
++}
++
++func dialPostedAckWebSocket(t *testing.T, th *TestHelper, client *model.Client4) *websocket.Conn {
++	url := fmt.Sprintf("ws://localhost:%d%s/websocket?posted_ack=true", th.App.Srv().ListenAddr.Port, model.APIURLSuffix)
++	conn, _, err := websocket.DefaultDialer.Dial(url, http.Header{"Authorization": []string{"Bearer " + client.AuthToken}})
++	require.NoError(t, err)
++	t.Cleanup(func() { conn.Close() })
++	go func() {
++		for {
++			if _, _, err := conn.ReadMessage(); err != nil {
++				return
++			}
++		}
++	}()
++	return conn
++}
++
++func TestPrometheusMetricsNotifications(t *testing.T) {
++	th := setupPrometheusMetrics(t, func(cfg *model.Config) {
++		*cfg.MetricsSettings.EnableNotificationMetrics = true
++	})
++
++	client2 := th.CreateClient()
++	th.LoginBasic2WithClient(t, client2)
++	conn := dialPostedAckWebSocket(t, th, client2)
++	dm := th.CreateDmChannel(t, th.BasicUser2)
++	websocketSent := map[string]string{"type": string(model.NotificationTypeWebsocket), "platform": model.NotificationNoPlatform}
++
++	sendAndAck := func(seq int) {
++		post, _, err := th.Client.CreatePost(th.Context.Context(), &model.Post{ChannelId: dm.Id, Message: "notify"})
++		require.NoError(t, err)
++		require.NoError(t, conn.WriteJSON(model.WebSocketRequest{Seq: int64(seq), Action: string(model.WebsocketPostedNotifyAck), Data: map[string]any{"post_id": post.Id}}))
++	}
++
++	sendAndAck(1)
++	require.Eventually(t, func() bool {
++		return metricValue(t, th, "mattermost_notifications_total", websocketSent) >= 1 &&
++			metricValue(t, th, "mattermost_notifications_total_ack", websocketSent) >= 1
++	}, 10*time.Second, 100*time.Millisecond)
++
++	th.App.UpdateConfig(func(cfg *model.Config) { *cfg.MetricsSettings.EnableNotificationMetrics = false })
++	sent := metricValue(t, th, "mattermost_notifications_total", websocketSent)
++	acked := metricValue(t, th, "mattermost_notifications_total_ack", websocketSent)
++	sendAndAck(2)
++	time.Sleep(time.Second)
++	assert.Equal(t, sent, metricValue(t, th, "mattermost_notifications_total", websocketSent))
++	assert.Equal(t, acked, metricValue(t, th, "mattermost_notifications_total_ack", websocketSent))
++
++	th.App.UpdateConfig(func(cfg *model.Config) {
++		*cfg.MetricsSettings.EnableNotificationMetrics = true
++		*cfg.EmailSettings.SendPushNotifications = true
++		*cfg.EmailSettings.PushNotificationServer = "http://127.0.0.1:1"
++	})
++	mobile := th.CreateClient()
++	_, _, err := mobile.LoginWithDevice(th.Context.Context(), th.BasicUser2.Email, th.BasicUser2.Password, model.PushNotifyAppleReactNative+":"+model.NewId())
++	require.NoError(t, err)
++	ack, err := json.Marshal(model.PushNotificationAck{Id: model.NewId(), ClientPlatform: "ios", NotificationType: model.PushTypeMessage, ClientReceivedAt: model.GetMillis()})
++	require.NoError(t, err)
++	resp, _ := mobile.DoAPIPost(th.Context.Context(), "/notifications/ack", string(ack))
++	require.NotNil(t, resp)
++	assert.Equal(t, 1.0, metricValue(t, th, "mattermost_notifications_total_ack", map[string]string{"type": string(model.NotificationTypePush), "platform": "ios"}))
++}
++
++func TestPrometheusMetricsDisabledRecordsNothing(t *testing.T) {
++	th := setupPrometheusMetrics(t, nil)
++	recorded := []string{"mattermost_"}
++
++	th.LoginBasic(t)
++	_, _, err := th.Client.CreatePost(th.Context.Context(), &model.Post{ChannelId: th.BasicChannel.Id, Message: "before"})
++	require.NoError(t, err)
++	_, err = th.Client.SubmitClientMetrics(th.Context.Context(), pageLoadReport(1000))
++	require.NoError(t, err)
++	require.Positive(t, metricValue(t, th, "mattermost_webapp_page_load", nil))
++
++	th.App.UpdateConfig(func(cfg *model.Config) { *cfg.MetricsSettings.Enable = false })
++	before := recordedValues(t, th, recorded...)
++	postsBefore := metricValue(t, th, "mattermost_post_total", nil)
++
++	_, _, err = th.Client.CreatePost(th.Context.Context(), &model.Post{ChannelId: th.BasicChannel.Id, Message: "while disabled"})
++	require.NoError(t, err)
++	_, _, err = th.Client.GetMe(th.Context.Context(), "")
++	require.NoError(t, err)
++	resp, err := th.Client.SubmitClientMetrics(th.Context.Context(), pageLoadReport(1000))
++	require.NoError(t, err)
++	require.Equal(t, http.StatusOK, resp.StatusCode)
++	time.Sleep(500 * time.Millisecond)
++	assert.Equal(t, before, recordedValues(t, th, recorded...))
++
++	th.App.UpdateConfig(func(cfg *model.Config) { *cfg.MetricsSettings.Enable = true })
++	_, _, err = th.Client.CreatePost(th.Context.Context(), &model.Post{ChannelId: th.BasicChannel.Id, Message: "after"})
++	require.NoError(t, err)
++	assert.Equal(t, postsBefore+1, metricValue(t, th, "mattermost_post_total", nil))
++}
++
++func TestPrometheusMetricsFailedBind(t *testing.T) {
++	th := setupPrometheusMetrics(t, nil)
++
++	held, err := net.Listen("tcp", "127.0.0.1:0")
++	require.NoError(t, err)
++	defer held.Close()
++
++	th.LoginBasic(t)
++	_, _, err = th.Client.CreatePost(th.Context.Context(), &model.Post{ChannelId: th.BasicChannel.Id, Message: "before"})
++	require.NoError(t, err)
++	posts := metricValue(t, th, "mattermost_post_total", nil)
++	require.Positive(t, posts)
++
++	th.App.UpdateConfig(func(cfg *model.Config) { *cfg.MetricsSettings.ListenAddress = held.Addr().String() })
++	require.NoError(t, th.TestLogger.Flush())
++	assert.Contains(t, th.LogBuffer.String(), "Failed to reset metrics")
++
++	th.App.UpdateConfig(func(cfg *model.Config) { *cfg.MetricsSettings.Enable = false })
++	before := recordedValues(t, th, "mattermost_")
++	_, _, err = th.Client.CreatePost(th.Context.Context(), &model.Post{ChannelId: th.BasicChannel.Id, Message: "while disabled"})
++	require.NoError(t, err)
++	_, err = th.Client.SubmitClientMetrics(th.Context.Context(), pageLoadReport(1000))
++	require.NoError(t, err)
++	time.Sleep(500 * time.Millisecond)
++	assert.Equal(t, before, recordedValues(t, th, "mattermost_"))
++
++	free, err := net.Listen("tcp", "127.0.0.1:0")
++	require.NoError(t, err)
++	addr := free.Addr().String()
++	require.NoError(t, free.Close())
++	th.App.UpdateConfig(func(cfg *model.Config) {
++		*cfg.MetricsSettings.ListenAddress = addr
++		*cfg.MetricsSettings.Enable = true
++	})
++
++	resp, err := http.Get("http://" + addr + "/metrics")
++	require.NoError(t, err)
++	defer resp.Body.Close()
++	require.Equal(t, http.StatusOK, resp.StatusCode)
++	body, err := io.ReadAll(resp.Body)
++	require.NoError(t, err)
++	assert.Contains(t, string(body), fmt.Sprintf("mattermost_post_total %v", posts))
++
++	_, _, err = th.Client.CreatePost(th.Context.Context(), &model.Post{ChannelId: th.BasicChannel.Id, Message: "after"})
++	require.NoError(t, err)
++	assert.Equal(t, posts+1, metricValue(t, th, "mattermost_post_total", nil))
++}
++
++func TestPrometheusMetricsPluginAggregation(t *testing.T) {
++	platform.RegisterMetricsInterface(platform.NewPrometheusMetrics)
++	th := SetupWithServerOptions(t, []app.Option{app.StartMetrics})
++	th.ConfigStore.SetReadOnlyFF(false)
++	defer th.ConfigStore.SetReadOnlyFF(true)
++	th.App.UpdateConfig(func(cfg *model.Config) {
++		*cfg.PluginSettings.Enable = true
++		cfg.FeatureFlags.AggregatePluginMetrics = true
++		*cfg.MetricsSettings.ListenAddress = "localhost:0"
++		*cfg.MetricsSettings.Enable = true
++	})
++
++	pluginID := "com.mattermax.metrics_aggregation_test"
++	pluginDir, err := filepath.Abs(*th.App.Config().PluginSettings.Directory)
++	require.NoError(t, err)
++	require.NoError(t, os.MkdirAll(filepath.Join(pluginDir, pluginID), 0700))
++	utils.CompileGo(t, `
++package main
++
++import (
++	"net/http"
++	"sync/atomic"
++
++	"github.com/mattermost/mattermost/server/public/plugin"
++)
++
++type MetricsPlugin struct {
++	plugin.MattermostPlugin
++	calls atomic.Int64
++}
++
++func (p *MetricsPlugin) ServeMetrics(_ *plugin.Context, w http.ResponseWriter, _ *http.Request) {
++	switch p.calls.Add(1) {
++	case 1:
++		w.Write([]byte("# TYPE metrics_plugin_requests_total counter\nmetrics_plugin_requests_total 7\n"))
++	case 2:
++		w.Write([]byte("this is { not metrics\n"))
++	default:
++		w.Write([]byte("# TYPE go_goroutines gauge\ngo_goroutines 5\n"))
++	}
++}
++
++func main() {
++	plugin.ClientMain(&MetricsPlugin{})
++}
++`, filepath.Join(pluginDir, pluginID, "backend.exe"))
++	require.NoError(t, os.WriteFile(filepath.Join(pluginDir, pluginID, "plugin.json"), []byte(`{"id": "`+pluginID+`", "server": {"executable": "backend.exe"}}`), 0600))
++	_, activated, err := th.App.GetPluginsEnvironment().Activate(pluginID)
++	require.NoError(t, err)
++	require.True(t, activated)
++
++	parser := expfmt.NewTextParser(prommodel.LegacyValidation)
++
++	valid := scrapeMetricsRouter(t, th)
++	families, err := parser.TextToMetricFamilies(strings.NewReader(valid))
++	require.NoError(t, err)
++	require.Contains(t, families, "metrics_plugin_requests_total")
++	assert.Equal(t, map[string]string{"plugin_id": pluginID}, metricLabels(families["metrics_plugin_requests_total"].Metric[0]))
++	assert.Contains(t, families, "mattermost_http_requests_total")
++
++	malformed := scrapeMetricsRouter(t, th)
++	families, err = parser.TextToMetricFamilies(strings.NewReader(malformed))
++	require.NoError(t, err)
++	assert.NotContains(t, families, "metrics_plugin_requests_total")
++	assert.Contains(t, families, "mattermost_http_requests_total")
++	assert.Contains(t, families, "go_goroutines")
++
++	colliding := scrapeMetricsRouter(t, th)
++	assert.Equal(t, 2, strings.Count(colliding, "# TYPE go_goroutines gauge"))
++	_, err = parser.TextToMetricFamilies(strings.NewReader(colliding))
++	assert.Error(t, err)
++}
+diff --git a/server/channels/api4/metrics_test.go b/server/channels/api4/metrics_test.go
+index bc078eadb048..7787c2bae009 100644
+--- a/server/channels/api4/metrics_test.go
++++ b/server/channels/api4/metrics_test.go
+@@ -66,9 +66,7 @@ func TestSubmitMetrics(t *testing.T) {
+ 			return metricsMock
+ 		})
+ 		t.Cleanup(func() {
+-			platform.RegisterMetricsInterface(func(_ *platform.PlatformService, _, _ string) einterfaces.MetricsInterface {
+-				return nil
+-			})
++			platform.RegisterMetricsInterface(platform.NewPrometheusMetrics)
+ 		})
+ 
+ 		th := SetupEnterpriseWithServerOptions(t, []app.Option{app.StartMetrics})
+@@ -98,9 +96,7 @@ func TestSubmitMetrics(t *testing.T) {
+ 			return metricsMock
+ 		})
+ 		t.Cleanup(func() {
+-			platform.RegisterMetricsInterface(func(_ *platform.PlatformService, _, _ string) einterfaces.MetricsInterface {
+-				return nil
+-			})
++			platform.RegisterMetricsInterface(platform.NewPrometheusMetrics)
+ 		})
+ 
+ 		th := SetupEnterpriseWithServerOptions(t, []app.Option{app.StartMetrics})
+@@ -130,9 +126,7 @@ func TestSubmitMetrics(t *testing.T) {
+ 			return metricsMock
+ 		})
+ 		t.Cleanup(func() {
+-			platform.RegisterMetricsInterface(func(_ *platform.PlatformService, _, _ string) einterfaces.MetricsInterface {
+-				return nil
+-			})
++			platform.RegisterMetricsInterface(platform.NewPrometheusMetrics)
+ 		})
+ 
+ 		th := SetupEnterpriseWithServerOptions(t, []app.Option{app.StartMetrics})
+@@ -168,9 +162,7 @@ func TestSubmitMetrics(t *testing.T) {
+ 			return metricsMock
+ 		})
+ 		t.Cleanup(func() {
+-			platform.RegisterMetricsInterface(func(_ *platform.PlatformService, _, _ string) einterfaces.MetricsInterface {
+-				return nil
+-			})
++			platform.RegisterMetricsInterface(platform.NewPrometheusMetrics)
+ 		})
+ 
+ 		th := SetupEnterpriseWithServerOptions(t, []app.Option{app.StartMetrics})
+@@ -202,9 +194,7 @@ func TestSubmitMetrics(t *testing.T) {
+ 			return metricsMock
+ 		})
+ 		t.Cleanup(func() {
+-			platform.RegisterMetricsInterface(func(_ *platform.PlatformService, _, _ string) einterfaces.MetricsInterface {
+-				return nil
+-			})
++			platform.RegisterMetricsInterface(platform.NewPrometheusMetrics)
+ 		})
+ 
+ 		th := SetupEnterpriseWithServerOptions(t, []app.Option{app.StartMetrics})
+diff --git a/server/channels/app/platform/metrics_prometheus.go b/server/channels/app/platform/metrics_prometheus.go
+new file mode 100644
+index 000000000000..2ad61f9269eb
+--- /dev/null
++++ b/server/channels/app/platform/metrics_prometheus.go
+@@ -0,0 +1,584 @@
++// Copyright (c) 2026-present the Mattermax authors.
++// See LICENSE.txt for license information.
++
++package platform
++
++import (
++	"database/sql"
++	"net"
++	"net/http"
++	"strconv"
++	"strings"
++	"sync"
++	"sync/atomic"
++
++	"github.com/mattermost/logr/v2"
++	"github.com/prometheus/client_golang/prometheus"
++	"github.com/prometheus/client_golang/prometheus/collectors"
++	"github.com/prometheus/client_golang/prometheus/promauto"
++	"github.com/prometheus/client_golang/prometheus/promhttp"
++
++	"github.com/mattermost/mattermost/server/public/model"
++	"github.com/mattermost/mattermost/server/public/shared/mlog"
++	"github.com/mattermost/mattermost/server/v8/einterfaces"
++)
++
++const metricsNamespace = "mattermost"
++
++var storeTimeBuckets = append([]float64{0.001, 0.0025}, prometheus.DefBuckets...)
++
++type prometheusMetrics struct {
++	ps       *PlatformService
++	registry *prometheus.Registry
++	enabled  atomic.Bool
++
++	httpRequests prometheus.Counter
++	httpErrors   prometheus.Counter
++	apiTime      *prometheus.HistogramVec
++	etagHits     *prometheus.CounterVec
++	etagMisses   *prometheus.CounterVec
++
++	httpWebSockets           *prometheus.GaugeVec
++	websocketEvents          *prometheus.CounterVec
++	websocketBroadcasts      *prometheus.CounterVec
++	websocketBufferSize      *prometheus.GaugeVec
++	websocketUsersRegistered *prometheus.GaugeVec
++	websocketReconnects      *prometheus.CounterVec
++
++	posts               prometheus.Counter
++	webhookPosts        prometheus.Counter
++	postEmails          prometheus.Counter
++	postPushes          prometheus.Counter
++	postFileAttachments prometheus.Counter
++	logins              prometheus.Counter
++	loginFailures       prometheus.Counter
++
++	memCacheHits          *prometheus.CounterVec
++	memCacheMisses        *prometheus.CounterVec
++	memCacheInvalidations *prometheus.CounterVec
++
++	storeTime   *prometheus.HistogramVec
++	activeUsers prometheus.Gauge
++	jobsActive  *prometheus.GaugeVec
++
++	postsSearches   prometheus.Counter
++	postsSearchTime prometheus.Histogram
++	filesSearches   prometheus.Counter
++	filesSearchTime prometheus.Histogram
++
++	pluginHookTime            *prometheus.HistogramVec
++	pluginMultiHookTime       *prometheus.HistogramVec
++	pluginMultiHookServerTime prometheus.Histogram
++	pluginAPITime             *prometheus.HistogramVec
++
++	loggerQueueUsed *prometheus.GaugeVec
++	loggerLogged    *prometheus.CounterVec
++	loggerErrors    *prometheus.CounterVec
++	loggerDropped   *prometheus.CounterVec
++	loggerBlocked   *prometheus.CounterVec
++
++	notifications           *prometheus.CounterVec
++	notificationAcks        *prometheus.CounterVec
++	notificationSuccesses   *prometheus.CounterVec
++	notificationErrors      *prometheus.CounterVec
++	notificationNotSent     *prometheus.CounterVec
++	notificationUnsupported *prometheus.CounterVec
++
++	client clientMetrics
++
++	dbMu         sync.Mutex
++	dbCollectors map[string]prometheus.Collector
++}
++
++var _ einterfaces.MetricsInterface = (*prometheusMetrics)(nil)
++
++func init() {
++	RegisterMetricsInterface(NewPrometheusMetrics)
++}
++
++func NewPrometheusMetrics(ps *PlatformService, _, _ string) einterfaces.MetricsInterface {
++	m := &prometheusMetrics{
++		ps:           ps,
++		registry:     prometheus.NewRegistry(),
++		dbCollectors: map[string]prometheus.Collector{},
++	}
++	f := promauto.With(m.registry)
++
++	counter := func(subsystem, name, help string) prometheus.Counter {
++		return f.NewCounter(prometheus.CounterOpts{Namespace: metricsNamespace, Subsystem: subsystem, Name: name, Help: help})
++	}
++	counterVec := func(subsystem, name, help string, labels ...string) *prometheus.CounterVec {
++		return f.NewCounterVec(prometheus.CounterOpts{Namespace: metricsNamespace, Subsystem: subsystem, Name: name, Help: help}, labels)
++	}
++	gaugeVec := func(subsystem, name, help string, labels ...string) *prometheus.GaugeVec {
++		return f.NewGaugeVec(prometheus.GaugeOpts{Namespace: metricsNamespace, Subsystem: subsystem, Name: name, Help: help}, labels)
++	}
++	histogram := func(subsystem, name, help string) prometheus.Histogram {
++		return f.NewHistogram(prometheus.HistogramOpts{Namespace: metricsNamespace, Subsystem: subsystem, Name: name, Help: help})
++	}
++	histogramVec := func(subsystem, name, help string, buckets []float64, labels ...string) *prometheus.HistogramVec {
++		return f.NewHistogramVec(prometheus.HistogramOpts{Namespace: metricsNamespace, Subsystem: subsystem, Name: name, Help: help, Buckets: buckets}, labels)
++	}
++	gaugeFunc := func(subsystem, name, help string, fn func() float64) {
++		f.NewGaugeFunc(prometheus.GaugeOpts{Namespace: metricsNamespace, Subsystem: subsystem, Name: name, Help: help}, fn)
++	}
++
++	m.httpRequests = counter("http", "requests_total", "Total number of HTTP requests.")
++	m.httpErrors = counter("http", "errors_total", "Total number of HTTP errors.")
++	m.apiTime = histogramVec("api", "time", "Time to execute an API handler, in seconds.", prometheus.DefBuckets, "handler", "method", "status_code", "origin_client", "page_load_context")
++	m.etagHits = counterVec("cache", "etag_hit_total", "Total number of ETag cache hits.", "route")
++	m.etagMisses = counterVec("cache", "etag_miss_total", "Total number of ETag cache misses.", "route")
++
++	m.httpWebSockets = gaugeVec("http", "websockets_total", "Number of open websocket connections.", "origin_client")
++	m.websocketEvents = counterVec("websocket", "event_total", "Total number of websocket events published.", "type")
++	m.websocketBroadcasts = counterVec("websocket", "broadcasts_total", "Total number of websocket messages sent to connections.", "name")
++	m.websocketBufferSize = gaugeVec("websocket", "broadcast_buffer_size", "Number of events waiting in a websocket hub's broadcast buffer.", "hub")
++	m.websocketUsersRegistered = gaugeVec("websocket", "broadcast_buffer_users_registered", "Number of connections registered with a websocket hub.", "hub")
++	m.websocketReconnects = counterVec("websocket", "reconnects_total", "Total number of websocket reconnections.", "type", "disconnect_err_code")
++
++	m.posts = counter("post", "total", "Total number of posts created.")
++	m.webhookPosts = counter("post", "webhooks_total", "Total number of posts created by webhooks.")
++	m.postEmails = counter("post", "emails_sent_total", "Total number of email notifications sent for posts.")
++	m.postPushes = counter("post", "pushes_sent_total", "Total number of push notifications sent for posts.")
++	m.postFileAttachments = counter("post", "file_attachments_total", "Total number of files attached to posts.")
++	m.logins = counter("login", "logins_total", "Total number of successful logins.")
++	m.loginFailures = counter("login", "logins_fail_total", "Total number of failed logins.")
++
++	m.memCacheHits = counterVec("cache", "mem_hit_total", "Total number of in-memory cache hits.", "name")
++	m.memCacheMisses = counterVec("cache", "mem_miss_total", "Total number of in-memory cache misses.", "name")
++	m.memCacheInvalidations = counterVec("cache", "mem_invalidation_total", "Total number of in-memory cache invalidations.", "name")
++
++	m.storeTime = histogramVec("db", "store_time", "Time to execute a store method, in seconds.", storeTimeBuckets, "method", "success")
++	m.activeUsers = f.NewGauge(prometheus.GaugeOpts{Namespace: metricsNamespace, Subsystem: "db", Name: "active_users", Help: "Number of users who are not deleted."})
++	m.jobsActive = gaugeVec("jobs", "active", "Number of jobs running.", "type")
++	gaugeFunc("db", "master_connections_total", "Number of open connections to the master database.", func() float64 {
++		if ps.sqlStore == nil {
++			return 0
++		}
++		return float64(ps.sqlStore.TotalMasterDbConnections())
++	})
++	gaugeFunc("db", "read_replica_connections_total", "Number of open connections to read replicas.", func() float64 {
++		if ps.sqlStore == nil {
++			return 0
++		}
++		return float64(ps.sqlStore.TotalReadDbConnections())
++	})
++	gaugeFunc("db", "search_replica_connections_total", "Number of open connections to search replicas.", func() float64 {
++		if ps.sqlStore == nil {
++			return 0
++		}
++		return float64(ps.sqlStore.TotalSearchDbConnections())
++	})
++
++	m.postsSearches = counter("search", "posts_searches_total", "Total number of post searches.")
++	m.postsSearchTime = histogram("search", "posts_searches_duration_seconds", "Time to search posts, in seconds.")
++	m.filesSearches = counter("search", "files_searches_total", "Total number of file searches.")
++	m.filesSearchTime = histogram("search", "files_searches_duration_seconds", "Time to search files, in seconds.")
++
++	m.pluginHookTime = histogramVec("plugin", "hook_time", "Time to execute a plugin hook, in seconds.", prometheus.DefBuckets, "plugin_id", "hook_name", "success")
++	m.pluginMultiHookTime = histogramVec("plugin", "multi_hook_time", "Time to execute one plugin's part of a multi-plugin hook, in seconds.", prometheus.DefBuckets, "plugin_id")
++	m.pluginMultiHookServerTime = histogram("plugin", "multi_hook_server_time", "Time to execute a multi-plugin hook across all plugins, in seconds.")
++	m.pluginAPITime = histogramVec("plugin", "api_time", "Time to execute a plugin API call, in seconds.", prometheus.DefBuckets, "plugin_id", "api_name", "success")
++
++	m.loggerQueueUsed = gaugeVec("logging", "logger_queue_used", "Number of log records waiting in a log target's queue.", "target")
++	m.loggerLogged = counterVec("logging", "logger_logged_total", "Total number of log records written by a log target.", "target")
++	m.loggerErrors = counterVec("logging", "logger_error_total", "Total number of errors in a log target.", "target")
++	m.loggerDropped = counterVec("logging", "logger_dropped_total", "Total number of log records dropped by a log target.", "target")
++	m.loggerBlocked = counterVec("logging", "logger_blocked_total", "Total number of times a log target's queue was full.", "target")
++
++	m.notifications = counterVec("notifications", "total", "Total number of notifications sent.", "type", "platform")
++	m.notificationAcks = counterVec("notifications", "total_ack", "Total number of notifications acknowledged by clients.", "type", "platform")
++	m.notificationSuccesses = counterVec("notifications", "success", "Total number of notifications delivered.", "type", "platform")
++	m.notificationErrors = counterVec("notifications", "error", "Total number of notifications that failed.", "type", "reason", "platform")
++	m.notificationNotSent = counterVec("notifications", "not_sent", "Total number of notifications not sent.", "type", "reason", "platform")
++	m.notificationUnsupported = counterVec("notifications", "unsupported", "Total number of notifications not sent because the client does not support them.", "type", "reason", "platform")
++
++	m.client = newClientMetrics(f)
++
++	f.NewGauge(prometheus.GaugeOpts{Namespace: metricsNamespace, Subsystem: "system", Name: "server_start_time", Help: "Time the server started, in Unix seconds."}).Set(float64(ps.startTime.Unix()))
++	m.registry.MustRegister(
++		collectors.NewGoCollector(),
++		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{Namespace: metricsNamespace}),
++	)
++
++	m.enabled.Store(ps.startMetrics && *ps.Config().MetricsSettings.Enable)
++	ps.AddConfigListener(func(_, cfg *model.Config) {
++		m.enabled.Store(ps.startMetrics && *cfg.MetricsSettings.Enable)
++	})
++
++	return m
++}
++
++func (m *prometheusMetrics) Register() {
++	addr := *m.ps.Config().MetricsSettings.ListenAddress
++	if host, _, err := net.SplitHostPort(addr); err == nil && (host == "" || host == "0.0.0.0" || host == "::") {
++		m.ps.Log().Warn("The metrics and profiling server listens on every network interface. Its port must stay private: bind it to a loopback or private address, firewall it, and never route it through a public proxy.", mlog.String("address", addr))
++	}
++	m.ps.HandleMetrics("/metrics", promhttp.HandlerFor(m.registry, promhttp.HandlerOpts{}))
++}
++
++func canonicalDBName(name string) string {
++	if rest, ok := strings.CutPrefix(name, "searchreplica-"); ok {
++		return "search-replica-" + rest
++	}
++	return name
++}
++
++func (m *prometheusMetrics) RegisterDBCollector(db *sql.DB, name string) {
++	name = canonicalDBName(name)
++	m.dbMu.Lock()
++	defer m.dbMu.Unlock()
++
++	if old, ok := m.dbCollectors[name]; ok {
++		m.registry.Unregister(old)
++		delete(m.dbCollectors, name)
++	}
++	c := collectors.NewDBStatsCollector(db, name)
++	if err := m.registry.Register(c); err != nil {
++		mlog.Warn("Failed to register database metrics collector", mlog.String("db_name", name), mlog.Err(err))
++		return
++	}
++	m.dbCollectors[name] = c
++}
++
++func (m *prometheusMetrics) UnregisterDBCollector(_ *sql.DB, name string) {
++	name = canonicalDBName(name)
++	m.dbMu.Lock()
++	defer m.dbMu.Unlock()
++
++	if c, ok := m.dbCollectors[name]; ok {
++		m.registry.Unregister(c)
++		delete(m.dbCollectors, name)
++	}
++}
++
++func (m *prometheusMetrics) inc(c prometheus.Counter) {
++	if m.enabled.Load() {
++		c.Inc()
++	}
++}
++
++func (m *prometheusMetrics) IncrementPostCreate()    { m.inc(m.posts) }
++func (m *prometheusMetrics) IncrementWebhookPost()   { m.inc(m.webhookPosts) }
++func (m *prometheusMetrics) IncrementPostSentEmail() { m.inc(m.postEmails) }
++func (m *prometheusMetrics) IncrementPostSentPush()  { m.inc(m.postPushes) }
++func (m *prometheusMetrics) IncrementHTTPRequest()   { m.inc(m.httpRequests) }
++func (m *prometheusMetrics) IncrementHTTPError()     { m.inc(m.httpErrors) }
++func (m *prometheusMetrics) IncrementLogin()         { m.inc(m.logins) }
++func (m *prometheusMetrics) IncrementLoginFail()     { m.inc(m.loginFailures) }
++
++func (m *prometheusMetrics) IncrementPostsSearchCounter() { m.inc(m.postsSearches) }
++func (m *prometheusMetrics) IncrementFilesSearchCounter() { m.inc(m.filesSearches) }
++
++func (m *prometheusMetrics) IncrementPostFileAttachment(count int) {
++	if m.enabled.Load() && count > 0 {
++		m.postFileAttachments.Add(float64(count))
++	}
++}
++
++func (m *prometheusMetrics) ObservePostsSearchDuration(elapsed float64) {
++	if m.enabled.Load() {
++		m.postsSearchTime.Observe(elapsed)
++	}
++}
++
++func (m *prometheusMetrics) ObserveFilesSearchDuration(elapsed float64) {
++	if m.enabled.Load() {
++		m.filesSearchTime.Observe(elapsed)
++	}
++}
++
++func httpMethodLabel(method string) string {
++	switch method {
++	case http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodHead, http.MethodOptions:
++		return method
++	}
++	return "other"
++}
++
++func (m *prometheusMetrics) ObserveAPIEndpointDuration(endpoint, method, statusCode, originClient, pageLoadContext string, elapsed float64) {
++	if m.enabled.Load() {
++		m.apiTime.WithLabelValues(endpoint, httpMethodLabel(method), statusCode, originClient, pageLoadContext).Observe(elapsed)
++	}
++}
++
++func (m *prometheusMetrics) IncrementEtagHitCounter(route string) {
++	if m.enabled.Load() {
++		m.etagHits.WithLabelValues(route).Inc()
++	}
++}
++
++func (m *prometheusMetrics) IncrementEtagMissCounter(route string) {
++	if m.enabled.Load() {
++		m.etagMisses.WithLabelValues(route).Inc()
++	}
++}
++
++func (m *prometheusMetrics) IncrementHTTPWebSockets(originClient string) {
++	m.httpWebSockets.WithLabelValues(originClient).Inc()
++}
++
++func (m *prometheusMetrics) DecrementHTTPWebSockets(originClient string) {
++	m.httpWebSockets.WithLabelValues(originClient).Dec()
++}
++
++func websocketEventLabel(eventType model.WebsocketEventType) string {
++	s := string(eventType)
++	if strings.HasPrefix(s, websocketMessagePluginPrefix) {
++		return "custom"
++	}
++	if s == "" || len(s) > 64 {
++		return "other"
++	}
++	for i := 0; i < len(s); i++ {
++		c := s[i]
++		if (c < 'a' || c > 'z') && (c < '0' || c > '9') && c != '_' {
++			return "other"
++		}
++	}
++	return s
++}
++
++func (m *prometheusMetrics) IncrementWebsocketEvent(eventType model.WebsocketEventType) {
++	if m.enabled.Load() {
++		m.websocketEvents.WithLabelValues(websocketEventLabel(eventType)).Inc()
++	}
++}
++
++func (m *prometheusMetrics) IncrementWebSocketBroadcast(eventType model.WebsocketEventType) {
++	if m.enabled.Load() {
++		m.websocketBroadcasts.WithLabelValues(websocketEventLabel(eventType)).Inc()
++	}
++}
++
++func (m *prometheusMetrics) IncrementWebSocketBroadcastBufferSize(hub string, amount float64) {
++	m.websocketBufferSize.WithLabelValues(hub).Add(amount)
++}
++
++func (m *prometheusMetrics) DecrementWebSocketBroadcastBufferSize(hub string, amount float64) {
++	m.websocketBufferSize.WithLabelValues(hub).Sub(amount)
++}
++
++func (m *prometheusMetrics) IncrementWebSocketBroadcastUsersRegistered(hub string, amount float64) {
++	m.websocketUsersRegistered.WithLabelValues(hub).Add(amount)
++}
++
++func (m *prometheusMetrics) DecrementWebSocketBroadcastUsersRegistered(hub string, amount float64) {
++	m.websocketUsersRegistered.WithLabelValues(hub).Sub(amount)
++}
++
++func disconnectCodeLabel(code string) string {
++	n, err := strconv.Atoi(code)
++	if err != nil || !((n >= 1000 && n <= 1016) || n == 4000 || n == 4001) {
++		return ""
++	}
++	return strconv.Itoa(n)
++}
++
++func (m *prometheusMetrics) IncrementWebsocketReconnectEventWithDisconnectErrCode(eventType string, disconnectErrCode string) {
++	if m.enabled.Load() {
++		m.websocketReconnects.WithLabelValues(eventType, disconnectCodeLabel(disconnectErrCode)).Inc()
++	}
++}
++
++func (m *prometheusMetrics) IncrementMemCacheHitCounter(cacheName string) {
++	if m.enabled.Load() {
++		m.memCacheHits.WithLabelValues(cacheName).Inc()
++	}
++}
++
++func (m *prometheusMetrics) IncrementMemCacheMissCounter(cacheName string) {
++	if m.enabled.Load() {
++		m.memCacheMisses.WithLabelValues(cacheName).Inc()
++	}
++}
++
++func (m *prometheusMetrics) IncrementMemCacheInvalidationCounter(cacheName string) {
++	if m.enabled.Load() {
++		m.memCacheInvalidations.WithLabelValues(cacheName).Inc()
++	}
++}
++
++func (m *prometheusMetrics) AddMemCacheHitCounter(cacheName string, amount float64) {
++	if m.enabled.Load() && amount >= 0 {
++		m.memCacheHits.WithLabelValues(cacheName).Add(amount)
++	}
++}
++
++func (m *prometheusMetrics) AddMemCacheMissCounter(cacheName string, amount float64) {
++	if m.enabled.Load() && amount >= 0 {
++		m.memCacheMisses.WithLabelValues(cacheName).Add(amount)
++	}
++}
++
++func (m *prometheusMetrics) IncrementMemCacheHitCounterSession() {
++	m.IncrementMemCacheHitCounter("Session")
++}
++
++func (m *prometheusMetrics) IncrementMemCacheMissCounterSession() {
++	m.IncrementMemCacheMissCounter("Session")
++}
++
++func (m *prometheusMetrics) IncrementMemCacheInvalidationCounterSession() {
++	m.IncrementMemCacheInvalidationCounter("Session")
++}
++
++func (m *prometheusMetrics) ObserveStoreMethodDuration(method, success string, elapsed float64) {
++	if m.enabled.Load() {
++		m.storeTime.WithLabelValues(method, success).Observe(elapsed)
++	}
++}
++
++func (m *prometheusMetrics) ObserveEnabledUsers(users int64) {
++	if m.enabled.Load() {
++		m.activeUsers.Set(float64(users))
++	}
++}
++
++func (m *prometheusMetrics) IncrementJobActive(jobType string) {
++	m.jobsActive.WithLabelValues(jobType).Inc()
++}
++
++func (m *prometheusMetrics) DecrementJobActive(jobType string) {
++	m.jobsActive.WithLabelValues(jobType).Dec()
++}
++
++func (m *prometheusMetrics) ObservePluginHookDuration(pluginID, hookName string, success bool, elapsed float64) {
++	if m.enabled.Load() {
++		m.pluginHookTime.WithLabelValues(pluginID, hookName, strconv.FormatBool(success)).Observe(elapsed)
++	}
++}
++
++func (m *prometheusMetrics) ObservePluginMultiHookIterationDuration(pluginID string, elapsed float64) {
++	if m.enabled.Load() {
++		m.pluginMultiHookTime.WithLabelValues(pluginID).Observe(elapsed)
++	}
++}
++
++func (m *prometheusMetrics) ObservePluginMultiHookDuration(elapsed float64) {
++	if m.enabled.Load() {
++		m.pluginMultiHookServerTime.Observe(elapsed)
++	}
++}
++
++func (m *prometheusMetrics) ObservePluginAPIDuration(pluginID, apiName string, success bool, elapsed float64) {
++	if m.enabled.Load() {
++		m.pluginAPITime.WithLabelValues(pluginID, apiName, strconv.FormatBool(success)).Observe(elapsed)
++	}
++}
++
++func notificationPlatformLabel(platform string) string {
++	switch strings.ToLower(platform) {
++	case "ios", model.PushNotifyApple, model.PushNotifyAppleReactNative, model.PushNotifyAppleOxide:
++		return "ios"
++	case model.PushNotifyAndroid, model.PushNotifyAndroidReactNative, model.PushNotifyAndroidOxide:
++		return "android"
++	case model.NotificationNoPlatform, "":
++		return model.NotificationNoPlatform
++	}
++	return "other"
++}
++
++func (m *prometheusMetrics) IncrementNotificationCounter(notificationType model.NotificationType, platform string) {
++	if m.enabled.Load() {
++		m.notifications.WithLabelValues(string(notificationType), notificationPlatformLabel(platform)).Inc()
++	}
++}
++
++func (m *prometheusMetrics) IncrementNotificationAckCounter(notificationType model.NotificationType, platform string) {
++	if m.enabled.Load() {
++		m.notificationAcks.WithLabelValues(string(notificationType), notificationPlatformLabel(platform)).Inc()
++	}
++}
++
++func (m *prometheusMetrics) IncrementNotificationSuccessCounter(notificationType model.NotificationType, platform string) {
++	if m.enabled.Load() {
++		m.notificationSuccesses.WithLabelValues(string(notificationType), notificationPlatformLabel(platform)).Inc()
++	}
++}
++
++func (m *prometheusMetrics) IncrementNotificationErrorCounter(notificationType model.NotificationType, errorReason model.NotificationReason, platform string) {
++	if m.enabled.Load() {
++		m.notificationErrors.WithLabelValues(string(notificationType), string(errorReason), notificationPlatformLabel(platform)).Inc()
++	}
++}
++
++func (m *prometheusMetrics) IncrementNotificationNotSentCounter(notificationType model.NotificationType, notSentReason model.NotificationReason, platform string) {
++	if m.enabled.Load() {
++		m.notificationNotSent.WithLabelValues(string(notificationType), string(notSentReason), notificationPlatformLabel(platform)).Inc()
++	}
++}
++
++func (m *prometheusMetrics) IncrementNotificationUnsupportedCounter(notificationType model.NotificationType, notSentReason model.NotificationReason, platform string) {
++	if m.enabled.Load() {
++		m.notificationUnsupported.WithLabelValues(string(notificationType), string(notSentReason), notificationPlatformLabel(platform)).Inc()
++	}
++}
++
++type gatedCounter struct {
++	enabled *atomic.Bool
++	counter prometheus.Counter
++}
++
++func (c gatedCounter) Inc() {
++	if c.enabled.Load() {
++		c.counter.Inc()
++	}
++}
++
++func (c gatedCounter) Add(v float64) {
++	if c.enabled.Load() && v >= 0 {
++		c.counter.Add(v)
++	}
++}
++
++type gatedGauge struct {
++	enabled *atomic.Bool
++	gauge   prometheus.Gauge
++}
++
++func (g gatedGauge) Set(v float64) {
++	if g.enabled.Load() {
++		g.gauge.Set(v)
++	}
++}
++
++func (g gatedGauge) Add(v float64) {
++	if g.enabled.Load() {
++		g.gauge.Add(v)
++	}
++}
++
++func (g gatedGauge) Sub(v float64) {
++	if g.enabled.Load() {
++		g.gauge.Sub(v)
++	}
++}
++
++type loggerMetrics struct {
++	m *prometheusMetrics
++}
++
++func (m *prometheusMetrics) GetLoggerMetricsCollector() mlog.MetricsCollector {
++	return loggerMetrics{m: m}
++}
++
++func (l loggerMetrics) QueueSizeGauge(target string) (logr.Gauge, error) {
++	return gatedGauge{enabled: &l.m.enabled, gauge: l.m.loggerQueueUsed.WithLabelValues(target)}, nil
++}
++
++func (l loggerMetrics) LoggedCounter(target string) (logr.Counter, error) {
++	return gatedCounter{enabled: &l.m.enabled, counter: l.m.loggerLogged.WithLabelValues(target)}, nil
++}
++
++func (l loggerMetrics) ErrorCounter(target string) (logr.Counter, error) {
++	return gatedCounter{enabled: &l.m.enabled, counter: l.m.loggerErrors.WithLabelValues(target)}, nil
++}
++
++func (l loggerMetrics) DroppedCounter(target string) (logr.Counter, error) {
++	return gatedCounter{enabled: &l.m.enabled, counter: l.m.loggerDropped.WithLabelValues(target)}, nil
++}
++
++func (l loggerMetrics) BlockedCounter(target string) (logr.Counter, error) {
++	return gatedCounter{enabled: &l.m.enabled, counter: l.m.loggerBlocked.WithLabelValues(target)}, nil
++}
+diff --git a/server/channels/app/platform/metrics_prometheus_client.go b/server/channels/app/platform/metrics_prometheus_client.go
+new file mode 100644
+index 000000000000..646ce7aba032
+--- /dev/null
++++ b/server/channels/app/platform/metrics_prometheus_client.go
+@@ -0,0 +1,152 @@
++// Copyright (c) 2026-present the Mattermax authors.
++// See LICENSE.txt for license information.
++
++package platform
++
++import (
++	"math"
++
++	"github.com/prometheus/client_golang/prometheus"
++	"github.com/prometheus/client_golang/prometheus/promauto"
++)
++
++const (
++	maxClientLongTasks          = 2000
++	maxClientPageSeconds        = 300
++	maxClientInteractionSeconds = 60
++	maxClientLayoutShift        = 100
++	maxMobileClientSeconds      = 600
++)
++
++var (
++	clientBuckets      = []float64{0.1, 0.25, 0.5, 1, 2, 4, 8, 16}
++	layoutShiftBuckets = []float64{0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1}
++)
++
++type clientMetrics struct {
++	longTasks              *prometheus.CounterVec
++	timeToFirstByte        *prometheus.HistogramVec
++	timeToLastByte         *prometheus.HistogramVec
++	domInteractive         *prometheus.HistogramVec
++	splashScreen           *prometheus.HistogramVec
++	firstContentfulPaint   *prometheus.HistogramVec
++	largestContentfulPaint *prometheus.HistogramVec
++	interactionToNextPaint *prometheus.HistogramVec
++	cumulativeLayoutShift  *prometheus.HistogramVec
++	pageLoad               *prometheus.HistogramVec
++	channelSwitch          *prometheus.HistogramVec
++	teamSwitch             *prometheus.HistogramVec
++	rhsLoad                *prometheus.HistogramVec
++	globalThreadsLoad      *prometheus.HistogramVec
++	mobileLoad             *prometheus.HistogramVec
++	mobileChannelSwitch    *prometheus.HistogramVec
++	mobileTeamSwitch       *prometheus.HistogramVec
++}
++
++func newClientMetrics(f promauto.Factory) clientMetrics {
++	histogram := func(subsystem, name, help string, buckets []float64, labels ...string) *prometheus.HistogramVec {
++		return f.NewHistogramVec(prometheus.HistogramOpts{Namespace: metricsNamespace, Subsystem: subsystem, Name: name, Help: help, Buckets: buckets}, labels)
++	}
++	web := func(name, help string, labels ...string) *prometheus.HistogramVec {
++		return histogram("webapp", name, help, clientBuckets, append([]string{"platform", "agent"}, labels...)...)
++	}
++	mobile := func(name, help string) *prometheus.HistogramVec {
++		return histogram("mobileapp", name, help, clientBuckets, "platform")
++	}
++
++	return clientMetrics{
++		longTasks:              f.NewCounterVec(prometheus.CounterOpts{Namespace: metricsNamespace, Subsystem: "webapp", Name: "long_tasks", Help: "Total number of long tasks reported by web clients."}, []string{"platform", "agent"}),
++		timeToFirstByte:        web("time_to_first_byte", "Time to first byte reported by web clients, in seconds."),
++		timeToLastByte:         web("time_to_last_byte", "Time to last byte reported by web clients, in seconds."),
++		domInteractive:         web("dom_interactive", "Time until the DOM is interactive reported by web clients, in seconds."),
++		splashScreen:           web("splash_screen", "Time until the splash screen ends reported by web clients, in seconds.", "page_type"),
++		firstContentfulPaint:   web("first_contentful_paint", "First contentful paint reported by web clients, in seconds."),
++		largestContentfulPaint: web("largest_contentful_paint", "Largest contentful paint reported by web clients, in seconds.", "region"),
++		interactionToNextPaint: web("interaction_to_next_paint", "Interaction to next paint reported by web clients, in seconds.", "interaction"),
++		cumulativeLayoutShift:  histogram("webapp", "cumulative_layout_shift", "Cumulative layout shift score reported by web clients.", layoutShiftBuckets, "platform", "agent"),
++		pageLoad:               web("page_load", "Page load time reported by web clients, in seconds."),
++		channelSwitch:          web("channel_switch", "Channel switch time reported by web clients, in seconds.", "fresh"),
++		teamSwitch:             web("team_switch", "Team switch time reported by web clients, in seconds.", "fresh"),
++		rhsLoad:                web("rhs_load", "Right-hand sidebar load time reported by web clients, in seconds."),
++		globalThreadsLoad:      web("global_threads_load", "Threads view load time reported by web clients, in seconds."),
++		mobileLoad:             mobile("mobile_load", "App load time reported by mobile clients, in seconds."),
++		mobileChannelSwitch:    mobile("mobile_channel_switch", "Channel switch time reported by mobile clients, in seconds."),
++		mobileTeamSwitch:       mobile("mobile_team_switch", "Team switch time reported by mobile clients, in seconds."),
++	}
++}
++
++func (m *prometheusMetrics) observeClient(h *prometheus.HistogramVec, limit, value float64, labels ...string) {
++	if m.enabled.Load() && value >= 0 && value <= limit {
++		h.WithLabelValues(labels...).Observe(value)
++	}
++}
++
++func (m *prometheusMetrics) IncrementClientLongTasks(platform, agent, _ string, inc float64) {
++	if m.enabled.Load() && inc >= 0 && inc <= maxClientLongTasks && inc == math.Trunc(inc) {
++		m.client.longTasks.WithLabelValues(platform, agent).Add(inc)
++	}
++}
++
++func (m *prometheusMetrics) ObserveClientTimeToFirstByte(platform, agent, _ string, elapsed float64) {
++	m.observeClient(m.client.timeToFirstByte, maxClientPageSeconds, elapsed, platform, agent)
++}
++
++func (m *prometheusMetrics) ObserveClientTimeToLastByte(platform, agent, _ string, elapsed float64) {
++	m.observeClient(m.client.timeToLastByte, maxClientPageSeconds, elapsed, platform, agent)
++}
++
++func (m *prometheusMetrics) ObserveClientTimeToDomInteractive(platform, agent, _ string, elapsed float64) {
++	m.observeClient(m.client.domInteractive, maxClientPageSeconds, elapsed, platform, agent)
++}
++
++func (m *prometheusMetrics) ObserveClientSplashScreenEnd(platform, agent, pageType, _ string, elapsed float64) {
++	m.observeClient(m.client.splashScreen, maxClientPageSeconds, elapsed, platform, agent, pageType)
++}
++
++func (m *prometheusMetrics) ObserveClientFirstContentfulPaint(platform, agent, _ string, elapsed float64) {
++	m.observeClient(m.client.firstContentfulPaint, maxClientPageSeconds, elapsed, platform, agent)
++}
++
++func (m *prometheusMetrics) ObserveClientLargestContentfulPaint(platform, agent, region, _ string, elapsed float64) {
++	m.observeClient(m.client.largestContentfulPaint, maxClientPageSeconds, elapsed, platform, agent, region)
++}
++
++func (m *prometheusMetrics) ObserveClientInteractionToNextPaint(platform, agent, interaction, _ string, elapsed float64) {
++	m.observeClient(m.client.interactionToNextPaint, maxClientInteractionSeconds, elapsed, platform, agent, interaction)
++}
++
++func (m *prometheusMetrics) ObserveClientCumulativeLayoutShift(platform, agent, _ string, elapsed float64) {
++	m.observeClient(m.client.cumulativeLayoutShift, maxClientLayoutShift, elapsed, platform, agent)
++}
++
++func (m *prometheusMetrics) ObserveClientPageLoadDuration(platform, agent, _ string, elapsed float64) {
++	m.observeClient(m.client.pageLoad, maxClientPageSeconds, elapsed, platform, agent)
++}
++
++func (m *prometheusMetrics) ObserveClientChannelSwitchDuration(platform, agent, fresh, _ string, elapsed float64) {
++	m.observeClient(m.client.channelSwitch, maxClientPageSeconds, elapsed, platform, agent, fresh)
++}
++
++func (m *prometheusMetrics) ObserveClientTeamSwitchDuration(platform, agent, fresh, _ string, elapsed float64) {
++	m.observeClient(m.client.teamSwitch, maxClientPageSeconds, elapsed, platform, agent, fresh)
++}
++
++func (m *prometheusMetrics) ObserveClientRHSLoadDuration(platform, agent, _ string, elapsed float64) {
++	m.observeClient(m.client.rhsLoad, maxClientPageSeconds, elapsed, platform, agent)
++}
++
++func (m *prometheusMetrics) ObserveGlobalThreadsLoadDuration(platform, agent, _ string, elapsed float64) {
++	m.observeClient(m.client.globalThreadsLoad, maxClientPageSeconds, elapsed, platform, agent)
++}
++
++func (m *prometheusMetrics) ObserveMobileClientLoadDuration(platform string, elapsed float64) {
++	m.observeClient(m.client.mobileLoad, maxMobileClientSeconds, elapsed, platform)
++}
++
++func (m *prometheusMetrics) ObserveMobileClientChannelSwitchDuration(platform string, elapsed float64) {
++	m.observeClient(m.client.mobileChannelSwitch, maxMobileClientSeconds, elapsed, platform)
++}
++
++func (m *prometheusMetrics) ObserveMobileClientTeamSwitchDuration(platform string, elapsed float64) {
++	m.observeClient(m.client.mobileTeamSwitch, maxMobileClientSeconds, elapsed, platform)
++}
+diff --git a/server/channels/app/platform/metrics_prometheus_noop.go b/server/channels/app/platform/metrics_prometheus_noop.go
+new file mode 100644
+index 000000000000..2df795c9ac7e
+--- /dev/null
++++ b/server/channels/app/platform/metrics_prometheus_noop.go
+@@ -0,0 +1,77 @@
++// Copyright (c) 2026-present the Mattermax authors.
++// See LICENSE.txt for license information.
++
++package platform
++
++import (
++	"github.com/mattermost/mattermost/server/public/model"
++)
++
++func (m *prometheusMetrics) IncrementPostBroadcast() {}
++
++func (m *prometheusMetrics) IncrementClusterRequest()                                     {}
++func (m *prometheusMetrics) ObserveClusterRequestDuration(float64)                        {}
++func (m *prometheusMetrics) IncrementClusterEventType(model.ClusterEvent)                 {}
++func (m *prometheusMetrics) ObserveClusterReliableFallbackLength(model.ClusterEvent, int) {}
++func (m *prometheusMetrics) ObserveRedisEndpointDuration(string, string, float64)         {}
++
++func (m *prometheusMetrics) IncrementPostIndexCounter()    {}
++func (m *prometheusMetrics) IncrementFileIndexCounter()    {}
++func (m *prometheusMetrics) IncrementUserIndexCounter()    {}
++func (m *prometheusMetrics) IncrementChannelIndexCounter() {}
++
++func (m *prometheusMetrics) SetReplicaLagAbsolute(string, float64) {}
++func (m *prometheusMetrics) SetReplicaLagTime(string, float64)     {}
++
++func (m *prometheusMetrics) ObserveAccessControlSearchQueryDuration(float64)       {}
++func (m *prometheusMetrics) ObserveAccessControlExpressionCompileDuration(float64) {}
++func (m *prometheusMetrics) ObserveAccessControlEvaluateDuration(float64)          {}
++func (m *prometheusMetrics) IncrementAccessControlCacheInvalidation()              {}
++
++func (m *prometheusMetrics) ObserveAutoTranslateTranslateDuration(string, float64)            {}
++func (m *prometheusMetrics) ObserveAutoTranslateLinguaDetectionDuration(float64)              {}
++func (m *prometheusMetrics) ObserveAutoTranslateProviderCallDuration(string, string, float64) {}
++func (m *prometheusMetrics) SetAutoTranslateQueueDepth(float64)                               {}
++func (m *prometheusMetrics) ObserveAutoTranslateWorkerTaskDuration(float64)                   {}
++func (m *prometheusMetrics) AddAutoTranslateRecoveryStuckFound(float64)                       {}
++func (m *prometheusMetrics) IncrementAutoTranslateNormHash(string)                            {}
++
++func (m *prometheusMetrics) ObserveMobileClientNetworkRequestsAverageSpeed(string, string, string, float64) {
++}
++func (m *prometheusMetrics) ObserveMobileClientNetworkRequestsEffectiveLatency(string, string, string, float64) {
++}
++func (m *prometheusMetrics) ObserveMobileClientNetworkRequestsElapsedTime(string, string, string, float64) {
++}
++func (m *prometheusMetrics) ObserveMobileClientNetworkRequestsLatency(string, string, string, float64) {
++}
++func (m *prometheusMetrics) ObserveMobileClientNetworkRequestsTotalCompressedSize(string, string, string, float64) {
++}
++func (m *prometheusMetrics) ObserveMobileClientNetworkRequestsTotalParallelRequests(string, string, string, float64) {
++}
++func (m *prometheusMetrics) ObserveMobileClientNetworkRequestsTotalRequests(string, string, string, float64) {
++}
++func (m *prometheusMetrics) ObserveMobileClientNetworkRequestsTotalSequentialRequests(string, string, string, float64) {
++}
++func (m *prometheusMetrics) ObserveMobileClientNetworkRequestsTotalSize(string, string, string, float64) {
++}
++
++func (m *prometheusMetrics) ObserveDesktopCpuUsage(string, string, string, float64)             {}
++func (m *prometheusMetrics) ObserveDesktopMemoryUsage(string, string, string, float64)          {}
++func (m *prometheusMetrics) ObservePluginWebappPerf(string, string, string, string, float64)    {}
++func (m *prometheusMetrics) ClearMobileClientSessionMetadata()                                  {}
++func (m *prometheusMetrics) ObserveMobileClientSessionMetadata(string, string, float64, string) {}
++
++func (m *prometheusMetrics) IncrementRemoteClusterMsgSentCounter(string)                 {}
++func (m *prometheusMetrics) IncrementRemoteClusterMsgReceivedCounter(string)             {}
++func (m *prometheusMetrics) IncrementRemoteClusterMsgErrorsCounter(string, bool)         {}
++func (m *prometheusMetrics) ObserveRemoteClusterPingDuration(string, float64)            {}
++func (m *prometheusMetrics) ObserveRemoteClusterClockSkew(string, float64)               {}
++func (m *prometheusMetrics) IncrementRemoteClusterConnStateChangeCounter(string, bool)   {}
++func (m *prometheusMetrics) IncrementSharedChannelsSyncCounter(string)                   {}
++func (m *prometheusMetrics) ObserveSharedChannelsTaskInQueueDuration(float64)            {}
++func (m *prometheusMetrics) ObserveSharedChannelsQueueSize(int64)                        {}
++func (m *prometheusMetrics) ObserveSharedChannelsSyncCollectionDuration(string, float64) {}
++func (m *prometheusMetrics) ObserveSharedChannelsSyncSendDuration(string, float64)       {}
++func (m *prometheusMetrics) ObserveSharedChannelsSyncCollectionStepDuration(string, string, float64) {
++}
++func (m *prometheusMetrics) ObserveSharedChannelsSyncSendStepDuration(string, string, float64) {}
+diff --git a/server/channels/app/platform/metrics_prometheus_test.go b/server/channels/app/platform/metrics_prometheus_test.go
+new file mode 100644
+index 000000000000..792ab5e1ffff
+--- /dev/null
++++ b/server/channels/app/platform/metrics_prometheus_test.go
+@@ -0,0 +1,984 @@
++// Copyright (c) 2026-present the Mattermax authors.
++// See LICENSE.txt for license information.
++
++package platform
++
++import (
++	"context"
++	"database/sql"
++	"fmt"
++	"io"
++	"math"
++	"math/rand"
++	"net"
++	"net/http"
++	"net/http/httptest"
++	"reflect"
++	"slices"
++	"strings"
++	"sync"
++	"sync/atomic"
++	"testing"
++	"time"
++
++	"github.com/gorilla/websocket"
++	"github.com/prometheus/client_golang/prometheus"
++	"github.com/prometheus/client_golang/prometheus/promhttp"
++	"github.com/prometheus/client_golang/prometheus/testutil"
++	"github.com/prometheus/client_golang/prometheus/testutil/promlint"
++	dto "github.com/prometheus/client_model/go"
++	"github.com/prometheus/common/expfmt"
++	prommodel "github.com/prometheus/common/model"
++	"github.com/stretchr/testify/assert"
++	"github.com/stretchr/testify/require"
++
++	"github.com/mattermost/mattermost/server/public/model"
++	"github.com/mattermost/mattermost/server/public/shared/i18n"
++	"github.com/mattermost/mattermost/server/public/shared/mlog"
++	"github.com/mattermost/mattermost/server/public/shared/request"
++	"github.com/mattermost/mattermost/server/v8/channels/store"
++	"github.com/mattermost/mattermost/server/v8/channels/store/localcachelayer"
++	"github.com/mattermost/mattermost/server/v8/channels/store/timerlayer"
++	"github.com/mattermost/mattermost/server/v8/config"
++	"github.com/mattermost/mattermost/server/v8/einterfaces"
++	"github.com/mattermost/mattermost/server/v8/platform/services/cache"
++)
++
++func newTestPrometheusMetrics(tb testing.TB, enabled bool) *prometheusMetrics {
++	configStore := config.NewTestMemoryStore()
++	cfg := configStore.Get().Clone()
++	*cfg.MetricsSettings.Enable = enabled
++	_, _, err := configStore.Set(cfg)
++	require.NoError(tb, err)
++	tb.Cleanup(func() { configStore.Close() })
++
++	ps := &PlatformService{configStore: configStore, startMetrics: true, startTime: time.Now()}
++	return NewPrometheusMetrics(ps, "", "").(*prometheusMetrics)
++}
++
++func setMetricsEnabled(tb testing.TB, m *prometheusMetrics, enabled bool) {
++	cfg := m.ps.configStore.Get().Clone()
++	*cfg.MetricsSettings.Enable = enabled
++	_, _, err := m.ps.configStore.Set(cfg)
++	require.NoError(tb, err)
++}
++
++func gatherFamilies(tb testing.TB, g prometheus.Gatherer) map[string]*dto.MetricFamily {
++	families, err := g.Gather()
++	require.NoError(tb, err)
++	byName := make(map[string]*dto.MetricFamily, len(families))
++	for _, f := range families {
++		byName[f.GetName()] = f
++	}
++	return byName
++}
++
++func labelNames(f *dto.MetricFamily) []string {
++	names := []string{}
++	for _, metric := range f.Metric {
++		for _, l := range metric.Label {
++			if !slices.Contains(names, l.GetName()) {
++				names = append(names, l.GetName())
++			}
++		}
++	}
++	slices.Sort(names)
++	return names
++}
++
++func labelValues(tb testing.TB, m *prometheusMetrics, family, label string) []string {
++	f := gatherFamilies(tb, m.registry)[family]
++	values := []string{}
++	if f == nil {
++		return values
++	}
++	for _, metric := range f.Metric {
++		for _, l := range metric.Label {
++			if l.GetName() == label {
++				values = append(values, l.GetValue())
++			}
++		}
++	}
++	slices.Sort(values)
++	return values
++}
++
++func seriesCount(tb testing.TB, m *prometheusMetrics, family string) int {
++	f := gatherFamilies(tb, m.registry)[family]
++	if f == nil {
++		return 0
++	}
++	return len(f.Metric)
++}
++
++func callWithZeroArgs(m *prometheusMetrics, skip ...string) {
++	v := reflect.ValueOf(einterfaces.MetricsInterface(m))
++	ifaceType := reflect.TypeFor[einterfaces.MetricsInterface]()
++	for i := 0; i < ifaceType.NumMethod(); i++ {
++		method := ifaceType.Method(i)
++		if slices.Contains(skip, method.Name) {
++			continue
++		}
++		args := make([]reflect.Value, method.Type.NumIn())
++		for j := range args {
++			args[j] = reflect.Zero(method.Type.In(j))
++		}
++		v.MethodByName(method.Name).Call(args)
++	}
++}
++
++func TestPrometheusMetricsSchema(t *testing.T) {
++	m := newTestPrometheusMetrics(t, true)
++
++	callWithZeroArgs(m, "Register", "RegisterDBCollector", "UnregisterDBCollector", "GetLoggerMetricsCollector")
++	db, err := sql.Open(model.DatabaseDriverPostgres, "postgres://localhost/unused")
++	require.NoError(t, err)
++	defer db.Close()
++	m.RegisterDBCollector(db, "master")
++	collector := m.GetLoggerMetricsCollector()
++	_, err = collector.QueueSizeGauge("console")
++	require.NoError(t, err)
++	_, err = collector.LoggedCounter("console")
++	require.NoError(t, err)
++	_, err = collector.ErrorCounter("console")
++	require.NoError(t, err)
++	_, err = collector.DroppedCounter("console")
++	require.NoError(t, err)
++	_, err = collector.BlockedCounter("console")
++	require.NoError(t, err)
++
++	none := []string{}
++	expected := map[string][]string{
++		"mattermost_http_requests_total":                         none,
++		"mattermost_http_errors_total":                           none,
++		"mattermost_api_time":                                    {"handler", "method", "origin_client", "page_load_context", "status_code"},
++		"mattermost_cache_etag_hit_total":                        {"route"},
++		"mattermost_cache_etag_miss_total":                       {"route"},
++		"mattermost_http_websockets_total":                       {"origin_client"},
++		"mattermost_websocket_event_total":                       {"type"},
++		"mattermost_websocket_broadcasts_total":                  {"name"},
++		"mattermost_websocket_broadcast_buffer_size":             {"hub"},
++		"mattermost_websocket_broadcast_buffer_users_registered": {"hub"},
++		"mattermost_websocket_reconnects_total":                  {"disconnect_err_code", "type"},
++		"mattermost_post_total":                                  none,
++		"mattermost_post_webhooks_total":                         none,
++		"mattermost_post_emails_sent_total":                      none,
++		"mattermost_post_pushes_sent_total":                      none,
++		"mattermost_post_file_attachments_total":                 none,
++		"mattermost_login_logins_total":                          none,
++		"mattermost_login_logins_fail_total":                     none,
++		"mattermost_cache_mem_hit_total":                         {"name"},
++		"mattermost_cache_mem_miss_total":                        {"name"},
++		"mattermost_cache_mem_invalidation_total":                {"name"},
++		"mattermost_db_store_time":                               {"method", "success"},
++		"mattermost_db_master_connections_total":                 none,
++		"mattermost_db_read_replica_connections_total":           none,
++		"mattermost_db_search_replica_connections_total":         none,
++		"mattermost_db_active_users":                             none,
++		"mattermost_jobs_active":                                 {"type"},
++		"mattermost_search_posts_searches_total":                 none,
++		"mattermost_search_posts_searches_duration_seconds":      none,
++		"mattermost_search_files_searches_total":                 none,
++		"mattermost_search_files_searches_duration_seconds":      none,
++		"mattermost_plugin_hook_time":                            {"hook_name", "plugin_id", "success"},
++		"mattermost_plugin_multi_hook_time":                      {"plugin_id"},
++		"mattermost_plugin_multi_hook_server_time":               none,
++		"mattermost_plugin_api_time":                             {"api_name", "plugin_id", "success"},
++		"mattermost_logging_logger_queue_used":                   {"target"},
++		"mattermost_logging_logger_logged_total":                 {"target"},
++		"mattermost_logging_logger_error_total":                  {"target"},
++		"mattermost_logging_logger_dropped_total":                {"target"},
++		"mattermost_logging_logger_blocked_total":                {"target"},
++		"mattermost_system_server_start_time":                    none,
++		"mattermost_notifications_total":                         {"platform", "type"},
++		"mattermost_notifications_total_ack":                     {"platform", "type"},
++		"mattermost_notifications_success":                       {"platform", "type"},
++		"mattermost_notifications_error":                         {"platform", "reason", "type"},
++		"mattermost_notifications_not_sent":                      {"platform", "reason", "type"},
++		"mattermost_notifications_unsupported":                   {"platform", "reason", "type"},
++		"mattermost_webapp_long_tasks":                           {"agent", "platform"},
++		"mattermost_webapp_time_to_first_byte":                   {"agent", "platform"},
++		"mattermost_webapp_time_to_last_byte":                    {"agent", "platform"},
++		"mattermost_webapp_dom_interactive":                      {"agent", "platform"},
++		"mattermost_webapp_splash_screen":                        {"agent", "page_type", "platform"},
++		"mattermost_webapp_first_contentful_paint":               {"agent", "platform"},
++		"mattermost_webapp_largest_contentful_paint":             {"agent", "platform", "region"},
++		"mattermost_webapp_interaction_to_next_paint":            {"agent", "interaction", "platform"},
++		"mattermost_webapp_cumulative_layout_shift":              {"agent", "platform"},
++		"mattermost_webapp_page_load":                            {"agent", "platform"},
++		"mattermost_webapp_channel_switch":                       {"agent", "fresh", "platform"},
++		"mattermost_webapp_team_switch":                          {"agent", "fresh", "platform"},
++		"mattermost_webapp_rhs_load":                             {"agent", "platform"},
++		"mattermost_webapp_global_threads_load":                  {"agent", "platform"},
++		"mattermost_mobileapp_mobile_load":                       {"platform"},
++		"mattermost_mobileapp_mobile_channel_switch":             {"platform"},
++		"mattermost_mobileapp_mobile_team_switch":                {"platform"},
++		"go_sql_max_open_connections":                            {"db_name"},
++		"go_sql_open_connections":                                {"db_name"},
++		"go_sql_in_use_connections":                              {"db_name"},
++		"go_sql_idle_connections":                                {"db_name"},
++		"go_sql_wait_count_total":                                {"db_name"},
++		"go_sql_wait_duration_seconds_total":                     {"db_name"},
++		"go_sql_max_idle_closed_total":                           {"db_name"},
++		"go_sql_max_idle_time_closed_total":                      {"db_name"},
++		"go_sql_max_lifetime_closed_total":                       {"db_name"},
++	}
++
++	families := gatherFamilies(t, m.registry)
++	actual := map[string][]string{}
++	for name, f := range families {
++		if strings.HasPrefix(name, "mattermost_process_") || (strings.HasPrefix(name, "go_") && !strings.HasPrefix(name, "go_sql_")) {
++			continue
++		}
++		actual[name] = labelNames(f)
++	}
++	assert.Equal(t, expected, actual)
++
++	for _, name := range []string{"go_goroutines", "go_memstats_alloc_bytes", "go_gc_duration_seconds", "mattermost_process_open_fds", "mattermost_process_cpu_seconds_total", "mattermost_process_start_time_seconds"} {
++		assert.Contains(t, families, name)
++	}
++}
++
++func TestPrometheusMetricsRecording(t *testing.T) {
++	t.Run("counters", func(t *testing.T) {
++		m := newTestPrometheusMetrics(t, true)
++		m.IncrementPostCreate()
++		m.IncrementPostCreate()
++		m.IncrementPostFileAttachment(3)
++		m.IncrementPostFileAttachment(-2)
++		m.IncrementHTTPRequest()
++		m.IncrementLoginFail()
++		m.AddMemCacheHitCounter("Role", 5)
++		m.AddMemCacheHitCounter("Role", -5)
++		m.AddMemCacheHitCounter("Role", math.NaN())
++		m.IncrementMemCacheHitCounter("Role")
++		m.IncrementMemCacheHitCounterSession()
++		m.IncrementEtagHitCounter("channels")
++
++		assert.Equal(t, 2.0, testutil.ToFloat64(m.posts))
++		assert.Equal(t, 3.0, testutil.ToFloat64(m.postFileAttachments))
++		assert.Equal(t, 1.0, testutil.ToFloat64(m.httpRequests))
++		assert.Equal(t, 1.0, testutil.ToFloat64(m.loginFailures))
++		assert.Equal(t, 0.0, testutil.ToFloat64(m.logins))
++		assert.Equal(t, 6.0, testutil.ToFloat64(m.memCacheHits.WithLabelValues("Role")))
++		assert.Equal(t, 1.0, testutil.ToFloat64(m.memCacheHits.WithLabelValues("Session")))
++		assert.Equal(t, 1.0, testutil.ToFloat64(m.etagHits.WithLabelValues("channels")))
++	})
++
++	t.Run("up and down gauges return to zero", func(t *testing.T) {
++		m := newTestPrometheusMetrics(t, true)
++		m.IncrementHTTPWebSockets("web")
++		m.IncrementHTTPWebSockets("web")
++		m.IncrementWebSocketBroadcastBufferSize("3", 4)
++		m.IncrementWebSocketBroadcastUsersRegistered("3", 2)
++		m.IncrementJobActive(model.JobTypeActiveUsers)
++		assert.Equal(t, 2.0, testutil.ToFloat64(m.httpWebSockets.WithLabelValues("web")))
++		assert.Equal(t, 4.0, testutil.ToFloat64(m.websocketBufferSize.WithLabelValues("3")))
++
++		m.DecrementHTTPWebSockets("web")
++		m.DecrementHTTPWebSockets("web")
++		m.DecrementWebSocketBroadcastBufferSize("3", 4)
++		m.DecrementWebSocketBroadcastUsersRegistered("3", 2)
++		m.DecrementJobActive(model.JobTypeActiveUsers)
++		assert.Equal(t, 0.0, testutil.ToFloat64(m.httpWebSockets.WithLabelValues("web")))
++		assert.Equal(t, 0.0, testutil.ToFloat64(m.websocketBufferSize.WithLabelValues("3")))
++		assert.Equal(t, 0.0, testutil.ToFloat64(m.websocketUsersRegistered.WithLabelValues("3")))
++		assert.Equal(t, 0.0, testutil.ToFloat64(m.jobsActive.WithLabelValues(model.JobTypeActiveUsers)))
++	})
++
++	t.Run("histograms", func(t *testing.T) {
++		m := newTestPrometheusMetrics(t, true)
++		m.ObserveStoreMethodDuration("UserStore.Get", "true", 0.002)
++		m.ObserveStoreMethodDuration("UserStore.Get", "true", 0.004)
++		m.ObserveAPIEndpointDuration("createPost", "POST", "201", "web", "", 0.25)
++		m.ObservePostsSearchDuration(1.5)
++
++		f := gatherFamilies(t, m.registry)
++		store := f["mattermost_db_store_time"].Metric[0].GetHistogram()
++		assert.Equal(t, uint64(2), store.GetSampleCount())
++		assert.InDelta(t, 0.006, store.GetSampleSum(), 1e-9)
++		assert.Equal(t, uint64(0), store.Bucket[0].GetCumulativeCount())
++		assert.Equal(t, uint64(1), store.Bucket[1].GetCumulativeCount())
++		api := f["mattermost_api_time"].Metric[0].GetHistogram()
++		assert.Equal(t, uint64(1), api.GetSampleCount())
++		assert.Equal(t, 0.25, api.GetSampleSum())
++		assert.Equal(t, uint64(1), f["mattermost_search_posts_searches_duration_seconds"].Metric[0].GetHistogram().GetSampleCount())
++	})
++}
++
++func TestPrometheusMetricsNormalization(t *testing.T) {
++	t.Run("http method", func(t *testing.T) {
++		m := newTestPrometheusMetrics(t, true)
++		m.ObserveAPIEndpointDuration("getMe", "FOO", "200", "web", "", 0.1)
++		m.ObserveAPIEndpointDuration("getMe", "BAR", "200", "web", "", 0.1)
++		m.ObserveAPIEndpointDuration("getMe", "GET", "200", "web", "", 0.1)
++		assert.Equal(t, []string{"GET", "other"}, labelValues(t, m, "mattermost_api_time", "method"))
++	})
++
++	t.Run("disconnect code", func(t *testing.T) {
++		m := newTestPrometheusMetrics(t, true)
++		for _, code := range []string{"1000", "01000", "001000", "+1000", strings.Repeat("0", 196) + "1000"} {
++			m.IncrementWebsocketReconnectEventWithDisconnectErrCode(reconnectFound, code)
++		}
++		assert.Equal(t, []string{"1000"}, labelValues(t, m, "mattermost_websocket_reconnects_total", "disconnect_err_code"))
++		assert.Equal(t, 5.0, testutil.ToFloat64(m.websocketReconnects.WithLabelValues(reconnectFound, "1000")))
++
++		for _, code := range []string{"999", "abc", "4002", "", "-1000"} {
++			m.IncrementWebsocketReconnectEventWithDisconnectErrCode(reconnectFound, code)
++		}
++		assert.Equal(t, []string{"", "1000"}, labelValues(t, m, "mattermost_websocket_reconnects_total", "disconnect_err_code"))
++
++		rng := rand.New(rand.NewSource(1))
++		for i := range 1000 {
++			b := make([]byte, 1+rng.Intn(12))
++			for j := range b {
++				b[j] = "0123456789+-ab"[rng.Intn(14)]
++			}
++			m.IncrementWebsocketReconnectEventWithDisconnectErrCode([]string{reconnectFound, reconnectNotFound, reconnectLossless}[i%3], string(b))
++		}
++		assert.LessOrEqual(t, seriesCount(t, m, "mattermost_websocket_reconnects_total"), 60)
++	})
++
++	t.Run("websocket event type", func(t *testing.T) {
++		m := newTestPrometheusMetrics(t, true)
++		hostile := []model.WebsocketEventType{
++			model.WebsocketEventType("custom_com.example.plugin_" + model.NewId()),
++			model.WebsocketEventType("custom_x_https://host/channels/" + model.NewId()),
++		}
++		for _, eventType := range hostile {
++			m.IncrementWebsocketEvent(eventType)
++			m.IncrementWebSocketBroadcast(eventType)
++		}
++		assert.Equal(t, []string{"custom"}, labelValues(t, m, "mattermost_websocket_event_total", "type"))
++		assert.Equal(t, []string{"custom"}, labelValues(t, m, "mattermost_websocket_broadcasts_total", "name"))
++
++		m.IncrementWebsocketEvent(model.WebsocketEventPosted)
++		m.IncrementWebSocketBroadcast(model.WebsocketEventPosted)
++		m.IncrementWebsocketEvent(model.WebsocketEventType(strings.Repeat("a", 65)))
++		m.IncrementWebSocketBroadcast("Posted!")
++		assert.Equal(t, []string{"custom", "other", "posted"}, labelValues(t, m, "mattermost_websocket_event_total", "type"))
++		assert.Equal(t, []string{"custom", "other", "posted"}, labelValues(t, m, "mattermost_websocket_broadcasts_total", "name"))
++
++		for range 100 {
++			m.IncrementWebsocketEvent(model.WebsocketEventType("custom_plugin_" + model.NewId()))
++			m.IncrementWebsocketEvent(model.WebsocketEventType(model.NewId() + "/" + model.NewId()))
++		}
++		assert.Equal(t, 3, seriesCount(t, m, "mattermost_websocket_event_total"))
++	})
++
++	t.Run("notification platform", func(t *testing.T) {
++		m := newTestPrometheusMetrics(t, true)
++		cases := map[string][]string{
++			"ios":         {"apple", "apple_rn", "apple_oxide", "ios", "IOS"},
++			"android":     {"android", "android_rn", "android_oxide", "Android"},
++			"no_platform": {"", model.NotificationNoPlatform},
++			"other":       {"evil", model.NewId()},
++		}
++		for expected, inputs := range cases {
++			for _, input := range inputs {
++				series := m.notificationNotSent.WithLabelValues(string(model.NotificationTypePush), string(model.NotificationReasonPushProxyError), expected)
++				before := testutil.ToFloat64(series)
++				m.IncrementNotificationNotSentCounter(model.NotificationTypePush, model.NotificationReasonPushProxyError, input)
++				assert.Equal(t, before+1, testutil.ToFloat64(series), input)
++			}
++		}
++		assert.Equal(t, []string{"android", "ios", "no_platform", "other"}, labelValues(t, m, "mattermost_notifications_not_sent", "platform"))
++
++		m.IncrementNotificationCounter(model.NotificationTypePush, model.PushNotifyAppleReactNative)
++		m.IncrementNotificationAckCounter(model.NotificationTypePush, "ios")
++		assert.Equal(t, 1.0, testutil.ToFloat64(m.notifications.WithLabelValues(string(model.NotificationTypePush), "ios")))
++		assert.Equal(t, 1.0, testutil.ToFloat64(m.notificationAcks.WithLabelValues(string(model.NotificationTypePush), "ios")))
++		assert.Equal(t, 1, seriesCount(t, m, "mattermost_notifications_total"))
++		assert.Equal(t, 1, seriesCount(t, m, "mattermost_notifications_total_ack"))
++	})
++
++	t.Run("user IDs never become label values", func(t *testing.T) {
++		m := newTestPrometheusMetrics(t, true)
++		userID := model.NewId()
++		callWithClientArgs(m, userID)
++
++		families, err := m.registry.Gather()
++		require.NoError(t, err)
++		for _, f := range families {
++			for _, metric := range f.Metric {
++				for _, l := range metric.Label {
++					assert.NotContains(t, l.GetValue(), userID, f.GetName())
++				}
++			}
++		}
++		assert.Positive(t, seriesCount(t, m, "mattermost_webapp_page_load"))
++	})
++}
++
++func callWithClientArgs(m *prometheusMetrics, userID string) {
++	m.IncrementClientLongTasks("linux", "chrome", userID, 1)
++	m.ObserveClientTimeToFirstByte("linux", "chrome", userID, 1)
++	m.ObserveClientTimeToLastByte("linux", "chrome", userID, 1)
++	m.ObserveClientTimeToDomInteractive("linux", "chrome", userID, 1)
++	m.ObserveClientSplashScreenEnd("linux", "chrome", "root", userID, 1)
++	m.ObserveClientFirstContentfulPaint("linux", "chrome", userID, 1)
++	m.ObserveClientLargestContentfulPaint("linux", "chrome", "post", userID, 1)
++	m.ObserveClientInteractionToNextPaint("linux", "chrome", "keyboard", userID, 1)
++	m.ObserveClientCumulativeLayoutShift("linux", "chrome", userID, 0.1)
++	m.ObserveClientPageLoadDuration("linux", "chrome", userID, 1)
++	m.ObserveClientChannelSwitchDuration("linux", "chrome", "true", userID, 1)
++	m.ObserveClientTeamSwitchDuration("linux", "chrome", "false", userID, 1)
++	m.ObserveClientRHSLoadDuration("linux", "chrome", userID, 1)
++	m.ObserveGlobalThreadsLoadDuration("linux", "chrome", userID, 1)
++}
++
++func TestPrometheusMetricsClientValues(t *testing.T) {
++	m := newTestPrometheusMetrics(t, true)
++	for _, v := range []float64{-1, 2.5, 1e9, 2001, math.NaN(), math.Inf(1), math.Inf(-1)} {
++		require.NotPanics(t, func() { m.IncrementClientLongTasks("linux", "chrome", "", v) })
++	}
++	for _, v := range []float64{-5, 1e308, 300.5, math.NaN(), math.Inf(1), math.Inf(-1)} {
++		require.NotPanics(t, func() { m.ObserveClientPageLoadDuration("linux", "chrome", "", v) })
++	}
++	m.ObserveClientInteractionToNextPaint("linux", "chrome", "keyboard", "", 61)
++	m.ObserveClientCumulativeLayoutShift("linux", "chrome", "", 1e6)
++	m.ObserveMobileClientLoadDuration("ios", 601)
++	assert.Zero(t, seriesCount(t, m, "mattermost_webapp_long_tasks"))
++	assert.Zero(t, seriesCount(t, m, "mattermost_webapp_page_load"))
++	assert.Zero(t, seriesCount(t, m, "mattermost_webapp_interaction_to_next_paint"))
++	assert.Zero(t, seriesCount(t, m, "mattermost_webapp_cumulative_layout_shift"))
++	assert.Zero(t, seriesCount(t, m, "mattermost_mobileapp_mobile_load"))
++
++	m.IncrementClientLongTasks("linux", "chrome", "", 2000)
++	m.ObserveClientPageLoadDuration("linux", "chrome", "", 300)
++	m.ObserveMobileClientLoadDuration("ios", 600)
++	assert.Equal(t, 2000.0, testutil.ToFloat64(m.client.longTasks.WithLabelValues("linux", "chrome")))
++	assert.Equal(t, 1, seriesCount(t, m, "mattermost_webapp_page_load"))
++	assert.Equal(t, 1, seriesCount(t, m, "mattermost_mobileapp_mobile_load"))
++}
++
++func TestPrometheusMetricsDisabled(t *testing.T) {
++	m := newTestPrometheusMetrics(t, false)
++	m.IncrementPostCreate()
++	m.ObserveStoreMethodDuration("UserStore.Get", "true", 0.01)
++	m.IncrementWebsocketEvent(model.WebsocketEventPosted)
++	callWithClientArgs(m, "")
++	m.IncrementHTTPWebSockets("web")
++	assert.Equal(t, 0.0, testutil.ToFloat64(m.posts))
++	assert.Zero(t, seriesCount(t, m, "mattermost_db_store_time"))
++	assert.Zero(t, seriesCount(t, m, "mattermost_websocket_event_total"))
++	assert.Zero(t, seriesCount(t, m, "mattermost_webapp_page_load"))
++	assert.Equal(t, 1.0, testutil.ToFloat64(m.httpWebSockets.WithLabelValues("web")))
++
++	setMetricsEnabled(t, m, true)
++	m.IncrementPostCreate()
++	assert.Equal(t, 1.0, testutil.ToFloat64(m.posts))
++
++	setMetricsEnabled(t, m, false)
++	m.IncrementPostCreate()
++	m.DecrementHTTPWebSockets("web")
++	assert.Equal(t, 1.0, testutil.ToFloat64(m.posts))
++	assert.Equal(t, 0.0, testutil.ToFloat64(m.httpWebSockets.WithLabelValues("web")))
++}
++
++func TestPrometheusMetricsTwoInstances(t *testing.T) {
++	require.NotPanics(t, func() {
++		a := newTestPrometheusMetrics(t, true)
++		b := newTestPrometheusMetrics(t, true)
++		a.IncrementPostCreate()
++		assert.Equal(t, 0.0, testutil.ToFloat64(b.posts))
++	})
++}
++
++func TestPrometheusMetricsDBCollectors(t *testing.T) {
++	m := newTestPrometheusMetrics(t, true)
++	openDB := func(maxOpen int) *sql.DB {
++		db, err := sql.Open(model.DatabaseDriverPostgres, "postgres://localhost/unused")
++		require.NoError(t, err)
++		db.SetMaxOpenConns(maxOpen)
++		t.Cleanup(func() { db.Close() })
++		return db
++	}
++	maxOpen := func(dbName string) []float64 {
++		values := []float64{}
++		for _, metric := range gatherFamilies(t, m.registry)["go_sql_max_open_connections"].GetMetric() {
++			if metric.Label[0].GetValue() == dbName {
++				values = append(values, metric.GetGauge().GetValue())
++			}
++		}
++		return values
++	}
++
++	master := openDB(7)
++	m.RegisterDBCollector(master, "master")
++	m.UnregisterDBCollector(master, "master")
++	assert.Empty(t, maxOpen("master"))
++	m.RegisterDBCollector(master, "master")
++	m.RegisterDBCollector(master, "master")
++	assert.Equal(t, []float64{7}, maxOpen("master"))
++	assert.Contains(t, labelValues(t, m, "go_sql_open_connections", "db_name"), "master")
++
++	first, second := openDB(3), openDB(5)
++	m.RegisterDBCollector(first, "searchreplica-0")
++	assert.Equal(t, []float64{3}, maxOpen("search-replica-0"))
++	m.UnregisterDBCollector(first, "search-replica-0")
++	m.RegisterDBCollector(second, "search-replica-0")
++	assert.Equal(t, []float64{5}, maxOpen("search-replica-0"))
++	assert.Equal(t, []string{"master", "search-replica-0"}, labelValues(t, m, "go_sql_open_connections", "db_name"))
++}
++
++func TestPrometheusMetricsLoggerCollector(t *testing.T) {
++	m := newTestPrometheusMetrics(t, true)
++	collector := m.GetLoggerMetricsCollector()
++
++	gauge, err := collector.QueueSizeGauge("console")
++	require.NoError(t, err)
++	logged, err := collector.LoggedCounter("console")
++	require.NoError(t, err)
++	errs, err := collector.ErrorCounter("console")
++	require.NoError(t, err)
++	dropped, err := collector.DroppedCounter("console")
++	require.NoError(t, err)
++	blocked, err := collector.BlockedCounter("console")
++	require.NoError(t, err)
++
++	gauge.Set(5)
++	gauge.Add(2)
++	gauge.Sub(1)
++	logged.Inc()
++	logged.Add(2)
++	logged.Add(-1)
++	errs.Inc()
++	dropped.Inc()
++	blocked.Inc()
++	again, err := collector.LoggedCounter("console")
++	require.NoError(t, err)
++	again.Inc()
++
++	assert.Equal(t, 6.0, testutil.ToFloat64(m.loggerQueueUsed.WithLabelValues("console")))
++	assert.Equal(t, 4.0, testutil.ToFloat64(m.loggerLogged.WithLabelValues("console")))
++	assert.Equal(t, 1.0, testutil.ToFloat64(m.loggerErrors.WithLabelValues("console")))
++	assert.Equal(t, 1.0, testutil.ToFloat64(m.loggerDropped.WithLabelValues("console")))
++	assert.Equal(t, 1.0, testutil.ToFloat64(m.loggerBlocked.WithLabelValues("console")))
++	assert.Equal(t, 1, seriesCount(t, m, "mattermost_logging_logger_logged_total"))
++
++	setMetricsEnabled(t, m, false)
++	logged.Inc()
++	gauge.Set(100)
++	assert.Equal(t, 4.0, testutil.ToFloat64(m.loggerLogged.WithLabelValues("console")))
++	assert.Equal(t, 6.0, testutil.ToFloat64(m.loggerQueueUsed.WithLabelValues("console")))
++}
++
++func TestPrometheusMetricsLint(t *testing.T) {
++	m := newTestPrometheusMetrics(t, true)
++	callWithZeroArgs(m, "Register", "RegisterDBCollector", "UnregisterDBCollector", "GetLoggerMetricsCollector")
++	_, err := m.GetLoggerMetricsCollector().LoggedCounter("console")
++	require.NoError(t, err)
++
++	problems, err := testutil.GatherAndLint(m.registry)
++	require.NoError(t, err)
++
++	documentedNames := map[string]bool{
++		"mattermost_http_websockets_total":               true,
++		"mattermost_db_master_connections_total":         true,
++		"mattermost_db_read_replica_connections_total":   true,
++		"mattermost_db_search_replica_connections_total": true,
++		"mattermost_notifications_total_ack":             true,
++		"mattermost_notifications_success":               true,
++		"mattermost_notifications_error":                 true,
++		"mattermost_notifications_not_sent":              true,
++		"mattermost_notifications_unsupported":           true,
++		"mattermost_webapp_long_tasks":                   true,
++	}
++	var unexpected []promlint.Problem
++	for _, p := range problems {
++		if documentedNames[p.Metric] {
++			continue
++		}
++		unexpected = append(unexpected, p)
++	}
++	assert.Empty(t, unexpected)
++}
++
++type scrapeResult struct {
++	status int
++	body   string
++}
++
++func scrapeURL(client *http.Client, url string) (scrapeResult, error) {
++	resp, err := client.Get(url)
++	if err != nil {
++		return scrapeResult{}, err
++	}
++	defer resp.Body.Close()
++	body, err := io.ReadAll(resp.Body)
++	return scrapeResult{status: resp.StatusCode, body: string(body)}, err
++}
++
++func parseExposition(body string) (map[string]*dto.MetricFamily, error) {
++	parser := expfmt.NewTextParser(prommodel.LegacyValidation)
++	return parser.TextToMetricFamilies(strings.NewReader(body))
++}
++
++func storeTimeCount(tb testing.TB, body, method string) uint64 {
++	families, err := parseExposition(body)
++	require.NoError(tb, err)
++	var count uint64
++	for _, metric := range families["mattermost_db_store_time"].GetMetric() {
++		labels := map[string]string{}
++		for _, l := range metric.Label {
++			labels[l.GetName()] = l.GetValue()
++		}
++		if labels["method"] == method && labels["success"] == "true" {
++			count += metric.GetHistogram().GetSampleCount()
++		}
++	}
++	return count
++}
++
++func TestPrometheusMetricsServer(t *testing.T) {
++	logs := &mlog.Buffer{}
++	logger, err := mlog.NewLogger()
++	require.NoError(t, err)
++	require.NoError(t, mlog.AddWriterTarget(logger, logs, true, mlog.LvlWarn))
++	logger.LockConfiguration()
++
++	th := Setup(t, StartMetrics(), SetLogger(logger))
++	defer th.Shutdown(t)
++	client := &http.Client{Timeout: 10 * time.Second}
++
++	addr := th.Service.metrics.listenAddr
++	res, err := scrapeURL(client, "http://"+addr+"/metrics")
++	require.NoError(t, err)
++	require.Equal(t, http.StatusOK, res.status)
++	for _, want := range []string{"go_goroutines", "mattermost_process_open_fds", `go_sql_open_connections{db_name="master"}`, "mattermost_system_server_start_time"} {
++		assert.Contains(t, res.body, want)
++	}
++	before := storeTimeCount(t, res.body, "UserStore.Save")
++
++	th.CreateUserOrGuest(t, false)
++
++	res, err = scrapeURL(client, "http://"+addr+"/metrics")
++	require.NoError(t, err)
++	assert.GreaterOrEqual(t, storeTimeCount(t, res.body, "UserStore.Save"), before+1)
++
++	th.Service.UpdateConfig(func(cfg *model.Config) { *cfg.MetricsSettings.Enable = false })
++	_, err = scrapeURL(client, "http://"+addr+"/metrics")
++	require.Error(t, err)
++
++	th.Service.UpdateConfig(func(cfg *model.Config) { *cfg.MetricsSettings.Enable = true })
++	res, err = scrapeURL(client, "http://"+th.Service.metrics.listenAddr+"/metrics")
++	require.NoError(t, err)
++	assert.Equal(t, http.StatusOK, res.status)
++	assert.Contains(t, res.body, "mattermost_db_store_time")
++
++	const warning = "listens on every network interface"
++	require.NoError(t, logger.Flush())
++	assert.NotContains(t, logs.String(), warning)
++
++	th.Service.UpdateConfig(func(cfg *model.Config) { *cfg.MetricsSettings.ListenAddress = ":0" })
++	require.NoError(t, logger.Flush())
++	assert.Equal(t, 1, strings.Count(logs.String(), warning))
++}
++
++func freeLocalAddr(tb testing.TB) string {
++	l, err := net.Listen("tcp", "127.0.0.1:0")
++	require.NoError(tb, err)
++	addr := l.Addr().String()
++	require.NoError(tb, l.Close())
++	return addr
++}
++
++func TestPrometheusMetricsConcurrentReload(t *testing.T) {
++	th := Setup(t, StartMetrics()).InitBasic(t)
++	defer th.Shutdown(t)
++	m := th.Service.metricsIFace.(*prometheusMetrics)
++
++	addrs := []string{freeLocalAddr(t), freeLocalAddr(t)}
++	th.Service.UpdateConfig(func(cfg *model.Config) { *cfg.MetricsSettings.ListenAddress = addrs[0] })
++
++	ctx, cancel := context.WithCancel(context.Background())
++	var workers sync.WaitGroup
++	var parsed, failed atomic.Int64
++	var parseErrors sync.Map
++
++	for i := range 16 {
++		workers.Go(func() {
++			rctx := request.EmptyContext(th.Service.Log())
++			for ctx.Err() == nil {
++				_, _ = th.Service.Store.User().Get(rctx, th.BasicUser.Id)
++				_, _ = th.Service.Store.Team().Get(th.BasicTeam.Id)
++				th.Service.Publish(model.NewWebSocketEvent(model.WebsocketEventTyping, "", th.BasicChannel.Id, "", nil, ""))
++				m.ObserveClientPageLoadDuration("linux", "chrome", "", float64(i))
++				m.IncrementClientLongTasks("linux", "chrome", "", 1)
++			}
++		})
++	}
++
++	workers.Go(func() {
++		client := &http.Client{Timeout: 5 * time.Second}
++		for ctx.Err() == nil {
++			for _, addr := range addrs {
++				res, err := scrapeURL(client, "http://"+addr+"/metrics")
++				if err != nil || res.status != http.StatusOK {
++					continue
++				}
++				if _, err := parseExposition(res.body); err != nil {
++					failed.Add(1)
++					parseErrors.Store(err.Error(), true)
++					continue
++				}
++				parsed.Add(1)
++			}
++		}
++	})
++
++	workers.Go(func() {
++		for ctx.Err() == nil {
++			db, err := sql.Open(model.DatabaseDriverPostgres, "postgres://localhost/unused")
++			if err != nil {
++				continue
++			}
++			m.RegisterDBCollector(db, "replica-0")
++			m.UnregisterDBCollector(db, "replica-0")
++			db.Close()
++		}
++	})
++
++	for i := range 10 {
++		time.Sleep(200 * time.Millisecond)
++		th.Service.UpdateConfig(func(cfg *model.Config) {
++			if i%2 == 0 {
++				*cfg.MetricsSettings.ListenAddress = addrs[(i/2+1)%2]
++			} else {
++				*cfg.MetricsSettings.Enable = !*cfg.MetricsSettings.Enable
++			}
++		})
++	}
++	th.Service.UpdateConfig(func(cfg *model.Config) { *cfg.MetricsSettings.Enable = true })
++	time.Sleep(200 * time.Millisecond)
++	cancel()
++	workers.Wait()
++
++	parseErrors.Range(func(k, _ any) bool {
++		t.Errorf("scrape did not parse: %v", k)
++		return true
++	})
++	assert.Zero(t, failed.Load())
++	assert.Positive(t, parsed.Load())
++}
++
++type benchUserStore struct {
++	store.UserStore
++	user *model.User
++}
++
++func (s benchUserStore) Get(request.CTX, string) (*model.User, error) {
++	return s.user, nil
++}
++
++type benchStore struct {
++	store.Store
++}
++
++func (benchStore) User() store.UserStore {
++	return benchUserStore{user: &model.User{Id: model.NewId()}}
++}
++
++func benchmarkMetricsVariants(b *testing.B) map[string]einterfaces.MetricsInterface {
++	return map[string]einterfaces.MetricsInterface{
++		"nil": nil,
++		"off": newTestPrometheusMetrics(b, false),
++		"on":  newTestPrometheusMetrics(b, true),
++	}
++}
++
++var benchVariantOrder = []string{"nil", "off", "on"}
++
++func BenchmarkPrometheusStoreTimer(b *testing.B) {
++	dbStore, _ := setupDBStore(b)
++	rctx := request.TestContext(b)
++	variants := benchmarkMetricsVariants(b)
++	for _, name := range benchVariantOrder {
++		layer := timerlayer.New(benchStore{dbStore}, variants[name])
++		b.Run(name, func(b *testing.B) {
++			b.ReportAllocs()
++			for b.Loop() {
++				_, _ = layer.User().Get(rctx, "id")
++			}
++		})
++	}
++
++	b.Run("real_sql_UserStore.Get", func(b *testing.B) {
++		user, err := dbStore.User().Save(rctx, &model.User{Email: model.NewId() + "@example.com", Username: "u" + model.NewId(), Password: "password"})
++		require.NoError(b, err)
++		b.ReportAllocs()
++		for b.Loop() {
++			_, err := dbStore.User().Get(rctx, user.Id)
++			if err != nil {
++				b.Fatal(err)
++			}
++		}
++	})
++}
++
++func BenchmarkPrometheusCacheHit(b *testing.B) {
++	dbStore, _ := setupDBStore(b)
++	logger := mlog.CreateConsoleTestLogger(b)
++	variants := benchmarkMetricsVariants(b)
++	for _, name := range benchVariantOrder {
++		layer, err := localcachelayer.NewLocalCacheLayer(dbStore, variants[name], nil, cache.NewProvider(), logger)
++		require.NoError(b, err)
++		rctx := request.TestContext(b)
++		_, err = layer.Role().GetByName(rctx, model.SystemUserRoleId)
++		require.NoError(b, err)
++		b.Run(name, func(b *testing.B) {
++			b.ReportAllocs()
++			for b.Loop() {
++				_, _ = layer.Role().GetByName(rctx, model.SystemUserRoleId)
++			}
++		})
++	}
++}
++
++func countingWebsocketHandler(received *atomic.Int64) http.HandlerFunc {
++	marker := `"` + string(model.WebsocketEventTyping) + `"`
++	return func(w http.ResponseWriter, req *http.Request) {
++		upgrader := &websocket.Upgrader{}
++		conn, err := upgrader.Upgrade(w, req, nil)
++		if err != nil {
++			return
++		}
++		defer conn.Close()
++		for {
++			_, msg, err := conn.ReadMessage()
++			if err != nil {
++				return
++			}
++			if strings.Contains(string(msg), marker) {
++				received.Add(1)
++			}
++		}
++	}
++}
++
++func BenchmarkPrometheusWebsocketPublish(b *testing.B) {
++	for _, name := range benchVariantOrder {
++		b.Run(name, func(b *testing.B) {
++			var options []Option
++			switch name {
++			case "nil":
++				RegisterMetricsInterface(func(*PlatformService, string, string) einterfaces.MetricsInterface { return nil })
++				defer RegisterMetricsInterface(NewPrometheusMetrics)
++			case "on":
++				options = append(options, StartMetrics())
++			}
++			th := Setup(b, options...).InitBasic(b)
++			defer th.Shutdown(b)
++
++			var received atomic.Int64
++			server := httptest.NewServer(countingWebsocketHandler(&received))
++			defer server.Close()
++			session, err := th.Service.CreateSession(th.Context, &model.Session{UserId: th.BasicUser.Id, ExpiresAt: model.GetMillis() + time.Hour.Milliseconds()})
++			require.NoError(b, err)
++
++			waitFor := func(target int64) {
++				deadline := time.Now().Add(60 * time.Second)
++				for received.Load() < target {
++					if time.Now().After(deadline) {
++						b.Fatalf("received %d of %d messages", received.Load(), target)
++					}
++					time.Sleep(20 * time.Microsecond)
++				}
++			}
++			publish := func() {
++				th.Service.Publish(model.NewWebSocketEvent(model.WebsocketEventTyping, "", "", th.BasicUser.Id, nil, ""))
++			}
++
++			conns := 0
++			for _, target := range []int{1, 100, 1000} {
++				for ; conns < target; conns++ {
++					c, _, err := websocket.DefaultDialer.Dial("ws://"+server.Listener.Addr().String(), nil)
++					require.NoError(b, err)
++					wc := th.Service.NewWebConn(&WebConnConfig{WebSocket: c, Session: *session, TFunc: i18n.IdentityTfunc(), Locale: "en", ConnectionID: model.NewId(), Active: true}, th.Suite, &hookRunner{})
++					require.NoError(b, th.Service.HubRegister(wc))
++					go wc.Pump()
++				}
++				base := received.Load()
++				publish()
++				waitFor(base + int64(conns))
++
++				b.Run(fmt.Sprintf("conns=%d", conns), func(b *testing.B) {
++					const window = 32
++					base := received.Load()
++					b.ReportAllocs()
++					b.ResetTimer()
++					for i := range b.N {
++						publish()
++						if (i+1)%window == 0 || i == b.N-1 {
++							waitFor(base + int64(conns)*int64(i+1))
++						}
++					}
++				})
++			}
++		})
++	}
++}
++
++func BenchmarkPrometheusConcurrentScrape(b *testing.B) {
++	dbStore, _ := setupDBStore(b)
++	rctx := request.TestContext(b)
++	for _, series := range []int{10000, 50000} {
++		variants := benchmarkMetricsVariants(b)
++		variants["on_noscrape"] = variants["on"]
++		for _, name := range append(benchVariantOrder, "on_noscrape") {
++			metrics := variants[name]
++			if m, ok := metrics.(*prometheusMetrics); ok && name != "on_noscrape" {
++				enabled := m.enabled.Load()
++				m.enabled.Store(true)
++				for i := range series / (len(storeTimeBuckets) + 3) {
++					m.ObserveStoreMethodDuration(fmt.Sprintf("FillStore.Method%d", i), "true", 0.01)
++				}
++				m.enabled.Store(enabled)
++			}
++			layer := timerlayer.New(benchStore{dbStore}, metrics)
++
++			b.Run(fmt.Sprintf("series=%d/%s", series, name), func(b *testing.B) {
++				stop := make(chan struct{})
++				var scrapes atomic.Int64
++				var scrapeNanos atomic.Int64
++				var scraper sync.WaitGroup
++				if m, ok := metrics.(*prometheusMetrics); ok && name != "on_noscrape" {
++					handler := promhttp.HandlerFor(m.registry, promhttp.HandlerOpts{})
++					scraper.Go(func() {
++						for {
++							select {
++							case <-stop:
++								return
++							default:
++							}
++							start := time.Now()
++							rec := httptest.NewRecorder()
++							handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/metrics", nil))
++							scrapeNanos.Add(int64(time.Since(start)))
++							scrapes.Add(1)
++						}
++					})
++				}
++
++				b.ReportAllocs()
++				b.ResetTimer()
++				b.RunParallel(func(pb *testing.PB) {
++					for pb.Next() {
++						_, _ = layer.User().Get(rctx, "id")
++						if metrics != nil {
++							metrics.IncrementWebSocketBroadcast(model.WebsocketEventPosted)
++						}
++					}
++				})
++				b.StopTimer()
++				close(stop)
++				scraper.Wait()
++				if n := scrapes.Load(); n > 0 {
++					b.ReportMetric(float64(scrapeNanos.Load())/float64(n)/1e6, "ms/scrape")
++					b.ReportMetric(float64(n), "scrapes")
++				}
++			})
++		}
++	}
++}
+diff --git a/server/channels/app/plugin_hooks_test.go b/server/channels/app/plugin_hooks_test.go
+index e56eeea2b53b..7b8472c88dba 100644
+--- a/server/channels/app/plugin_hooks_test.go
++++ b/server/channels/app/plugin_hooks_test.go
+@@ -2937,17 +2937,6 @@ func TestHookServeMetrics(t *testing.T) {
+ 		// Verify plugin is active
+ 		require.True(t, th.App.GetPluginsEnvironment().IsActive(pluginID))
+ 
+-		// Create a simple handler that returns server metrics
+-		serverMetrics := "# HELP server_test_metric Test metric from server\n# TYPE server_test_metric gauge\nserver_test_metric 100\n"
+-		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+-			w.Header().Set("Content-Type", "text/plain")
+-			w.WriteHeader(http.StatusOK)
+-			_, _ = w.Write([]byte(serverMetrics))
+-		})
+-
+-		// Register the metrics handler
+-		th.App.Srv().Platform().HandleMetrics("/metrics", handler)
+-
+ 		// Get the metrics router
+ 		metricsRouter := th.App.Srv().Platform().GetMetricsRouter()
+ 		require.NotNil(t, metricsRouter, "Metrics router should be available")
+@@ -2968,7 +2957,7 @@ func TestHookServeMetrics(t *testing.T) {
+ 		bodyStr := string(body)
+ 
+ 		// Verify both server and plugin metrics are present
+-		assert.Contains(t, bodyStr, "server_test_metric 100", "Response should contain server metrics")
++		assert.Contains(t, bodyStr, "# TYPE go_goroutines gauge", "Response should contain server metrics")
+ 		assert.Contains(t, bodyStr, "plugin_test_metric{plugin_id=\""+pluginID+"\"} 42", "Response should contain plugin metrics with plugin_id label")
+ 	})
+ 
+@@ -3045,17 +3034,6 @@ func TestHookServeMetrics(t *testing.T) {
+ 		require.True(t, th.App.GetPluginsEnvironment().IsActive(pluginIDs[0]))
+ 		require.True(t, th.App.GetPluginsEnvironment().IsActive(pluginIDs[1]))
+ 
+-		// Create a simple handler that returns server metrics
+-		serverMetrics := "# HELP server_metric Server metric\n# TYPE server_metric gauge\nserver_metric 100\n"
+-		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+-			w.Header().Set("Content-Type", "text/plain")
+-			w.WriteHeader(http.StatusOK)
+-			_, _ = w.Write([]byte(serverMetrics))
+-		})
+-
+-		// Register the metrics handler
+-		th.App.Srv().Platform().HandleMetrics("/metrics", handler)
+-
+ 		// Get the metrics router
+ 		metricsRouter := th.App.Srv().Platform().GetMetricsRouter()
+ 		require.NotNil(t, metricsRouter, "Metrics router should be available")
+@@ -3076,7 +3054,7 @@ func TestHookServeMetrics(t *testing.T) {
+ 		bodyStr := string(body)
+ 
+ 		// Verify server and both plugin metrics are present
+-		assert.Contains(t, bodyStr, "server_metric 100", "Response should contain server metrics")
++		assert.Contains(t, bodyStr, "# TYPE go_goroutines gauge", "Response should contain server metrics")
+ 		assert.Contains(t, bodyStr, "plugin1_metric{plugin_id=\""+pluginIDs[0]+"\"} 10", "Response should contain plugin1 metrics")
+ 		assert.Contains(t, bodyStr, "plugin2_metric{plugin_id=\""+pluginIDs[1]+"\"} 20", "Response should contain plugin2 metrics")
+ 	})
+@@ -3114,17 +3092,6 @@ func TestHookServeMetrics(t *testing.T) {
+ 
+ 		require.Len(t, pluginIDs, 1)
+ 
+-		// Create a simple handler that returns server metrics
+-		serverMetrics := "# HELP server_metric Server metric\n# TYPE server_metric gauge\nserver_metric 100\n"
+-		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+-			w.Header().Set("Content-Type", "text/plain")
+-			w.WriteHeader(http.StatusOK)
+-			_, _ = w.Write([]byte(serverMetrics))
+-		})
+-
+-		// Register the metrics handler
+-		th.App.Srv().Platform().HandleMetrics("/metrics", handler)
+-
+ 		// Get the metrics router
+ 		metricsRouter := th.App.Srv().Platform().GetMetricsRouter()
+ 		require.NotNil(t, metricsRouter, "Metrics router should be available")
+@@ -3145,7 +3112,7 @@ func TestHookServeMetrics(t *testing.T) {
+ 		bodyStr := string(body)
+ 
+ 		// Verify only server metrics are present (no plugin metrics)
+-		assert.Contains(t, bodyStr, "server_metric 100", "Response should contain server metrics")
++		assert.Contains(t, bodyStr, "# TYPE go_goroutines gauge", "Response should contain server metrics")
+ 		// The plugin didn't implement ServeMetrics, so it shouldn't add any metrics
+ 		assert.NotContains(t, bodyStr, "plugin_id=\""+pluginIDs[0]+"\"", "Response should not contain plugin metrics from non-implementing plugin")
+ 	})
+@@ -3189,15 +3156,6 @@ func TestHookServeMetrics(t *testing.T) {
+ 		require.Len(t, pluginIDs, 1)
+ 		require.True(t, th.App.GetPluginsEnvironment().IsActive(pluginIDs[0]))
+ 
+-		serverMetrics := "# HELP server_metric Server metric\n# TYPE server_metric gauge\nserver_metric 100\n"
+-		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+-			w.Header().Set("Content-Type", "text/plain")
+-			w.WriteHeader(http.StatusOK)
+-			_, _ = w.Write([]byte(serverMetrics))
+-		})
+-
+-		th.App.Srv().Platform().HandleMetrics("/metrics", handler)
+-
+ 		metricsRouter := th.App.Srv().Platform().GetMetricsRouter()
+ 		require.NotNil(t, metricsRouter)
+ 
+@@ -3212,7 +3170,7 @@ func TestHookServeMetrics(t *testing.T) {
+ 		require.NoError(t, err)
+ 
+ 		bodyStr := string(body)
+-		assert.Contains(t, bodyStr, "server_metric 100")
++		assert.Contains(t, bodyStr, "# TYPE go_goroutines gauge")
+ 		assert.NotContains(t, bodyStr, "plugin_id=")
+ 	})
+ 
+@@ -3253,15 +3211,6 @@ func TestHookServeMetrics(t *testing.T) {
+ 		require.Len(t, pluginIDs, 1)
+ 		require.True(t, th.App.GetPluginsEnvironment().IsActive(pluginIDs[0]))
+ 
+-		serverMetrics := "# HELP server_metric Server metric\n# TYPE server_metric gauge\nserver_metric 100\n"
+-		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+-			w.Header().Set("Content-Type", "text/plain")
+-			w.WriteHeader(http.StatusOK)
+-			_, _ = w.Write([]byte(serverMetrics))
+-		})
+-
+-		th.App.Srv().Platform().HandleMetrics("/metrics", handler)
+-
+ 		metricsRouter := th.App.Srv().Platform().GetMetricsRouter()
+ 		require.NotNil(t, metricsRouter)
+ 
+@@ -3276,7 +3225,7 @@ func TestHookServeMetrics(t *testing.T) {
+ 		require.NoError(t, err)
+ 
+ 		bodyStr := string(body)
+-		assert.Contains(t, bodyStr, "server_metric 100")
++		assert.Contains(t, bodyStr, "# TYPE go_goroutines gauge")
+ 		assert.NotContains(t, bodyStr, "plugin_id=")
+ 	})
+ 
+@@ -3317,15 +3266,6 @@ func TestHookServeMetrics(t *testing.T) {
+ 		require.Len(t, pluginIDs, 1)
+ 		require.True(t, th.App.GetPluginsEnvironment().IsActive(pluginIDs[0]))
+ 
+-		serverMetrics := "# HELP server_metric Server metric\n# TYPE server_metric gauge\nserver_metric 100\n"
+-		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+-			w.Header().Set("Content-Type", "text/plain")
+-			w.WriteHeader(http.StatusOK)
+-			_, _ = w.Write([]byte(serverMetrics))
+-		})
+-
+-		th.App.Srv().Platform().HandleMetrics("/metrics", handler)
+-
+ 		metricsRouter := th.App.Srv().Platform().GetMetricsRouter()
+ 		require.NotNil(t, metricsRouter)
+ 
+@@ -3340,7 +3280,7 @@ func TestHookServeMetrics(t *testing.T) {
+ 		require.NoError(t, err)
+ 
+ 		bodyStr := string(body)
+-		assert.Contains(t, bodyStr, "server_metric 100")
++		assert.Contains(t, bodyStr, "# TYPE go_goroutines gauge")
+ 		assert.NotContains(t, bodyStr, "plugin_id=")
+ 	})
+ }
+diff --git a/server/config/client.go b/server/config/client.go
+index 433af76e802e..7d67a94dd59e 100644
+--- a/server/config/client.go
++++ b/server/config/client.go
+@@ -125,7 +125,9 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
+ 	props["SamlNicknameAttributeSet"] = "false"
+ 	props["SamlPositionAttributeSet"] = "false"
+ 	props["EnableCluster"] = "false"
+-	props["EnableMetrics"] = "false"
++	props["EnableMetrics"] = strconv.FormatBool(*c.MetricsSettings.Enable)
++	props["EnableClientMetrics"] = strconv.FormatBool(*c.MetricsSettings.Enable && *c.MetricsSettings.EnableClientMetrics)
++	props["EnableNotificationMetrics"] = strconv.FormatBool(*c.MetricsSettings.EnableNotificationMetrics)
+ 	props["EnableBanner"] = strconv.FormatBool(*c.AnnouncementSettings.EnableBanner)
+ 	props["BannerText"] = *c.AnnouncementSettings.BannerText
+ 	props["BannerColor"] = *c.AnnouncementSettings.BannerColor
+@@ -210,12 +212,6 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
+ 			props["EnableCluster"] = strconv.FormatBool(*c.ClusterSettings.Enable)
+ 		}
+ 
+-		if *license.Features.Cluster {
+-			props["EnableMetrics"] = strconv.FormatBool(*c.MetricsSettings.Enable)
+-			props["EnableClientMetrics"] = strconv.FormatBool(*c.MetricsSettings.Enable && *c.MetricsSettings.EnableClientMetrics)
+-			props["EnableNotificationMetrics"] = strconv.FormatBool(*c.MetricsSettings.EnableNotificationMetrics)
+-		}
+-
+ 		if *license.Features.DataRetention {
+ 			props["DataRetentionEnableMessageDeletion"] = strconv.FormatBool(*c.DataRetentionSettings.EnableMessageDeletion)
+ 			props["DataRetentionMessageRetentionHours"] = strconv.FormatInt(int64(c.DataRetentionSettings.GetMessageRetentionHours()), 10)
+diff --git a/server/config/client_test.go b/server/config/client_test.go
+index 13356caddc0f..94b3ac375829 100644
+--- a/server/config/client_test.go
++++ b/server/config/client_test.go
+@@ -988,6 +988,56 @@ func TestGetClientConfig(t *testing.T) {
+ 			},
+ 			nil,
+ 		},
++		{
++			"metrics enabled without a license",
++			&model.Config{
++				MetricsSettings: model.MetricsSettings{
++					Enable:                    new(true),
++					EnableClientMetrics:       new(true),
++					EnableNotificationMetrics: new(true),
++				},
++			},
++			"",
++			nil,
++			map[string]string{
++				"EnableMetrics":             "true",
++				"EnableClientMetrics":       "true",
++				"EnableNotificationMetrics": "true",
++			},
++			nil,
++		},
++		{
++			"notification metrics follow the setting without a license",
++			&model.Config{
++				MetricsSettings: model.MetricsSettings{
++					Enable:                    new(true),
++					EnableNotificationMetrics: new(false),
++				},
++			},
++			"",
++			nil,
++			map[string]string{
++				"EnableMetrics":             "true",
++				"EnableNotificationMetrics": "false",
++			},
++			nil,
++		},
++		{
++			"client metrics are off while metrics are off without a license",
++			&model.Config{
++				MetricsSettings: model.MetricsSettings{
++					Enable:              new(false),
++					EnableClientMetrics: new(true),
++				},
++			},
++			"",
++			nil,
++			map[string]string{
++				"EnableMetrics":       "false",
++				"EnableClientMetrics": "false",
++			},
++			nil,
++		},
+ 	}
+ 
+ 	for _, testCase := range testCases {
+diff --git a/server/public/model/metrics.go b/server/public/model/metrics.go
+index 3663380d4014..59f7d26e4be7 100644
+--- a/server/public/model/metrics.go
++++ b/server/public/model/metrics.go
+@@ -5,6 +5,7 @@ package model
+ 
+ import (
+ 	"fmt"
++	"slices"
+ 	"strings"
+ 
+ 	"github.com/Masterminds/semver/v3"
+@@ -48,6 +49,7 @@ const (
+ 	PluginWebappPerf MetricType = "plugin_webapp_perf"
+ 
+ 	performanceReportTTLMilliseconds = 300 * 1000 // 300 seconds/5 minutes
++	performanceReportMaxSamples      = 500
+ )
+ 
+ var (
+@@ -130,6 +132,14 @@ func (r *PerformanceReport) IsValid() error {
+ 		return fmt.Errorf("report is outdated: end_time %f is past %d ms from now", r.End, performanceReportTTLMilliseconds)
+ 	}
+ 
++	if len(r.Counters) > performanceReportMaxSamples || len(r.Histograms) > performanceReportMaxSamples {
++		return fmt.Errorf("report has too many samples: the limit is %d counters and %d histograms", performanceReportMaxSamples, performanceReportMaxSamples)
++	}
++
++	if slices.Contains(r.Counters, nil) || slices.Contains(r.Histograms, nil) {
++		return fmt.Errorf("report has an empty sample")
++	}
++
+ 	return nil
+ }
+ 
+diff --git a/server/public/model/metrics_test.go b/server/public/model/metrics_test.go
+index cb5026105d87..60a8aa2d372b 100644
+--- a/server/public/model/metrics_test.go
++++ b/server/public/model/metrics_test.go
+@@ -62,6 +62,36 @@ func TestPerformanceReport_IsValid(t *testing.T) {
+ 			},
+ 			expected: "report is outdated:",
+ 		},
++		{
++			name: "NilCounter",
++			report: &PerformanceReport{
++				Version:  "0.1.0",
++				Start:    float64(time.Now().UnixMilli() - 10000),
++				End:      float64(time.Now().UnixMilli()),
++				Counters: []*MetricSample{nil},
++			},
++			expected: "report has an empty sample",
++		},
++		{
++			name: "NilHistogram",
++			report: &PerformanceReport{
++				Version:    "0.1.0",
++				Start:      float64(time.Now().UnixMilli() - 10000),
++				End:        float64(time.Now().UnixMilli()),
++				Histograms: []*MetricSample{{Metric: ClientPageLoadDuration, Value: 1}, nil},
++			},
++			expected: "report has an empty sample",
++		},
++		{
++			name: "TooManyHistograms",
++			report: &PerformanceReport{
++				Version:    "0.1.0",
++				Start:      float64(time.Now().UnixMilli() - 10000),
++				End:        float64(time.Now().UnixMilli()),
++				Histograms: make([]*MetricSample, 501),
++			},
++			expected: "report has too many samples",
++		},
+ 	}
+ 
+ 	for _, tt := range tests {

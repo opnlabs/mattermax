@@ -1,0 +1,1152 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Karan Sharma <hello@mrkaran.dev>
+Date: Thu, 12 Nov 2026 23:57:06 +0530
+Subject: [PATCH] feat: command palette in the channel switcher
+
+Mattermax-Patch: command-palette.patch
+---
+ .../command_palette/command_palette.scss      |  23 ++
+ .../command_palette_provider.tsx              | 165 +++++++++++++
+ .../command_palette/commands.test.ts          | 182 +++++++++++++++
+ .../command_palette/commands.ts               | 220 ++++++++++++++++++
+ .../components/quick_switch_modal/index.tsx   |   3 +
+ .../quick_switch_modal.test.tsx               | 177 +++++++++++++-
+ .../quick_switch_modal/quick_switch_modal.tsx | 103 +++++++-
+ webapp/channels/src/i18n/en.json              |  76 ++++++
+ 8 files changed, 940 insertions(+), 9 deletions(-)
+ create mode 100644 webapp/channels/src/components/quick_switch_modal/command_palette/command_palette.scss
+ create mode 100644 webapp/channels/src/components/quick_switch_modal/command_palette/command_palette_provider.tsx
+ create mode 100644 webapp/channels/src/components/quick_switch_modal/command_palette/commands.test.ts
+ create mode 100644 webapp/channels/src/components/quick_switch_modal/command_palette/commands.ts
+
+diff --git a/webapp/channels/src/components/quick_switch_modal/command_palette/command_palette.scss b/webapp/channels/src/components/quick_switch_modal/command_palette/command_palette.scss
+new file mode 100644
+index 000000000000..161750f4a1c0
+--- /dev/null
++++ b/webapp/channels/src/components/quick_switch_modal/command_palette/command_palette.scss
+@@ -0,0 +1,23 @@
++.CommandPalette__online {
++    color: var(--online-indicator);
++}
++
++.CommandPalette__away {
++    color: var(--away-indicator);
++}
++
++.CommandPalette__dnd {
++    color: var(--dnd-indicator);
++}
++
++.CommandPalette__hint {
++    margin-top: 4px;
++    color: rgba(var(--center-channel-color-rgb), 0.64);
++    font-size: 12px;
++}
++
++.CommandPalette__error {
++    margin: 4px 32px 0;
++    color: var(--error-text);
++    font-size: 12px;
++}
+diff --git a/webapp/channels/src/components/quick_switch_modal/command_palette/command_palette_provider.tsx b/webapp/channels/src/components/quick_switch_modal/command_palette/command_palette_provider.tsx
+new file mode 100644
+index 000000000000..9e03fc0537d7
+--- /dev/null
++++ b/webapp/channels/src/components/quick_switch_modal/command_palette/command_palette_provider.tsx
+@@ -0,0 +1,165 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++import React from 'react';
++import {defineMessage, FormattedMessage} from 'react-intl';
++
++import type {AutocompleteSuggestion} from '@mattermost/types/integrations';
++
++import {getCurrentChannelId} from 'mattermost-redux/selectors/entities/channels';
++import {getCurrentTeamId} from 'mattermost-redux/selectors/entities/teams';
++
++import globalStore from 'stores/redux_store';
++
++import CommandProvider from 'components/suggestion/command_provider/command_provider';
++import Provider from 'components/suggestion/provider';
++import type {ResultsCallback} from 'components/suggestion/provider';
++import {SuggestionContainer} from 'components/suggestion/suggestion';
++import type {SuggestionProps} from 'components/suggestion/suggestion';
++import type {Loading, ProviderResults} from 'components/suggestion/suggestion_results';
++
++import {Constants} from 'utils/constants';
++import {getIntl} from 'utils/i18n';
++
++import {listPaletteCommands, SLASH_COMMAND_PREFIX} from './commands';
++import type {PaletteCommand} from './commands';
++
++import './command_palette.scss';
++
++export const PALETTE_PREFIX = '>';
++
++const {EXECUTE_CURRENT_COMMAND_ITEM_ID, OPEN_COMMAND_IN_MODAL_ITEM_ID} = Constants.Integrations;
++
++export type PaletteCommandItem = {
++    paletteCommand: PaletteCommand;
++};
++
++export function isPaletteCommandItem(item: unknown): item is PaletteCommandItem {
++    return Boolean(item && typeof item === 'object' && 'paletteCommand' in item);
++}
++
++export function isSlashCommandSuggestion(item: unknown): item is AutocompleteSuggestion {
++    return Boolean(item && typeof item === 'object' && 'Complete' in item);
++}
++
++const PaletteCommandSuggestion = React.forwardRef<HTMLLIElement, SuggestionProps<PaletteCommandItem>>((props, ref) => {
++    const {icon, label} = props.item.paletteCommand;
++
++    return (
++        <SuggestionContainer
++            ref={ref}
++            {...props}
++        >
++            <span className='suggestion-list__icon suggestion-list__icon--large'>
++                <i
++                    className={`icon ${icon}`}
++                    aria-hidden='true'
++                />
++            </span>
++            <div className='suggestion-list__ellipsis suggestion-list__flex'>
++                <span className='suggestion-list__main'>
++                    <FormattedMessage {...label}/>
++                </span>
++            </div>
++        </SuggestionContainer>
++    );
++});
++PaletteCommandSuggestion.displayName = 'PaletteCommandSuggestion';
++
++function termFor(command: PaletteCommand) {
++    return command.id === 'slash_command' ? SLASH_COMMAND_PREFIX : PALETTE_PREFIX + command.id;
++}
++
++type SlashCommandList = {
++    terms: string[];
++    items: Array<AutocompleteSuggestion | Loading>;
++};
++
++function toPaletteList<List extends SlashCommandList>(list: List): List {
++    const terms: string[] = [];
++    const items: List['items'] = [];
++    list.terms.forEach((term, index) => {
++        if (term.endsWith(OPEN_COMMAND_IN_MODAL_ITEM_ID)) {
++            return;
++        }
++        const command = term.endsWith(EXECUTE_CURRENT_COMMAND_ITEM_ID) ? term.slice(0, -EXECUTE_CURRENT_COMMAND_ITEM_ID.length) : term;
++        terms.push(PALETTE_PREFIX + command);
++        items.push(list.items[index]);
++    });
++    return {...list, terms, items};
++}
++
++function toPaletteResults(results: ProviderResults<AutocompleteSuggestion>): ProviderResults<AutocompleteSuggestion> {
++    const matchedPretext = PALETTE_PREFIX + results.matchedPretext;
++
++    if ('groups' in results) {
++        return {...results, matchedPretext, groups: results.groups.map(toPaletteList)};
++    }
++
++    return {...toPaletteList(results), matchedPretext};
++}
++
++export function getSlashCommandToRun(item: AutocompleteSuggestion) {
++    if (!item.Complete.endsWith(EXECUTE_CURRENT_COMMAND_ITEM_ID)) {
++        return null;
++    }
++    return item.Complete.slice(0, -EXECUTE_CURRENT_COMMAND_ITEM_ID.length);
++}
++
++export default class CommandPaletteProvider extends Provider {
++    private commandProvider: CommandProvider | null = null;
++
++    handlePretextChanged(pretext: string, resultsCallback: ResultsCallback<PaletteCommandItem | AutocompleteSuggestion>) {
++        if (!pretext.startsWith(PALETTE_PREFIX)) {
++            return false;
++        }
++
++        if (pretext.startsWith(SLASH_COMMAND_PREFIX)) {
++            return this.handleSlashCommand(pretext, resultsCallback);
++        }
++
++        const intl = getIntl();
++        const words = pretext.substring(PALETTE_PREFIX.length).toLowerCase().split(/\s+/).filter(Boolean);
++        const commands = listPaletteCommands(globalStore.getState()).filter((command) => {
++            const label = intl.formatMessage(command.label).toLowerCase();
++            return words.every((word) => label.includes(word));
++        });
++
++        resultsCallback({
++            matchedPretext: pretext,
++            groups: [{
++                key: 'commandPalette',
++                label: defineMessage({id: 'suggestion.commands', defaultMessage: 'Commands'}),
++                terms: commands.map(termFor),
++                items: commands.map((paletteCommand) => ({paletteCommand})),
++                component: PaletteCommandSuggestion,
++            }],
++        });
++
++        return true;
++    }
++
++    handleCompleteWord(term: string, matchedPretext: string, callback: (pretext: string) => void) {
++        if (term === SLASH_COMMAND_PREFIX) {
++            callback(SLASH_COMMAND_PREFIX);
++        } else if (term.startsWith(SLASH_COMMAND_PREFIX)) {
++            callback(term + ' ');
++        }
++    }
++
++    private handleSlashCommand(pretext: string, resultsCallback: ResultsCallback<AutocompleteSuggestion>) {
++        const state = globalStore.getState();
++        const props = {teamId: getCurrentTeamId(state), channelId: getCurrentChannelId(state)};
++
++        if (this.commandProvider) {
++            this.commandProvider.setProps(props);
++        } else {
++            this.commandProvider = new CommandProvider(props);
++        }
++
++        return this.commandProvider.handlePretextChanged(
++            pretext.substring(PALETTE_PREFIX.length),
++            (results) => resultsCallback(toPaletteResults(results)),
++        );
++    }
++}
+diff --git a/webapp/channels/src/components/quick_switch_modal/command_palette/commands.test.ts b/webapp/channels/src/components/quick_switch_modal/command_palette/commands.test.ts
+new file mode 100644
+index 000000000000..46c3012776b2
+--- /dev/null
++++ b/webapp/channels/src/components/quick_switch_modal/command_palette/commands.test.ts
+@@ -0,0 +1,182 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++import {Permissions, Preferences} from 'mattermost-redux/constants';
++
++import CustomStatusModal from 'components/custom_status/custom_status_modal';
++import DndCustomTimePicker from 'components/dnd_custom_time_picker_modal';
++import ResetStatusModal from 'components/reset_status_modal';
++import UserSettingsModal from 'components/user_settings/modal';
++
++import mockStore from 'tests/test_store';
++import {getHistory} from 'utils/browser_history';
++import {ActionTypes, ModalIdentifiers} from 'utils/constants';
++
++import type {GlobalState} from 'types/store';
++
++import {listPaletteCommands, runPaletteCommand, runPaletteSlashCommand} from './commands';
++import type {PaletteCommandId} from './commands';
++
++jest.mock('mattermost-redux/actions/users', () => ({
++    ...jest.requireActual('mattermost-redux/actions/users'),
++    setStatus: (status: unknown) => ({type: 'MOCK_SET_STATUS', status}),
++    unsetCustomStatus: () => ({type: 'MOCK_UNSET_CUSTOM_STATUS'}),
++}));
++
++jest.mock('actions/views/create_comment', () => ({
++    submitCommand: jest.fn((channelId: string, rootId: string, draft: {message: string}) => ({type: 'MOCK_SUBMIT_COMMAND', channelId, rootId, message: draft.message})),
++}));
++
++jest.mock('utils/browser_history', () => {
++    const history = {push: jest.fn()};
++    return {getHistory: () => history};
++});
++
++const NOW = new Date('2026-11-12T10:00:00Z');
++
++function makeState({
++    roles = 'system_user',
++    collapsedThreads = 'always_on',
++    customStatus,
++    status = 'online',
++    autoResetPref,
++}: {roles?: string; collapsedThreads?: string; customStatus?: object; status?: string; autoResetPref?: string} = {}) {
++    const preferences: Record<string, {category: string; name: string; user_id: string; value: string}> = {};
++    if (autoResetPref !== undefined) {
++        preferences[`${Preferences.CATEGORY_AUTO_RESET_MANUAL_STATUS}--user1`] = {category: Preferences.CATEGORY_AUTO_RESET_MANUAL_STATUS, name: 'user1', user_id: 'user1', value: autoResetPref};
++    }
++
++    return {
++        entities: {
++            general: {config: {CollapsedThreads: collapsedThreads, EnableCustomUserStatuses: 'true'}},
++            users: {
++                currentUserId: 'user1',
++                profiles: {
++                    user1: {
++                        id: 'user1',
++                        roles,
++                        timezone: {useAutomaticTimezone: 'false', manualTimezone: 'UTC', automaticTimezone: ''},
++                        props: customStatus ? {customStatus: JSON.stringify(customStatus)} : {},
++                    },
++                },
++                statuses: {user1: status},
++            },
++            roles: {
++                roles: {
++                    system_user: {name: 'system_user', permissions: []},
++                    system_admin: {name: 'system_admin', permissions: [Permissions.SYSCONSOLE_READ_PERMISSIONS[0]]},
++                },
++            },
++            teams: {currentTeamId: 'team1', teams: {team1: {id: 'team1', name: 'myteam'}}},
++            channels: {currentChannelId: 'channel1'},
++            preferences: {myPreferences: preferences},
++        },
++    } as unknown as GlobalState;
++}
++
++function ids(state: GlobalState) {
++    return listPaletteCommands(state).map(({id}) => id);
++}
++
++async function run(id: PaletteCommandId, state = makeState()) {
++    const store = mockStore(state);
++    const result = await store.dispatch(runPaletteCommand(id));
++    return {actions: store.getActions(), result};
++}
++
++describe('listPaletteCommands', () => {
++    test('shows the System Console only to users who can read it', () => {
++        expect(ids(makeState())).not.toContain('open_system_console');
++        expect(ids(makeState({roles: 'system_user system_admin'}))).toContain('open_system_console');
++    });
++
++    test('shows Threads only when collapsed reply threads are on', () => {
++        expect(ids(makeState())).toContain('open_threads');
++        expect(ids(makeState({collapsedThreads: 'disabled'}))).not.toContain('open_threads');
++    });
++
++    test('offers to clear the custom status only when one is set', () => {
++        expect(ids(makeState())).not.toContain('custom_status_clear');
++        expect(ids(makeState({customStatus: {emoji: 'calendar', text: 'In a meeting', duration: ''}}))).toContain('custom_status_clear');
++    });
++});
++
++describe('runPaletteCommand', () => {
++    beforeEach(() => {
++        jest.useFakeTimers({now: NOW});
++    });
++
++    afterEach(() => {
++        jest.useRealTimers();
++    });
++
++    test.each([
++        ['status_online', 'online'],
++        ['status_away', 'away'],
++        ['status_offline', 'offline'],
++    ] as Array<[PaletteCommandId, string]>)('%s sets the status to %s', async (id, status) => {
++        const {actions} = await run(id);
++        expect(actions).toEqual([{type: 'MOCK_SET_STATUS', status: {user_id: 'user1', status}}]);
++    });
++
++    test.each([
++        ['status_dnd_dont_clear', 0],
++        ['status_dnd_30_minutes', Date.parse('2026-11-12T10:30:00Z') / 1000],
++        ['status_dnd_1_hour', Date.parse('2026-11-12T11:00:00Z') / 1000],
++        ['status_dnd_2_hours', Date.parse('2026-11-12T12:00:00Z') / 1000],
++        ['status_dnd_tomorrow', Date.parse('2026-11-13T09:00:00Z') / 1000],
++    ] as Array<[PaletteCommandId, number]>)('%s sets do not disturb until %d', async (id, endTime) => {
++        const {actions} = await run(id);
++        expect(actions).toEqual([{type: 'MOCK_SET_STATUS', status: {user_id: 'user1', status: 'dnd', dnd_end_time: endTime}}]);
++    });
++
++    test('asks for confirmation before changing an out of office status', async () => {
++        const {actions} = await run('status_dnd_1_hour', makeState({status: 'ooo', autoResetPref: ''}));
++        expect(actions).toEqual([expect.objectContaining({type: ActionTypes.MODAL_OPEN, modalId: ModalIdentifiers.RESET_STATUS, dialogType: ResetStatusModal, dialogProps: {newStatus: 'dnd'}})]);
++    });
++
++    test.each([
++        ['status_dnd_custom', ModalIdentifiers.DND_CUSTOM_TIME_PICKER, DndCustomTimePicker],
++        ['custom_status_set', ModalIdentifiers.CUSTOM_STATUS, CustomStatusModal],
++    ] as Array<[PaletteCommandId, string, unknown]>)('%s opens the %s modal', async (id, modalId, dialogType) => {
++        const {actions} = await run(id);
++        expect(actions).toEqual([expect.objectContaining({type: ActionTypes.MODAL_OPEN, modalId, dialogType})]);
++    });
++
++    test.each([
++        ['open_settings', true],
++        ['open_profile', false],
++    ] as Array<[PaletteCommandId, boolean]>)('%s opens user settings', async (id, isContentProductSettings) => {
++        const {actions} = await run(id);
++        expect(actions).toEqual([expect.objectContaining({
++            type: ActionTypes.MODAL_OPEN,
++            modalId: ModalIdentifiers.USER_SETTINGS,
++            dialogType: UserSettingsModal,
++            dialogProps: {isContentProductSettings},
++        })]);
++    });
++
++    test('custom_status_clear clears the custom status', async () => {
++        const {actions} = await run('custom_status_clear');
++        expect(actions).toEqual([{type: 'MOCK_UNSET_CUSTOM_STATUS'}]);
++    });
++
++    test.each([
++        ['open_threads', '/myteam/threads'],
++        ['open_drafts', '/myteam/drafts'],
++        ['open_system_console', '/admin_console'],
++    ] as Array<[PaletteCommandId, string]>)('%s navigates to %s', async (id, path) => {
++        const {actions, result} = await run(id);
++        expect(actions).toEqual([]);
++        expect(result).toEqual({data: true});
++        expect(getHistory().push).toHaveBeenLastCalledWith(path);
++    });
++});
++
++describe('runPaletteSlashCommand', () => {
++    test('runs the command in the current channel', async () => {
++        const store = mockStore(makeState());
++        await store.dispatch(runPaletteSlashCommand('/away '));
++        expect(store.getActions()).toEqual([{type: 'MOCK_SUBMIT_COMMAND', channelId: 'channel1', rootId: '', message: '/away'}]);
++    });
++});
+diff --git a/webapp/channels/src/components/quick_switch_modal/command_palette/commands.ts b/webapp/channels/src/components/quick_switch_modal/command_palette/commands.ts
+new file mode 100644
+index 000000000000..8681421ab83a
+--- /dev/null
++++ b/webapp/channels/src/components/quick_switch_modal/command_palette/commands.ts
+@@ -0,0 +1,220 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++import type {Moment} from 'moment-timezone';
++import moment from 'moment-timezone';
++import {defineMessage} from 'react-intl';
++import type {MessageDescriptor} from 'react-intl';
++
++import {setStatus, unsetCustomStatus} from 'mattermost-redux/actions/users';
++import {Permissions, Preferences} from 'mattermost-redux/constants';
++import {getCurrentChannelId} from 'mattermost-redux/selectors/entities/channels';
++import {get as getPreference, isCollapsedThreadsEnabled} from 'mattermost-redux/selectors/entities/preferences';
++import {haveISystemPermission} from 'mattermost-redux/selectors/entities/roles_helpers';
++import {getCurrentRelativeTeamUrl} from 'mattermost-redux/selectors/entities/teams';
++import {getCurrentTimezone} from 'mattermost-redux/selectors/entities/timezone';
++import {getCurrentUserId, getStatusForUserId} from 'mattermost-redux/selectors/entities/users';
++
++import {submitCommand} from 'actions/views/create_comment';
++import {openModal} from 'actions/views/modals';
++import {isCustomStatusEnabled, isCustomStatusExpired, makeGetCustomStatus} from 'selectors/views/custom_status';
++
++import CustomStatusModal from 'components/custom_status/custom_status_modal';
++import DndCustomTimePicker from 'components/dnd_custom_time_picker_modal';
++import ResetStatusModal from 'components/reset_status_modal';
++import UserSettingsModal from 'components/user_settings/modal';
++
++import {getHistory} from 'utils/browser_history';
++import {ModalIdentifiers, UserStatuses} from 'utils/constants';
++import {getCurrentDateTimeForTimezone, getCurrentMomentForTimezone} from 'utils/timezone';
++
++import type {ActionFuncAsync, GlobalState} from 'types/store';
++
++export const SLASH_COMMAND_PREFIX = '>/';
++
++export type PaletteCommandId =
++    'status_online' |
++    'status_away' |
++    'status_dnd_dont_clear' |
++    'status_dnd_30_minutes' |
++    'status_dnd_1_hour' |
++    'status_dnd_2_hours' |
++    'status_dnd_tomorrow' |
++    'status_dnd_custom' |
++    'status_offline' |
++    'custom_status_set' |
++    'custom_status_clear' |
++    'open_settings' |
++    'open_profile' |
++    'open_threads' |
++    'open_drafts' |
++    'open_system_console' |
++    'slash_command';
++
++export type PaletteCommand = {
++    id: PaletteCommandId;
++    label: MessageDescriptor;
++    icon: string;
++    opensModal?: boolean;
++};
++
++const COMMANDS: PaletteCommand[] = [
++    {id: 'status_online', icon: 'icon-check-circle CommandPalette__online', label: defineMessage({id: 'command_palette.status_online', defaultMessage: 'Set status: Online'})},
++    {id: 'status_away', icon: 'icon-clock CommandPalette__away', label: defineMessage({id: 'command_palette.status_away', defaultMessage: 'Set status: Away'})},
++    {id: 'status_dnd_dont_clear', icon: 'icon-minus-circle CommandPalette__dnd', label: defineMessage({id: 'command_palette.status_dnd_dont_clear', defaultMessage: 'Set status: Do not disturb (don\'t clear)'})},
++    {id: 'status_dnd_30_minutes', icon: 'icon-minus-circle CommandPalette__dnd', label: defineMessage({id: 'command_palette.status_dnd_30_minutes', defaultMessage: 'Set status: Do not disturb for 30 mins'})},
++    {id: 'status_dnd_1_hour', icon: 'icon-minus-circle CommandPalette__dnd', label: defineMessage({id: 'command_palette.status_dnd_1_hour', defaultMessage: 'Set status: Do not disturb for 1 hour'})},
++    {id: 'status_dnd_2_hours', icon: 'icon-minus-circle CommandPalette__dnd', label: defineMessage({id: 'command_palette.status_dnd_2_hours', defaultMessage: 'Set status: Do not disturb for 2 hours'})},
++    {id: 'status_dnd_tomorrow', icon: 'icon-minus-circle CommandPalette__dnd', label: defineMessage({id: 'command_palette.status_dnd_tomorrow', defaultMessage: 'Set status: Do not disturb until tomorrow 9 AM'})},
++    {id: 'status_dnd_custom', opensModal: true, icon: 'icon-minus-circle CommandPalette__dnd', label: defineMessage({id: 'command_palette.status_dnd_custom', defaultMessage: 'Set status: Do not disturb until a custom time'})},
++    {id: 'status_offline', icon: 'icon-circle-outline', label: defineMessage({id: 'command_palette.status_offline', defaultMessage: 'Set status: Offline'})},
++    {id: 'custom_status_set', opensModal: true, icon: 'icon-emoticon-happy-outline', label: defineMessage({id: 'command_palette.custom_status_set', defaultMessage: 'Set custom status'})},
++    {id: 'custom_status_clear', icon: 'icon-close-circle', label: defineMessage({id: 'command_palette.custom_status_clear', defaultMessage: 'Clear custom status'})},
++    {id: 'open_settings', opensModal: true, icon: 'icon-cog-outline', label: defineMessage({id: 'command_palette.open_settings', defaultMessage: 'Open Settings'})},
++    {id: 'open_profile', opensModal: true, icon: 'icon-account-outline', label: defineMessage({id: 'command_palette.open_profile', defaultMessage: 'Open Profile'})},
++    {id: 'open_threads', icon: 'icon-message-text-outline', label: defineMessage({id: 'command_palette.open_threads', defaultMessage: 'Open Threads'})},
++    {id: 'open_drafts', icon: 'icon-pencil-outline', label: defineMessage({id: 'command_palette.open_drafts', defaultMessage: 'Open Drafts'})},
++    {id: 'open_system_console', icon: 'icon-application-cog', label: defineMessage({id: 'command_palette.open_system_console', defaultMessage: 'Open System Console'})},
++    {id: 'slash_command', icon: 'icon-slash-forward', label: defineMessage({id: 'command_palette.slash_command', defaultMessage: 'Run a slash command'})},
++];
++
++const getCustomStatus = makeGetCustomStatus();
++
++function hasCustomStatus(state: GlobalState) {
++    const customStatus = getCustomStatus(state);
++    return Boolean(customStatus && (customStatus.text || customStatus.emoji) && !isCustomStatusExpired(state, customStatus));
++}
++
++function canOpenSystemConsole(state: GlobalState) {
++    return Permissions.SYSCONSOLE_READ_PERMISSIONS.some((permission) => haveISystemPermission(state, {permission}));
++}
++
++export function listPaletteCommands(state: GlobalState): PaletteCommand[] {
++    return COMMANDS.filter(({id}) => {
++        switch (id) {
++        case 'custom_status_set':
++            return isCustomStatusEnabled(state);
++        case 'custom_status_clear':
++            return isCustomStatusEnabled(state) && hasCustomStatus(state);
++        case 'open_threads':
++            return isCollapsedThreadsEnabled(state);
++        case 'open_system_console':
++            return canOpenSystemConsole(state);
++        default:
++            return true;
++        }
++    });
++}
++
++const DND_END_TIMES: Partial<Record<PaletteCommandId, (now: Moment) => Moment>> = {
++    status_dnd_dont_clear: () => moment(0),
++    status_dnd_30_minutes: (now) => now.add(30, 'minutes'),
++    status_dnd_1_hour: (now) => now.add(1, 'hour'),
++    status_dnd_2_hours: (now) => now.add(2, 'hours'),
++    status_dnd_tomorrow: (now) => now.add(1, 'day').set({hour: 9, minute: 0, second: 0}),
++};
++
++const PLAIN_STATUSES: Partial<Record<PaletteCommandId, string>> = {
++    status_online: UserStatuses.ONLINE,
++    status_away: UserStatuses.AWAY,
++    status_offline: UserStatuses.OFFLINE,
++};
++
++function shouldConfirmStatusChange(state: GlobalState, userId: string) {
++    const autoResetPref = getPreference(state, Preferences.CATEGORY_AUTO_RESET_MANUAL_STATUS, userId, '');
++    return autoResetPref === '' && getStatusForUserId(state, userId) === UserStatuses.OUT_OF_OFFICE;
++}
++
++function openUserSettings(isContentProductSettings: boolean) {
++    return openModal({
++        modalId: ModalIdentifiers.USER_SETTINGS,
++        dialogType: UserSettingsModal,
++        dialogProps: {isContentProductSettings},
++    });
++}
++
++export function runPaletteCommand(id: PaletteCommandId): ActionFuncAsync<boolean> {
++    return async (dispatch, getState) => {
++        const state = getState();
++        const userId = getCurrentUserId(state);
++        const timezone = getCurrentTimezone(state);
++
++        const plainStatus = PLAIN_STATUSES[id];
++        const dndEndTime = DND_END_TIMES[id];
++        const isStatusCommand = Boolean(plainStatus || dndEndTime) || id === 'status_dnd_custom';
++        if (isStatusCommand && shouldConfirmStatusChange(state, userId)) {
++            dispatch(openModal({
++                modalId: ModalIdentifiers.RESET_STATUS,
++                dialogType: ResetStatusModal,
++                dialogProps: {newStatus: plainStatus ?? UserStatuses.DND},
++            }));
++            return {data: true};
++        }
++
++        if (plainStatus) {
++            dispatch(setStatus({user_id: userId, status: plainStatus}));
++            return {data: true};
++        }
++
++        if (dndEndTime) {
++            const endTime = dndEndTime(getCurrentMomentForTimezone(timezone));
++            dispatch(setStatus({user_id: userId, status: UserStatuses.DND, dnd_end_time: endTime.utc().unix()}));
++            return {data: true};
++        }
++
++        switch (id) {
++        case 'status_dnd_custom':
++            dispatch(openModal({
++                modalId: ModalIdentifiers.DND_CUSTOM_TIME_PICKER,
++                dialogType: DndCustomTimePicker,
++                dialogProps: {currentDate: timezone ? getCurrentDateTimeForTimezone(timezone) : new Date()},
++            }));
++            break;
++        case 'custom_status_set':
++            dispatch(openModal({modalId: ModalIdentifiers.CUSTOM_STATUS, dialogType: CustomStatusModal}));
++            break;
++        case 'custom_status_clear':
++            dispatch(unsetCustomStatus());
++            break;
++        case 'open_settings':
++            dispatch(openUserSettings(true));
++            break;
++        case 'open_profile':
++            dispatch(openUserSettings(false));
++            break;
++        case 'open_threads':
++            getHistory().push(`${getCurrentRelativeTeamUrl(state)}/threads`);
++            break;
++        case 'open_drafts':
++            getHistory().push(`${getCurrentRelativeTeamUrl(state)}/drafts`);
++            break;
++        case 'open_system_console':
++            getHistory().push('/admin_console');
++            break;
++        default:
++            return {data: false};
++        }
++
++        return {data: true};
++    };
++}
++
++export function runPaletteSlashCommand(message: string): ActionFuncAsync {
++    return async (dispatch, getState) => {
++        const channelId = getCurrentChannelId(getState());
++        const now = Date.now();
++        try {
++            return await dispatch(submitCommand(channelId, '', {
++                message: message.trim(),
++                fileInfos: [],
++                uploadsInProgress: [],
++                channelId,
++                rootId: '',
++                createAt: now,
++                updateAt: now,
++            }));
++        } catch (error) {
++            return {error};
++        }
++    };
++}
+diff --git a/webapp/channels/src/components/quick_switch_modal/index.tsx b/webapp/channels/src/components/quick_switch_modal/index.tsx
+index 9afca0590ee2..19f678449203 100644
+--- a/webapp/channels/src/components/quick_switch_modal/index.tsx
++++ b/webapp/channels/src/components/quick_switch_modal/index.tsx
+@@ -21,6 +21,7 @@ import {ModalIdentifiers} from 'utils/constants';
+ 
+ import type {GlobalState} from 'types/store';
+ 
++import {runPaletteCommand, runPaletteSlashCommand} from './command_palette/commands';
+ import QuickSwitchModal from './quick_switch_modal';
+ 
+ function mapStateToProps(state: GlobalState) {
+@@ -37,6 +38,8 @@ function mapDispatchToProps(dispatch: Dispatch) {
+         switchToChannel,
+         closeRightHandSide,
+         withdrawJoinRequest: withdrawMyChannelJoinRequest,
++        runPaletteCommand,
++        runPaletteSlashCommand,
+     }, dispatch);
+ 
+     return {
+diff --git a/webapp/channels/src/components/quick_switch_modal/quick_switch_modal.test.tsx b/webapp/channels/src/components/quick_switch_modal/quick_switch_modal.test.tsx
+index 4389f6c31b8b..d09aac76d302 100644
+--- a/webapp/channels/src/components/quick_switch_modal/quick_switch_modal.test.tsx
++++ b/webapp/channels/src/components/quick_switch_modal/quick_switch_modal.test.tsx
+@@ -4,12 +4,20 @@
+ import React from 'react';
+ import {IntlProvider, injectIntl} from 'react-intl';
+ 
++import {CollapsedThreads} from '@mattermost/types/config';
++import type {AutocompleteSuggestion} from '@mattermost/types/integrations';
++
++import {Client4} from 'mattermost-redux/client';
++import {Permissions} from 'mattermost-redux/constants';
++
+ import QuickSwitchModal, {QuickSwitchModal as QuickSwitchModalClass} from 'components/quick_switch_modal/quick_switch_modal';
+ import ChannelNavigator from 'components/sidebar/channel_navigator/channel_navigator';
+ 
+-import {renderWithContext, screen, userEvent} from 'tests/react_testing_utils';
++import {renderWithContext, screen, userEvent, waitFor} from 'tests/react_testing_utils';
+ import Constants from 'utils/constants';
+ 
++import CommandPaletteProvider from './command_palette/command_palette_provider';
++
+ // Wrap the class component with injectIntl + forwardRef so refs work
+ const QuickSwitchModalWithRef = injectIntl(QuickSwitchModalClass, {forwardRef: true});
+ 
+@@ -30,6 +38,8 @@ describe('components/QuickSwitchModal', () => {
+             closeRightHandSide: jest.fn(),
+             openRequestJoinModal: jest.fn(),
+             withdrawJoinRequest: jest.fn().mockResolvedValue({data: true}),
++            runPaletteCommand: jest.fn().mockResolvedValue({data: true}),
++            runPaletteSlashCommand: jest.fn().mockResolvedValue({data: {}}),
+         },
+     };
+ 
+@@ -286,4 +296,169 @@ describe('components/QuickSwitchModal', () => {
+             expect(screen.getByTestId('SidebarChannelNavigatorButton')).toHaveFocus();
+         });
+     });
++
++    describe('command palette', () => {
++        const paletteState = (roles = 'system_user') => ({
++            entities: {
++                general: {config: {CollapsedThreads: CollapsedThreads.ALWAYS_ON, EnableCustomUserStatuses: 'true'}},
++                users: {currentUserId: 'user1', profiles: {user1: {id: 'user1', roles}}},
++                roles: {
++                    roles: {
++                        system_user: {name: 'system_user', permissions: []},
++                        system_admin: {name: 'system_admin', permissions: [Permissions.SYSCONSOLE_READ_PERMISSIONS[0]]},
++                    },
++                },
++                teams: {currentTeamId: 'team1'},
++                channels: {currentChannelId: 'channel1'},
++            },
++        });
++
++        const renderPalette = (roles?: string) => {
++            const props = {
++                ...baseProps,
++                onExited: jest.fn(),
++                actions: {
++                    ...baseProps.actions,
++                    runPaletteCommand: jest.fn().mockResolvedValue({data: true}),
++                    runPaletteSlashCommand: jest.fn().mockResolvedValue({data: {}}),
++                },
++            };
++            renderWithContext(<QuickSwitchModal {...props}/>, paletteState(roles));
++            return props;
++        };
++
++        const slashSuggestion = (complete: string, description = ''): AutocompleteSuggestion => ({
++            Suggestion: complete,
++            Complete: complete,
++            Hint: '',
++            Description: description,
++            IconData: '',
++        });
++
++        let getCommandSuggestions: jest.SpyInstance;
++        let getAllTeamsChannels: jest.SpyInstance;
++        beforeEach(() => {
++            getCommandSuggestions = jest.spyOn(Client4, 'getCommandAutocompleteSuggestionsList');
++            getAllTeamsChannels = jest.spyOn(Client4, 'getAllTeamsChannels').mockResolvedValue([]);
++        });
++
++        afterEach(() => {
++            getCommandSuggestions.mockRestore();
++            getAllTeamsChannels.mockRestore();
++        });
++
++        it('leaves text without the > prefix to the channel switcher', () => {
++            const callback = jest.fn();
++            expect(new CommandPaletteProvider().handlePretextChanged('set status', callback)).toBe(false);
++            expect(callback).not.toHaveBeenCalled();
++        });
++
++        it('shows the commands hint until the user types', async () => {
++            renderPalette();
++
++            expect(screen.getByText('for commands', {exact: false})).toHaveTextContent('Type > for commands');
++
++            await userEvent.type(screen.getByRole('combobox'), '>');
++
++            expect(screen.queryByText('for commands', {exact: false})).not.toBeInTheDocument();
++            expect(screen.getByText('Type to find a command.', {exact: false})).toBeVisible();
++        });
++
++        it('switches to commands when the text starts with >', async () => {
++            renderPalette();
++
++            await userEvent.type(screen.getByRole('combobox'), '>');
++
++            expect(await screen.findByRole('option', {name: 'Set status: Online'})).toBeVisible();
++            expect(screen.getByRole('option', {name: 'Set status: Do not disturb for 1 hour'})).toBeVisible();
++            expect(screen.getByRole('option', {name: 'Set custom status'})).toBeVisible();
++            expect(screen.getByRole('option', {name: 'Open Settings'})).toBeVisible();
++            expect(screen.getByRole('option', {name: 'Open Profile'})).toBeVisible();
++            expect(screen.getByRole('option', {name: 'Open Threads'})).toBeVisible();
++            expect(screen.getByRole('option', {name: 'Open Drafts'})).toBeVisible();
++            expect(screen.getByRole('option', {name: 'Run a slash command'})).toBeVisible();
++            expect(screen.queryByRole('option', {name: 'Threads'})).not.toBeInTheDocument();
++        });
++
++        it('filters commands by every typed word', async () => {
++            renderPalette();
++
++            await userEvent.type(screen.getByRole('combobox'), '>disturb 30');
++
++            await waitFor(() => expect(screen.getAllByRole('option')).toHaveLength(1));
++            expect(screen.getByRole('option', {name: 'Set status: Do not disturb for 30 mins'})).toBeVisible();
++        });
++
++        it('shows the System Console command to admins only', async () => {
++            renderPalette();
++            await userEvent.type(screen.getByRole('combobox'), '>open');
++            expect(await screen.findByRole('option', {name: 'Open Drafts'})).toBeVisible();
++            expect(screen.queryByRole('option', {name: 'Open System Console'})).not.toBeInTheDocument();
++        });
++
++        it('shows the System Console command to admins', async () => {
++            renderPalette('system_user system_admin');
++            await userEvent.type(screen.getByRole('combobox'), '>open');
++            expect(await screen.findByRole('option', {name: 'Open System Console'})).toBeVisible();
++        });
++
++        it('runs the selected command and closes', async () => {
++            const props = renderPalette();
++
++            await userEvent.type(screen.getByRole('combobox'), '>away');
++            await screen.findByRole('option', {name: 'Set status: Away'});
++            await userEvent.keyboard('{enter}');
++
++            expect(props.actions.runPaletteCommand).toHaveBeenCalledWith('status_away');
++            expect(props.onExited).toHaveBeenCalled();
++            expect(props.actions.switchToChannel).not.toHaveBeenCalled();
++        });
++
++        it('lists slash commands from the run a slash command item and runs one with enter', async () => {
++            getCommandSuggestions.mockImplementation((command: string) => Promise.resolve(command === '/' ? [slashSuggestion('away', 'Set your status away')] : []));
++            const props = renderPalette();
++
++            await userEvent.type(screen.getByRole('combobox'), '>slash');
++            await screen.findByRole('option', {name: 'Run a slash command'});
++            await userEvent.keyboard('{enter}');
++
++            await waitFor(() => expect(screen.getByRole('combobox')).toHaveValue('>/'));
++            expect(await screen.findByText('Set your status away')).toBeVisible();
++            expect(getCommandSuggestions).toHaveBeenCalledWith('/', 'team1', {team_id: 'team1', channel_id: 'channel1', root_id: undefined});
++
++            await userEvent.keyboard('{enter}');
++            await waitFor(() => expect(screen.getByRole('combobox')).toHaveValue('>/away '));
++            await waitFor(() => expect(screen.queryByText('Set your status away')).not.toBeInTheDocument());
++            expect(props.actions.runPaletteSlashCommand).not.toHaveBeenCalled();
++
++            await userEvent.keyboard('{enter}');
++            expect(props.actions.runPaletteSlashCommand).toHaveBeenCalledWith('/away ');
++            await waitFor(() => expect(props.onExited).toHaveBeenCalled());
++        });
++
++        it('runs a slash command from the execute item', async () => {
++            getCommandSuggestions.mockResolvedValue([{...slashSuggestion('echo hello'), Suggestion: ''}]);
++            const props = renderPalette();
++
++            await userEvent.type(screen.getByRole('combobox'), '>/echo hello ');
++            expect(await screen.findByText('Execute Current Command', {exact: false})).toBeVisible();
++            await userEvent.keyboard('{enter}');
++
++            expect(props.actions.runPaletteSlashCommand).toHaveBeenCalledWith('/echo hello ');
++            expect(props.actions.runPaletteSlashCommand).toHaveBeenCalledTimes(1);
++        });
++
++        it('keeps the palette open and shows the error when a slash command fails', async () => {
++            getCommandSuggestions.mockResolvedValue([]);
++            const props = renderPalette();
++            props.actions.runPaletteSlashCommand.mockResolvedValue({error: {message: 'Command with a trigger of \'nope\' not found.'}});
++
++            await userEvent.type(screen.getByRole('combobox'), '>/nope');
++            await waitFor(() => expect(getCommandSuggestions).toHaveBeenCalledWith('/nope', 'team1', expect.anything()));
++            await userEvent.keyboard('{enter}');
++
++            expect(await screen.findByRole('alert')).toHaveTextContent('Command with a trigger of \'nope\' not found.');
++            expect(props.onExited).not.toHaveBeenCalled();
++        });
++    });
+ });
+diff --git a/webapp/channels/src/components/quick_switch_modal/quick_switch_modal.tsx b/webapp/channels/src/components/quick_switch_modal/quick_switch_modal.tsx
+index 3d6423a11a0c..0bbb2f7c5de1 100644
+--- a/webapp/channels/src/components/quick_switch_modal/quick_switch_modal.tsx
++++ b/webapp/channels/src/components/quick_switch_modal/quick_switch_modal.tsx
+@@ -13,6 +13,7 @@ import type {ActionResult} from 'mattermost-redux/types/actions';
+ 
+ import NoResultsIndicator from 'components/no_results_indicator/no_results_indicator';
+ import {NoResultsVariant} from 'components/no_results_indicator/types';
++import type Provider from 'components/suggestion/provider';
+ import SuggestionBox from 'components/suggestion/suggestion_box';
+ import type SuggestionBoxComponent from 'components/suggestion/suggestion_box/suggestion_box';
+ import type {SuggestionBoxElement} from 'components/suggestion/suggestion_box/suggestion_box';
+@@ -23,10 +24,15 @@ import SwitchChannelProvider from 'components/suggestion/switch_channel_provider
+ import {focusElement} from 'utils/a11y_utils';
+ import {getHistory} from 'utils/browser_history';
+ import Constants, {RHSStates} from 'utils/constants';
++import {cmdOrCtrlPressed, isKeyPressed} from 'utils/keyboard';
+ import * as Utils from 'utils/utils';
+ 
+ import type {RhsState} from 'types/store/rhs';
+ 
++import CommandPaletteProvider, {getSlashCommandToRun, isPaletteCommandItem, isSlashCommandSuggestion, PALETTE_PREFIX} from './command_palette/command_palette_provider';
++import {SLASH_COMMAND_PREFIX} from './command_palette/commands';
++import type {PaletteCommand, PaletteCommandId} from './command_palette/commands';
++
+ const CHANNEL_MODE = 'channel';
+ 
+ export type Props = WrappedComponentProps & {
+@@ -42,6 +48,8 @@ export type Props = WrappedComponentProps & {
+         closeRightHandSide: () => void;
+         openRequestJoinModal: (channel: Channel) => void;
+         withdrawJoinRequest: (channelId: string) => Promise<ActionResult>;
++        runPaletteCommand: (id: PaletteCommandId) => Promise<ActionResult<boolean>>;
++        runPaletteSlashCommand: (message: string) => Promise<ActionResult>;
+     };
+     focusOriginElement: string;
+ };
+@@ -52,16 +60,17 @@ type State = {
+     hasSuggestions: boolean;
+     shouldShowLoadingSpinner: boolean;
+     pretext: string;
++    paletteError?: string;
+ };
+ 
+ export class QuickSwitchModal extends React.PureComponent<Props, State> {
+-    private channelProviders: SwitchChannelProvider[];
++    private providers: Provider[];
+     private switchBox: SuggestionBoxComponent | null;
+ 
+     constructor(props: Props) {
+         super(props);
+ 
+-        this.channelProviders = [new SwitchChannelProvider()];
++        this.providers = [new CommandPaletteProvider(), new SwitchChannelProvider()];
+         this.switchBox = null;
+ 
+         this.state = {
+@@ -114,7 +123,42 @@ export class QuickSwitchModal extends React.PureComponent<Props, State> {
+     };
+ 
+     private onChange = (e: React.ChangeEvent<SuggestionBoxElement>): void => {
+-        this.setState({text: e.target.value, shouldShowLoadingSpinner: true});
++        this.setState({text: e.target.value, shouldShowLoadingSpinner: true, paletteError: undefined});
++    };
++
++    private handleKeyDown = (e: React.KeyboardEvent<SuggestionBoxElement>): void => {
++        const {text} = this.state;
++        if (!isKeyPressed(e, Constants.KeyCodes.ENTER) || !text.startsWith(SLASH_COMMAND_PREFIX) || text.length <= SLASH_COMMAND_PREFIX.length) {
++            return;
++        }
++
++        if (cmdOrCtrlPressed(e) || !this.switchBox?.hasSuggestions()) {
++            e.preventDefault();
++            this.runSlashCommand(text.substring(PALETTE_PREFIX.length));
++        }
++    };
++
++    private runSlashCommand = async (message: string): Promise<void> => {
++        const result = await this.props.actions.runPaletteSlashCommand(message);
++        if (result.error) {
++            this.setState({paletteError: result.error.message});
++            return;
++        }
++        this.hideOnSelect();
++    };
++
++    private runPaletteCommand = (command: PaletteCommand): void => {
++        if (command.id === 'slash_command') {
++            this.setState({text: SLASH_COMMAND_PREFIX});
++            return;
++        }
++
++        if (command.opensModal) {
++            this.props.onExited();
++        } else {
++            this.hideOnSelect();
++        }
++        this.props.actions.runPaletteCommand(command.id);
+     };
+ 
+     public handleSubmit = async (selected?: any): Promise<void> => {
+@@ -122,6 +166,19 @@ export class QuickSwitchModal extends React.PureComponent<Props, State> {
+             return;
+         }
+ 
++        if (isPaletteCommandItem(selected)) {
++            this.runPaletteCommand(selected.paletteCommand);
++            return;
++        }
++
++        if (isSlashCommandSuggestion(selected)) {
++            const message = getSlashCommandToRun(selected);
++            if (message) {
++                this.runSlashCommand(message);
++            }
++            return;
++        }
++
+         if (this.props.rhsOpen && this.props.rhsState === RHSStates.EDIT_HISTORY) {
+             this.props.actions.closeRightHandSide();
+         }
+@@ -172,7 +229,7 @@ export class QuickSwitchModal extends React.PureComponent<Props, State> {
+     };
+ 
+     public render = (): JSX.Element => {
+-        const providers: SwitchChannelProvider[] = this.channelProviders;
++        const isPaletteMode = this.state.text.startsWith(PALETTE_PREFIX);
+ 
+         const header = (
+             <h2 id='quickSwitchHeader'>
+@@ -184,7 +241,17 @@ export class QuickSwitchModal extends React.PureComponent<Props, State> {
+         );
+ 
+         let help: React.ReactNode;
+-        if (this.props.isMobileView) {
++        if (isPaletteMode) {
++            help = (
++                <FormattedMessage
++                    id='quick_switch_modal.help_commands'
++                    defaultMessage='Type to find a command. Use <b>UP/DOWN</b> to browse, <b>ENTER</b> to run, <b>ESC</b> to dismiss.'
++                    values={{
++                        b: (chunks) => <b>{chunks}</b>,
++                    }}
++                />
++            );
++        } else if (this.props.isMobileView) {
+             help = (
+                 <FormattedMessage
+                     id='quick_switch_modal.help_mobile'
+@@ -215,6 +282,17 @@ export class QuickSwitchModal extends React.PureComponent<Props, State> {
+                 id='quickSwitchHint'
+             >
+                 {help}
++                {!this.state.text && (
++                    <div className='CommandPalette__hint'>
++                        <FormattedMessage
++                            id='quick_switch_modal.commands_hint'
++                            defaultMessage='Type <b>></b> for commands'
++                            values={{
++                                b: (chunks) => <b>{chunks}</b>,
++                            }}
++                        />
++                    </div>
++                )}
+             </div>
+         );
+ 
+@@ -244,17 +322,26 @@ export class QuickSwitchModal extends React.PureComponent<Props, State> {
+                         onChange={this.onChange}
+                         value={this.state.text}
+                         onItemSelected={this.handleSubmit}
++                        onKeyDown={this.handleKeyDown}
+                         listComponent={SuggestionList}
+                         listPosition='bottom'
+-                        maxLength={64}
+-                        providers={providers}
++                        maxLength={isPaletteMode ? undefined : 64}
++                        providers={this.providers}
+                         completeOnTab={false}
+                         spellCheck='false'
+                         openWhenEmpty={true}
+                         onSuggestionsReceived={this.handleSuggestionsReceived}
+                         forceSuggestionsWhenBlur={true}
+-                        shouldSearchCompleteText={true}
++                        shouldSearchCompleteText={!isPaletteMode}
+                     />
++                    {this.state.paletteError && (
++                        <div
++                            className='CommandPalette__error'
++                            role='alert'
++                        >
++                            {this.state.paletteError}
++                        </div>
++                    )}
+                     {
+                         !this.state.shouldShowLoadingSpinner &&
+                         !this.state.hasSuggestions &&
+diff --git a/webapp/channels/src/i18n/en.json b/webapp/channels/src/i18n/en.json
+index 9a30cbfa9c8e..f4462cf7e20a 100644
+--- a/webapp/channels/src/i18n/en.json
++++ b/webapp/channels/src/i18n/en.json
+@@ -20899,6 +20899,74 @@
+     "defaultMessage": "You",
+     "description": "Pronoun substituted for the current user's own username inside combined join/leave system messages (e.g. 'You joined the channel'); subject position."
+   },
++  "command_palette.custom_status_clear": {
++    "defaultMessage": "Clear custom status",
++    "description": "Command palette entry that removes the user's current custom status."
++  },
++  "command_palette.custom_status_set": {
++    "defaultMessage": "Set custom status",
++    "description": "Command palette entry that opens the custom status dialog (emoji and text shown next to the user's name)."
++  },
++  "command_palette.open_drafts": {
++    "defaultMessage": "Open Drafts",
++    "description": "Command palette entry that opens the Drafts view."
++  },
++  "command_palette.open_profile": {
++    "defaultMessage": "Open Profile",
++    "description": "Command palette entry that opens the user's Profile dialog."
++  },
++  "command_palette.open_settings": {
++    "defaultMessage": "Open Settings",
++    "description": "Command palette entry that opens the user's Settings dialog."
++  },
++  "command_palette.open_system_console": {
++    "defaultMessage": "Open System Console",
++    "description": "Command palette entry, shown to admins only, that opens the System Console."
++  },
++  "command_palette.open_threads": {
++    "defaultMessage": "Open Threads",
++    "description": "Command palette entry that opens the Threads view listing followed threads."
++  },
++  "command_palette.slash_command": {
++    "defaultMessage": "Run a slash command",
++    "description": "Command palette entry that switches the palette to listing slash commands, such as /away, for the current channel."
++  },
++  "command_palette.status_away": {
++    "defaultMessage": "Set status: Away",
++    "description": "Command palette entry that sets the user's availability to Away."
++  },
++  "command_palette.status_dnd_1_hour": {
++    "defaultMessage": "Set status: Do not disturb for 1 hour",
++    "description": "Command palette entry that turns on Do not disturb for 1 hour."
++  },
++  "command_palette.status_dnd_2_hours": {
++    "defaultMessage": "Set status: Do not disturb for 2 hours",
++    "description": "Command palette entry that turns on Do not disturb for 2 hours."
++  },
++  "command_palette.status_dnd_30_minutes": {
++    "defaultMessage": "Set status: Do not disturb for 30 mins",
++    "description": "Command palette entry that turns on Do not disturb for 30 minutes."
++  },
++  "command_palette.status_dnd_custom": {
++    "defaultMessage": "Set status: Do not disturb until a custom time",
++    "description": "Command palette entry that opens the date and time picker for a custom Do not disturb end time."
++  },
++  "command_palette.status_dnd_dont_clear": {
++    "defaultMessage": "Set status: Do not disturb (don't clear)",
++    "description": "Command palette entry that turns on Do not disturb with no end time."
++  },
++  "command_palette.status_dnd_tomorrow": {
++    "defaultMessage": "Set status: Do not disturb until tomorrow 9 AM",
++    "description": "Command palette entry that turns on Do not disturb until 9 AM tomorrow in the user's timezone."
++  },
++  "command_palette.status_offline": {
++    "defaultMessage": "Set status: Offline",
++    "description": "Command palette entry that sets the user's availability to Offline."
++  },
++  "command_palette.status_online": {
++    "defaultMessage": "Set status: Online",
++    "description": "Command palette entry (Ctrl/Cmd+K then >) that sets the user's availability to Online."
++  },
+   "commercial_support_modal.description": {
+     "defaultMessage": "If you're experiencing issues, <supportLink>submit a support ticket</supportLink>. To help with troubleshooting, it's recommended to download the Support Packet below that includes more details about your Mattermost environment.",
+     "description": "Intro paragraph of the Commercial Support modal; <supportLink> tags wrap the clickable phrase that opens the support ticket site."
+@@ -27655,6 +27723,14 @@
+     "defaultMessage": "Quarantined messages will be sent to Content Reviewers for review.",
+     "description": "Explanatory subtitle of the quarantine message modal; 'Content Reviewers' is a moderation role."
+   },
++  "quick_switch_modal.commands_hint": {
++    "defaultMessage": "Type <b>></b> for commands",
++    "description": "Hint in the channel switcher (Ctrl/Cmd+K) before the user types, telling them that typing the > character switches to the command palette."
++  },
++  "quick_switch_modal.help_commands": {
++    "defaultMessage": "Type to find a command. Use <b>UP/DOWN</b> to browse, <b>ENTER</b> to run, <b>ESC</b> to dismiss.",
++    "description": "Help text under the title of the channel switcher (Ctrl/Cmd+K) once the user has typed > to search commands instead of channels."
++  },
+   "quick_switch_modal.help_mobile": {
+     "defaultMessage": "Type to find a channel.",
+     "description": "Help text under the search box in the channel switcher modal on mobile-width screens, where keyboard shortcuts don't apply."

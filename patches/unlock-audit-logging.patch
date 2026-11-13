@@ -1,0 +1,753 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Karan Sharma <hello@mrkaran.dev>
+Date: Fri, 13 Nov 2026 01:17:20 +0530
+Subject: [PATCH] feat: audit logging and advanced logging targets without a
+ license
+
+Mattermax-Patch: unlock-audit-logging.patch
+---
+ server/channels/app/audit.go                  |  20 +--
+ server/channels/app/audit_test.go             |  48 +++++
+ .../channels/app/delivery_tracking_config.go  |   6 +-
+ server/channels/app/platform/log.go           |  18 --
+ server/channels/app/server.go                 |  10 +-
+ server/config/client.go                       |   2 +-
+ server/config/client_test.go                  |  21 +--
+ server/config/logger.go                       |  14 +-
+ server/config/logger_test.go                  | 164 +++++++-----------
+ .../admin_console/admin_definition.tsx        |   1 -
+ .../__snapshots__/admin_sidebar.test.tsx.snap | 133 ++++++++++++++
+ .../src/selectors/admin_console.test.tsx      |  13 ++
+ 12 files changed, 278 insertions(+), 172 deletions(-)
+ create mode 100644 server/channels/app/audit_test.go
+
+diff --git a/server/channels/app/audit.go b/server/channels/app/audit.go
+index d8b0755f28d6..a6d704281bb8 100644
+--- a/server/channels/app/audit.go
++++ b/server/channels/app/audit.go
+@@ -126,23 +126,21 @@ func (a *App) MakeAuditRecord(rctx request.CTX, event string, initialStatus stri
+ 	return rec
+ }
+ 
+-func (s *Server) configureAudit(adt *audit.Audit, bAllowAdvancedLogging bool) error {
++func (s *Server) configureAudit(adt *audit.Audit) error {
+ 	adt.OnQueueFull = s.onAuditTargetQueueFull
+ 	adt.OnError = s.onAuditError
+ 
+ 	var logConfigSrc config.LogConfigSrc
+ 	dsn := s.platform.Config().ExperimentalAuditSettings.GetAdvancedLoggingConfig()
+-	if bAllowAdvancedLogging {
+-		if !utils.IsEmptyJSON(dsn) {
+-			var err error
+-			logConfigSrc, err = config.NewLogConfigSrc(dsn, s.platform.GetConfigStore())
+-			if err != nil {
+-				return fmt.Errorf("invalid config source for audit, %w", err)
+-			}
+-			s.Log().Debug("Loaded audit configuration", mlog.String("source", dsn))
+-		} else {
+-			s.Log().Debug("Advanced logging config not provided for audit")
++	if !utils.IsEmptyJSON(dsn) {
++		var err error
++		logConfigSrc, err = config.NewLogConfigSrc(dsn, s.platform.GetConfigStore())
++		if err != nil {
++			return fmt.Errorf("invalid config source for audit, %w", err)
+ 		}
++		s.Log().Debug("Loaded audit configuration", mlog.String("source", dsn))
++	} else {
++		s.Log().Debug("Advanced logging config not provided for audit")
+ 	}
+ 
+ 	// ExperimentalAuditSettings provides basic file audit (E0, E10); logConfigSrc provides advanced config (E20).
+diff --git a/server/channels/app/audit_test.go b/server/channels/app/audit_test.go
+new file mode 100644
+index 000000000000..ecec5d25f58d
+--- /dev/null
++++ b/server/channels/app/audit_test.go
+@@ -0,0 +1,48 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++package app
++
++import (
++	"encoding/json"
++	"fmt"
++	"os"
++	"path/filepath"
++	"testing"
++
++	"github.com/stretchr/testify/assert"
++	"github.com/stretchr/testify/require"
++
++	"github.com/mattermost/mattermost/server/public/model"
++	"github.com/mattermost/mattermost/server/public/shared/mlog"
++	"github.com/mattermost/mattermost/server/v8/channels/audit"
++)
++
++func TestConfigureAuditWithoutLicense(t *testing.T) {
++	mainHelper.Parallel(t)
++	th := Setup(t)
++	require.Nil(t, th.App.Srv().License())
++
++	dir := t.TempDir()
++	filePath := filepath.Join(dir, "audit.log")
++	advancedPath := filepath.Join(dir, "advanced-audit.log")
++	th.App.UpdateConfig(func(cfg *model.Config) {
++		*cfg.ExperimentalAuditSettings.FileEnabled = true
++		*cfg.ExperimentalAuditSettings.FileName = filePath
++		cfg.ExperimentalAuditSettings.AdvancedLoggingJSON = json.RawMessage(fmt.Sprintf(`{"advanced":{"type":"file","format":"json","levels":[{"id":100,"name":"audit-api"}],"options":{"filename":%q}}}`, advancedPath))
++	})
++
++	adt := &audit.Audit{}
++	adt.Init(audit.DefMaxQueueSize)
++	defer adt.Shutdown()
++	require.NoError(t, th.App.Srv().configureAudit(adt))
++
++	adt.LogRecord(mlog.LvlAuditAPI, model.AuditRecord{EventName: "unlicensedAuditEvent", Status: model.AuditStatusSuccess})
++	require.NoError(t, adt.Flush())
++
++	for _, path := range []string{filePath, advancedPath} {
++		data, err := os.ReadFile(path)
++		require.NoError(t, err, path)
++		assert.Contains(t, string(data), "unlicensedAuditEvent", path)
++	}
++}
+diff --git a/server/channels/app/delivery_tracking_config.go b/server/channels/app/delivery_tracking_config.go
+index 7956a1ec48cb..f44de16787db 100644
+--- a/server/channels/app/delivery_tracking_config.go
++++ b/server/channels/app/delivery_tracking_config.go
+@@ -85,11 +85,7 @@ func (s *Server) warnIfDeliveryAuditTargetMissing(cfg *model.Config) {
+ 		return
+ 	}
+ 
+-	license := s.License()
+-	allowAdvancedLogging := license != nil && license.Features != nil &&
+-		license.Features.AdvancedLogging != nil && *license.Features.AdvancedLogging
+-
+-	if config.IsAuditLevelActive(cfg.ExperimentalAuditSettings, allowAdvancedLogging, mlog.LvlAuditDelivery) {
++	if config.IsAuditLevelActive(cfg.ExperimentalAuditSettings, mlog.LvlAuditDelivery) {
+ 		return
+ 	}
+ 
+diff --git a/server/channels/app/platform/log.go b/server/channels/app/platform/log.go
+index 755475bf86ce..fe8efed4295a 100644
+--- a/server/channels/app/platform/log.go
++++ b/server/channels/app/platform/log.go
+@@ -4,7 +4,6 @@
+ package platform
+ 
+ import (
+-	"context"
+ 	"encoding/json"
+ 	"io"
+ 	"net/http"
+@@ -100,23 +99,6 @@ func (ps *PlatformService) EnableLoggingMetrics() {
+ 	mlog.Debug("Logging metrics enabled")
+ }
+ 
+-// RemoveUnlicensedLogTargets removes any unlicensed log target types.
+-func (ps *PlatformService) RemoveUnlicensedLogTargets(license *model.License) {
+-	if license != nil && *license.Features.AdvancedLogging {
+-		// advanced logging enabled via license; no need to remove any targets
+-		return
+-	}
+-
+-	timeoutCtx, cancelCtx := context.WithTimeout(context.Background(), time.Second*10)
+-	defer cancelCtx()
+-
+-	if err := ps.logger.RemoveTargets(timeoutCtx, func(ti mlog.TargetInfo) bool {
+-		return ti.Type != "*targets.Writer" && ti.Type != "*targets.File"
+-	}); err != nil {
+-		mlog.Error("Failed to remove log targets", mlog.Err(err))
+-	}
+-}
+-
+ func (ps *PlatformService) GetLogsSkipSend(rctx request.CTX, page, perPage int, logFilter *model.LogFilter) ([]string, *model.AppError) {
+ 	var lines []string
+ 
+diff --git a/server/channels/app/server.go b/server/channels/app/server.go
+index c6c9e5e912b0..b2d42aab04c7 100644
+--- a/server/channels/app/server.go
++++ b/server/channels/app/server.go
+@@ -537,20 +537,17 @@ func NewServer(options ...Option) (*Server, error) {
+ 	mlog.Info("Printing current working", mlog.String("directory", pwd))
+ 	mlog.Info("Loaded config", mlog.String("source", s.platform.DescribeConfig()))
+ 
+-	license := s.License()
+-	allowAdvancedLogging := license != nil && *license.Features.AdvancedLogging
+-
+ 	if s.Audit == nil {
+ 		s.Audit = &audit.Audit{}
+ 		s.Audit.Init(audit.DefMaxQueueSize)
+-		if err = s.configureAudit(s.Audit, allowAdvancedLogging); err != nil {
++		if err = s.configureAudit(s.Audit); err != nil {
+ 			mlog.Error("Error configuring audit", mlog.Err(err))
+ 		}
+ 	}
+ 
+ 	if cfg := s.platform.Config(); cfg.AccessControlSettings.EnableAccessControlAuditLogging != nil &&
+ 		*cfg.AccessControlSettings.EnableAccessControlAuditLogging &&
+-		!config.IsAuditLoggingActive(cfg.ExperimentalAuditSettings, allowAdvancedLogging) {
++		!config.IsAuditLoggingActive(cfg.ExperimentalAuditSettings) {
+ 		mlog.Warn("AccessControlSettings.EnableAccessControlAuditLogging is enabled but no active audit log target is configured; ABAC policy-decision audit logging will have no effect. Enable ExperimentalAuditSettings.FileEnabled or configure an advanced audit logging target bound to an audit level.")
+ 	}
+ 
+@@ -562,13 +559,10 @@ func NewServer(options ...Option) (*Server, error) {
+ 		s.warnIfDeliveryAuditTargetMissing(newCfg)
+ 	})
+ 
+-	s.platform.RemoveUnlicensedLogTargets(license)
+ 	s.platform.EnableLoggingMetrics()
+ 
+ 	s.loggerLicenseListenerId = s.AddLicenseListener(func(oldLicense, newLicense *model.License) {
+-		s.platform.RemoveUnlicensedLogTargets(newLicense)
+ 		s.platform.EnableLoggingMetrics()
+-		s.warnIfDeliveryAuditTargetMissing(s.platform.Config())
+ 	})
+ 
+ 	// Keep the push notification server in sync with the license's HPNS entitlement, and let a
+diff --git a/server/config/client.go b/server/config/client.go
+index 500ccd95f4e3..433af76e802e 100644
+--- a/server/config/client.go
++++ b/server/config/client.go
+@@ -167,7 +167,7 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
+ 	props["EnableAttributeBasedAccessControl"] = strconv.FormatBool(*c.AccessControlSettings.EnableAttributeBasedAccessControl)
+ 	props["EnableUserManagedAttributes"] = strconv.FormatBool(*c.AccessControlSettings.EnableUserManagedAttributes)
+ 	props["EnableAccessControlAuditLogging"] = strconv.FormatBool(*c.AccessControlSettings.EnableAccessControlAuditLogging)
+-	props["AuditLoggingActive"] = strconv.FormatBool(IsAuditLoggingActive(c.ExperimentalAuditSettings, license != nil && license.Features != nil && *license.Features.AdvancedLogging))
++	props["AuditLoggingActive"] = strconv.FormatBool(IsAuditLoggingActive(c.ExperimentalAuditSettings))
+ 	props["EnableChannelPolicyIndicators"] = strconv.FormatBool(*c.AccessControlSettings.EnableChannelPolicyIndicators)
+ 
+ 	props["WranglerPermittedWranglerRoles"] = strings.Join(c.WranglerSettings.PermittedWranglerRoles, ",")
+diff --git a/server/config/client_test.go b/server/config/client_test.go
+index 2914dd0d3c70..13356caddc0f 100644
+--- a/server/config/client_test.go
++++ b/server/config/client_test.go
+@@ -934,25 +934,6 @@ func TestGetClientConfig(t *testing.T) {
+ 			},
+ 			[]string{},
+ 		},
+-		{
+-			"audit logging - advanced target with license",
+-			&model.Config{
+-				ExperimentalAuditSettings: model.ExperimentalAuditSettings{
+-					AdvancedLoggingJSON: json.RawMessage(`{"my-audit":{"type":"file","levels":[{"id":100,"name":"audit-api"}],"options":{"filename":"audit.log"}}}`),
+-				},
+-			},
+-			"",
+-			&model.License{
+-				Features: &model.Features{
+-					AdvancedLogging: model.NewPointer(true),
+-				},
+-				SkuShortName: model.LicenseShortSkuEnterprise,
+-			},
+-			map[string]string{
+-				"AuditLoggingActive": "true",
+-			},
+-			[]string{},
+-		},
+ 		{
+ 			"audit logging - advanced target without license",
+ 			&model.Config{
+@@ -963,7 +944,7 @@ func TestGetClientConfig(t *testing.T) {
+ 			"",
+ 			nil,
+ 			map[string]string{
+-				"AuditLoggingActive": "false",
++				"AuditLoggingActive": "true",
+ 			},
+ 			[]string{},
+ 		},
+diff --git a/server/config/logger.go b/server/config/logger.go
+index c3157e61caa6..dde6e08bc807 100644
+--- a/server/config/logger.go
++++ b/server/config/logger.go
+@@ -133,20 +133,16 @@ var auditLevelIDs = func() map[logr.LevelID]struct{} {
+ }()
+ 
+ // IsAuditLoggingActive reports whether the server is actually emitting audit logs to at
+-// least one sink, given the audit settings and whether advanced logging is licensed.
++// least one sink, given the audit settings.
+ //
+ // It returns true when basic file auditing is enabled, or when the advanced audit logging
+ // config defines at least one target bound to an audit level. A valid advanced-logging
+ // config that routes nothing to an audit level returns false.
+-func IsAuditLoggingActive(auditSettings model.ExperimentalAuditSettings, allowAdvancedLogging bool) bool {
++func IsAuditLoggingActive(auditSettings model.ExperimentalAuditSettings) bool {
+ 	if auditSettings.FileEnabled != nil && *auditSettings.FileEnabled {
+ 		return true
+ 	}
+ 
+-	if !allowAdvancedLogging {
+-		return false
+-	}
+-
+ 	cfg := make(mlog.LoggerConfiguration)
+ 	if err := json.Unmarshal(auditSettings.GetAdvancedLoggingConfig(), &cfg); err != nil {
+ 		return false
+@@ -169,16 +165,12 @@ func IsAuditLoggingActive(auditSettings model.ExperimentalAuditSettings, allowAd
+ // Unlike IsAuditLoggingActive, basic file auditing only counts when the requested level is
+ // one the built-in `_defAudit` target is bound to. Enabling
+ // ExperimentalAuditSettings.FileEnabled does not make audit-delivery active, for example.
+-func IsAuditLevelActive(auditSettings model.ExperimentalAuditSettings, allowAdvancedLogging bool, level mlog.Level) bool {
++func IsAuditLevelActive(auditSettings model.ExperimentalAuditSettings, level mlog.Level) bool {
+ 	if auditSettings.FileEnabled != nil && *auditSettings.FileEnabled &&
+ 		slices.ContainsFunc(basicAuditFileLevels, func(l mlog.Level) bool { return l.ID == level.ID }) {
+ 		return true
+ 	}
+ 
+-	if !allowAdvancedLogging {
+-		return false
+-	}
+-
+ 	cfg := make(mlog.LoggerConfiguration)
+ 	if err := json.Unmarshal(auditSettings.GetAdvancedLoggingConfig(), &cfg); err != nil {
+ 		return false
+diff --git a/server/config/logger_test.go b/server/config/logger_test.go
+index f2217daaa8e1..862440a9f1e2 100644
+--- a/server/config/logger_test.go
++++ b/server/config/logger_test.go
+@@ -225,62 +225,48 @@ func TestIsAuditLoggingActive(t *testing.T) {
+ 	malformedJSON := json.RawMessage(`{not valid json`)
+ 
+ 	tests := []struct {
+-		name                 string
+-		fileEnabled          bool
+-		fileName             string
+-		advancedLoggingJSON  json.RawMessage
+-		allowAdvancedLogging bool
+-		expected             bool
++		name                string
++		fileEnabled         bool
++		fileName            string
++		advancedLoggingJSON json.RawMessage
++		expected            bool
+ 	}{
+ 		{
+-			name:                 "A - file audit enabled (license independent)",
+-			fileEnabled:          true,
+-			fileName:             "audit.log",
+-			allowAdvancedLogging: false,
+-			expected:             true,
++			name:        "A - file audit enabled",
++			fileEnabled: true,
++			fileName:    "audit.log",
++			expected:    true,
+ 		},
+ 		{
+-			name:                 "B - advanced audit target, licensed",
+-			fileEnabled:          false,
+-			advancedLoggingJSON:  auditTargetJSON,
+-			allowAdvancedLogging: true,
+-			expected:             true,
++			name:                "B - advanced audit target",
++			fileEnabled:         false,
++			advancedLoggingJSON: auditTargetJSON,
++			expected:            true,
+ 		},
+ 		{
+-			name:                 "B - advanced audit target, unlicensed",
+-			fileEnabled:          false,
+-			advancedLoggingJSON:  auditTargetJSON,
+-			allowAdvancedLogging: false,
+-			expected:             false,
++			name:                "C - valid advanced config, no audit level",
++			fileEnabled:         false,
++			advancedLoggingJSON: stdTargetJSON,
++			expected:            false,
+ 		},
+ 		{
+-			name:                 "C - valid advanced config, no audit level",
+-			fileEnabled:          false,
+-			advancedLoggingJSON:  stdTargetJSON,
+-			allowAdvancedLogging: true,
+-			expected:             false,
++			name:        "D - nothing configured",
++			fileEnabled: false,
++			expected:    false,
+ 		},
+ 		{
+-			name:                 "D - nothing configured",
+-			fileEnabled:          false,
+-			allowAdvancedLogging: true,
+-			expected:             false,
+-		},
+-		{
+-			name:                 "malformed advanced JSON",
+-			fileEnabled:          false,
+-			advancedLoggingJSON:  malformedJSON,
+-			allowAdvancedLogging: true,
+-			expected:             false,
++			name:                "malformed advanced JSON",
++			fileEnabled:         false,
++			advancedLoggingJSON: malformedJSON,
++			expected:            false,
+ 		},
+ 		{
+ 			// audit-delivery is in MLvlAuditAll but not in the basic audit file target, so
+ 			// a delivery-only config is not general audit logging.
+-			name:                 "advanced target bound only to audit-delivery",
+-			fileEnabled:          false,
+-			advancedLoggingJSON:  deliveryTargetJSON,
+-			allowAdvancedLogging: true,
+-			expected:             false,
++			name:                "advanced target bound only to audit-delivery",
++			fileEnabled:         false,
++			advancedLoggingJSON: deliveryTargetJSON,
++			expected:            false,
+ 		},
+ 	}
+ 
+@@ -292,7 +278,7 @@ func TestIsAuditLoggingActive(t *testing.T) {
+ 			*auditSettings.FileName = tc.fileName
+ 			auditSettings.AdvancedLoggingJSON = tc.advancedLoggingJSON
+ 
+-			assert.Equal(t, tc.expected, IsAuditLoggingActive(auditSettings, tc.allowAdvancedLogging))
++			assert.Equal(t, tc.expected, IsAuditLoggingActive(auditSettings))
+ 		})
+ 	}
+ }
+@@ -302,75 +288,59 @@ func TestIsAuditLevelActive(t *testing.T) {
+ 	malformedJSON := json.RawMessage(`{not valid json`)
+ 
+ 	tests := []struct {
+-		name                 string
+-		level                mlog.Level
+-		fileEnabled          bool
+-		advancedLoggingJSON  json.RawMessage
+-		allowAdvancedLogging bool
+-		expected             bool
++		name                string
++		level               mlog.Level
++		fileEnabled         bool
++		advancedLoggingJSON json.RawMessage
++		expected            bool
+ 	}{
+ 		{
+-			name:                 "file audit covers audit-api",
+-			level:                mlog.LvlAuditAPI,
+-			fileEnabled:          true,
+-			allowAdvancedLogging: false,
+-			expected:             true,
++			name:        "file audit covers audit-api",
++			level:       mlog.LvlAuditAPI,
++			fileEnabled: true,
++			expected:    true,
+ 		},
+ 		{
+ 			// The whole point of the helper: FileEnabled alone must not make
+ 			// audit-delivery active, because _defAudit is not bound to it.
+-			name:                 "file audit does not cover audit-delivery",
+-			level:                mlog.LvlAuditDelivery,
+-			fileEnabled:          true,
+-			allowAdvancedLogging: false,
+-			expected:             false,
+-		},
+-		{
+-			name:                 "advanced delivery target, licensed",
+-			level:                mlog.LvlAuditDelivery,
+-			fileEnabled:          false,
+-			advancedLoggingJSON:  deliveryTargetJSON,
+-			allowAdvancedLogging: true,
+-			expected:             true,
++			name:        "file audit does not cover audit-delivery",
++			level:       mlog.LvlAuditDelivery,
++			fileEnabled: true,
++			expected:    false,
+ 		},
+ 		{
+-			name:                 "advanced delivery target, unlicensed",
+-			level:                mlog.LvlAuditDelivery,
+-			fileEnabled:          false,
+-			advancedLoggingJSON:  deliveryTargetJSON,
+-			allowAdvancedLogging: false,
+-			expected:             false,
++			name:                "advanced delivery target",
++			level:               mlog.LvlAuditDelivery,
++			fileEnabled:         false,
++			advancedLoggingJSON: deliveryTargetJSON,
++			expected:            true,
+ 		},
+ 		{
+-			name:                 "advanced target for a different audit level",
+-			level:                mlog.LvlAuditDelivery,
+-			fileEnabled:          false,
+-			advancedLoggingJSON:  auditTargetJSON,
+-			allowAdvancedLogging: true,
+-			expected:             false,
++			name:                "advanced target for a different audit level",
++			level:               mlog.LvlAuditDelivery,
++			fileEnabled:         false,
++			advancedLoggingJSON: auditTargetJSON,
++			expected:            false,
+ 		},
+ 		{
+-			name:                 "file audit plus advanced delivery target",
+-			level:                mlog.LvlAuditDelivery,
+-			fileEnabled:          true,
+-			advancedLoggingJSON:  deliveryTargetJSON,
+-			allowAdvancedLogging: true,
+-			expected:             true,
++			name:                "file audit plus advanced delivery target",
++			level:               mlog.LvlAuditDelivery,
++			fileEnabled:         true,
++			advancedLoggingJSON: deliveryTargetJSON,
++			expected:            true,
+ 		},
+ 		{
+-			name:                 "nothing configured",
+-			level:                mlog.LvlAuditDelivery,
+-			fileEnabled:          false,
+-			allowAdvancedLogging: true,
+-			expected:             false,
++			name:        "nothing configured",
++			level:       mlog.LvlAuditDelivery,
++			fileEnabled: false,
++			expected:    false,
+ 		},
+ 		{
+-			name:                 "malformed advanced JSON",
+-			level:                mlog.LvlAuditDelivery,
+-			fileEnabled:          false,
+-			advancedLoggingJSON:  malformedJSON,
+-			allowAdvancedLogging: true,
+-			expected:             false,
++			name:                "malformed advanced JSON",
++			level:               mlog.LvlAuditDelivery,
++			fileEnabled:         false,
++			advancedLoggingJSON: malformedJSON,
++			expected:            false,
+ 		},
+ 	}
+ 
+@@ -382,7 +352,7 @@ func TestIsAuditLevelActive(t *testing.T) {
+ 			*auditSettings.FileName = "audit.log"
+ 			auditSettings.AdvancedLoggingJSON = tc.advancedLoggingJSON
+ 
+-			assert.Equal(t, tc.expected, IsAuditLevelActive(auditSettings, tc.allowAdvancedLogging, tc.level))
++			assert.Equal(t, tc.expected, IsAuditLevelActive(auditSettings, tc.level))
+ 		})
+ 	}
+ }
+diff --git a/webapp/channels/src/components/admin_console/admin_definition.tsx b/webapp/channels/src/components/admin_console/admin_definition.tsx
+index 3b24b7476d9e..84df32acfe70 100644
+--- a/webapp/channels/src/components/admin_console/admin_definition.tsx
++++ b/webapp/channels/src/components/admin_console/admin_definition.tsx
+@@ -6460,7 +6460,6 @@ const AdminDefinition: AdminDefinitionType = {
+                 title: defineMessage({id: 'admin.sidebar.audit_logging_experimental', defaultMessage: 'Audit Logging'}),
+                 isHidden: it.any(
+                     it.not(it.userHasReadPermissionOnResource(RESOURCE_KEYS.EXPERIMENTAL.FEATURES)),
+-                    it.not(it.minLicenseTier(LicenseSkus.Enterprise)),
+                 ),
+                 schema: {
+                     id: 'ExperimentalAuditSettings',
+diff --git a/webapp/channels/src/components/admin_console/admin_sidebar/__snapshots__/admin_sidebar.test.tsx.snap b/webapp/channels/src/components/admin_console/admin_sidebar/__snapshots__/admin_sidebar.test.tsx.snap
+index 4a78b29286b2..bdc8645011db 100644
+--- a/webapp/channels/src/components/admin_console/admin_sidebar/__snapshots__/admin_sidebar.test.tsx.snap
++++ b/webapp/channels/src/components/admin_console/admin_sidebar/__snapshots__/admin_sidebar.test.tsx.snap
+@@ -2012,6 +2012,25 @@ c0,1.1,0.9,2,2,2h16c1.1,0,2-0.9,2-2V4z M20,4v5H4V4H20z M22,15v5c0,1.1-0.9,2-2,2H
+                               class="nav nav__sub-menu subsections"
+                             />
+                           </li>
++                          <li
++                            class="sidebar-section"
++                            data-testid="compliance.audit_logging"
++                          >
++                            <a
++                              class="sidebar-section-title"
++                              href="/admin_console/compliance/audit_logging"
++                              id="compliance/audit_logging"
++                            >
++                              <span
++                                class="sidebar-section-title__text"
++                              >
++                                Audit Logging
++                              </span>
++                            </a>
++                            <ul
++                              class="nav nav__sub-menu subsections"
++                            />
++                          </li>
+                           <li
+                             class="sidebar-section"
+                             data-testid="compliance.custom_terms_of_service"
+@@ -7658,6 +7677,25 @@ c0,1.1,0.9,2,2,2h16c1.1,0,2-0.9,2-2V4z M20,4v5H4V4H20z M22,15v5c0,1.1-0.9,2-2,2H
+                               class="nav nav__sub-menu subsections"
+                             />
+                           </li>
++                          <li
++                            class="sidebar-section"
++                            data-testid="compliance.audit_logging"
++                          >
++                            <a
++                              class="sidebar-section-title"
++                              href="/admin_console/compliance/audit_logging"
++                              id="compliance/audit_logging"
++                            >
++                              <span
++                                class="sidebar-section-title__text"
++                              >
++                                Audit Logging
++                              </span>
++                            </a>
++                            <ul
++                              class="nav nav__sub-menu subsections"
++                            />
++                          </li>
+                           <li
+                             class="sidebar-section"
+                             data-testid="compliance.custom_terms_of_service"
+@@ -9464,6 +9502,25 @@ c0,1.1,0.9,2,2,2h16c1.1,0,2-0.9,2-2V4z M20,4v5H4V4H20z M22,15v5c0,1.1-0.9,2-2,2H
+                               class="nav nav__sub-menu subsections"
+                             />
+                           </li>
++                          <li
++                            class="sidebar-section"
++                            data-testid="compliance.audit_logging"
++                          >
++                            <a
++                              class="sidebar-section-title"
++                              href="/admin_console/compliance/audit_logging"
++                              id="compliance/audit_logging"
++                            >
++                              <span
++                                class="sidebar-section-title__text"
++                              >
++                                Audit Logging
++                              </span>
++                            </a>
++                            <ul
++                              class="nav nav__sub-menu subsections"
++                            />
++                          </li>
+                           <li
+                             class="sidebar-section"
+                             data-testid="compliance.custom_terms_of_service"
+@@ -11379,6 +11436,25 @@ c0,1.1,0.9,2,2,2h16c1.1,0,2-0.9,2-2V4z M20,4v5H4V4H20z M22,15v5c0,1.1-0.9,2-2,2H
+                               class="nav nav__sub-menu subsections"
+                             />
+                           </li>
++                          <li
++                            class="sidebar-section"
++                            data-testid="compliance.audit_logging"
++                          >
++                            <a
++                              class="sidebar-section-title"
++                              href="/admin_console/compliance/audit_logging"
++                              id="compliance/audit_logging"
++                            >
++                              <span
++                                class="sidebar-section-title__text"
++                              >
++                                Audit Logging
++                              </span>
++                            </a>
++                            <ul
++                              class="nav nav__sub-menu subsections"
++                            />
++                          </li>
+                           <li
+                             class="sidebar-section"
+                             data-testid="compliance.custom_terms_of_service"
+@@ -13185,6 +13261,25 @@ c0,1.1,0.9,2,2,2h16c1.1,0,2-0.9,2-2V4z M20,4v5H4V4H20z M22,15v5c0,1.1-0.9,2-2,2H
+                               class="nav nav__sub-menu subsections"
+                             />
+                           </li>
++                          <li
++                            class="sidebar-section"
++                            data-testid="compliance.audit_logging"
++                          >
++                            <a
++                              class="sidebar-section-title"
++                              href="/admin_console/compliance/audit_logging"
++                              id="compliance/audit_logging"
++                            >
++                              <span
++                                class="sidebar-section-title__text"
++                              >
++                                Audit Logging
++                              </span>
++                            </a>
++                            <ul
++                              class="nav nav__sub-menu subsections"
++                            />
++                          </li>
+                           <li
+                             class="sidebar-section"
+                             data-testid="compliance.custom_terms_of_service"
+@@ -14894,6 +14989,25 @@ c0,1.1,0.9,2,2,2h16c1.1,0,2-0.9,2-2V4z M20,4v5H4V4H20z M22,15v5c0,1.1-0.9,2-2,2H
+                               class="nav nav__sub-menu subsections"
+                             />
+                           </li>
++                          <li
++                            class="sidebar-section"
++                            data-testid="compliance.audit_logging"
++                          >
++                            <a
++                              class="sidebar-section-title"
++                              href="/admin_console/compliance/audit_logging"
++                              id="compliance/audit_logging"
++                            >
++                              <span
++                                class="sidebar-section-title__text"
++                              >
++                                Audit Logging
++                              </span>
++                            </a>
++                            <ul
++                              class="nav nav__sub-menu subsections"
++                            />
++                          </li>
+                           <li
+                             class="sidebar-section"
+                             data-testid="compliance.custom_terms_of_service"
+@@ -16685,6 +16799,25 @@ c0,1.1,0.9,2,2,2h16c1.1,0,2-0.9,2-2V4z M20,4v5H4V4H20z M22,15v5c0,1.1-0.9,2-2,2H
+                               class="nav nav__sub-menu subsections"
+                             />
+                           </li>
++                          <li
++                            class="sidebar-section"
++                            data-testid="compliance.audit_logging"
++                          >
++                            <a
++                              class="sidebar-section-title"
++                              href="/admin_console/compliance/audit_logging"
++                              id="compliance/audit_logging"
++                            >
++                              <span
++                                class="sidebar-section-title__text"
++                              >
++                                Audit Logging
++                              </span>
++                            </a>
++                            <ul
++                              class="nav nav__sub-menu subsections"
++                            />
++                          </li>
+                           <li
+                             class="sidebar-section"
+                             data-testid="compliance.custom_terms_of_service"
+diff --git a/webapp/channels/src/selectors/admin_console.test.tsx b/webapp/channels/src/selectors/admin_console.test.tsx
+index 7e25316f55fe..01db115a8700 100644
+--- a/webapp/channels/src/selectors/admin_console.test.tsx
++++ b/webapp/channels/src/selectors/admin_console.test.tsx
+@@ -63,6 +63,19 @@ describe('Selectors.AdminConsole', () => {
+             expect(isHidden({}, {}, {}, false, {read: {}, write: {}})).toBe(true);
+         });
+ 
++        it('should show the audit logging page without a license', () => {
++            const state = {plugins: {adminConsoleReducers: {}}} as GlobalState;
++            const auditLogging = getAdminDefinition(state).compliance.subsections.audit_logging;
++            const isHidden = auditLogging.isHidden as Exclude<Check, boolean>;
++            const consoleAccess = {
++                read: {[RESOURCE_KEYS.EXPERIMENTAL.FEATURES]: true},
++                write: {[RESOURCE_KEYS.EXPERIMENTAL.FEATURES]: true},
++            };
++
++            expect(isHidden({}, {}, {}, false, consoleAccess)).toBe(false);
++            expect(isHidden({}, {}, {}, false, {read: {}, write: {}})).toBe(true);
++        });
++
+         it('should allow to remove everything with a plugin', () => {
+             const result = getAdminDefinition({
+                 plugins: {

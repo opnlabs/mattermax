@@ -1,0 +1,2325 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Karan Sharma <hello@mrkaran.dev>
+Date: Fri, 13 Nov 2026 00:06:18 +0530
+Subject: [PATCH] feat: opt-in read receipts for direct and group messages
+
+Mattermax-Patch: read-receipts.patch
+---
+ server/channels/api4/api.go                   |   1 +
+ server/channels/api4/read_receipts.go         |  38 ++
+ server/channels/api4/read_receipts_test.go    | 382 ++++++++++++++++++
+ server/channels/app/channel.go                |   2 +
+ server/channels/app/preference.go             |  11 +
+ server/channels/app/read_receipts.go          | 157 +++++++
+ server/config/client.go                       |   1 +
+ server/config/client_test.go                  |  24 ++
+ server/public/model/config.go                 |   5 +
+ server/public/model/read_receipts.go          |  48 +++
+ server/public/model/read_receipts_test.go     |  86 ++++
+ .../admin_console/admin_definition.tsx        |   7 +
+ .../admin_definition_read_receipts.test.tsx   |  74 ++++
+ .../src/components/post/post_component.tsx    |   5 +
+ .../src/components/post_view/post_view.tsx    |   2 +
+ .../read_receipts/post_read_receipt.scss      |   8 +
+ .../read_receipts/post_read_receipt.test.tsx  | 126 ++++++
+ .../read_receipts/post_read_receipt.tsx       |  89 ++++
+ .../read_receipts/read_receipts_sync.test.tsx | 108 +++++
+ .../read_receipts/read_receipts_sync.tsx      |  56 +++
+ .../components/read_receipts/state.test.ts    | 219 ++++++++++
+ .../src/components/read_receipts/state.ts     | 176 ++++++++
+ .../display/read_receipts/index.ts            |  34 ++
+ .../read_receipts/read_receipts.test.tsx      | 141 +++++++
+ .../display/read_receipts/read_receipts.tsx   | 144 +++++++
+ .../display/user_settings_display.tsx         |   7 +
+ webapp/channels/src/i18n/en.json              |  28 ++
+ webapp/platform/types/src/config.ts           |   2 +
+ 28 files changed, 1981 insertions(+)
+ create mode 100644 server/channels/api4/read_receipts.go
+ create mode 100644 server/channels/api4/read_receipts_test.go
+ create mode 100644 server/channels/app/read_receipts.go
+ create mode 100644 server/public/model/read_receipts.go
+ create mode 100644 server/public/model/read_receipts_test.go
+ create mode 100644 webapp/channels/src/components/admin_console/admin_definition_read_receipts.test.tsx
+ create mode 100644 webapp/channels/src/components/read_receipts/post_read_receipt.scss
+ create mode 100644 webapp/channels/src/components/read_receipts/post_read_receipt.test.tsx
+ create mode 100644 webapp/channels/src/components/read_receipts/post_read_receipt.tsx
+ create mode 100644 webapp/channels/src/components/read_receipts/read_receipts_sync.test.tsx
+ create mode 100644 webapp/channels/src/components/read_receipts/read_receipts_sync.tsx
+ create mode 100644 webapp/channels/src/components/read_receipts/state.test.ts
+ create mode 100644 webapp/channels/src/components/read_receipts/state.ts
+ create mode 100644 webapp/channels/src/components/user_settings/display/read_receipts/index.ts
+ create mode 100644 webapp/channels/src/components/user_settings/display/read_receipts/read_receipts.test.tsx
+ create mode 100644 webapp/channels/src/components/user_settings/display/read_receipts/read_receipts.tsx
+
+diff --git a/server/channels/api4/api.go b/server/channels/api4/api.go
+index d14b65e7a628..b058db68d6fa 100644
+--- a/server/channels/api4/api.go
++++ b/server/channels/api4/api.go
+@@ -419,6 +419,7 @@ func Init(srv *app.Server) (*API, error) {
+ 	api.InitAuditLogging()
+ 	api.InitAccessControlPolicy()
+ 	api.InitContentFlagging()
++	api.InitReadReceipts()
+ 	api.InitDeliveryTracking()
+ 	api.InitAgents()
+ 	api.InitProperties()
+diff --git a/server/channels/api4/read_receipts.go b/server/channels/api4/read_receipts.go
+new file mode 100644
+index 000000000000..fd5bf03c67d6
+--- /dev/null
++++ b/server/channels/api4/read_receipts.go
+@@ -0,0 +1,38 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++package api4
++
++import (
++	"encoding/json"
++	"net/http"
++
++	"github.com/mattermost/mattermost/server/public/model"
++	"github.com/mattermost/mattermost/server/public/shared/mlog"
++)
++
++func (api *API) InitReadReceipts() {
++	api.BaseRoutes.Channel.Handle("/read_receipts", api.APISessionRequired(getChannelReadReceipts)).Methods(http.MethodGet)
++}
++
++func getChannelReadReceipts(c *Context, w http.ResponseWriter, r *http.Request) {
++	c.RequireChannelId()
++	if c.Err != nil {
++		return
++	}
++
++	if ok, _ := c.App.SessionHasPermissionToChannel(c.AppContext, *c.AppContext.Session(), c.Params.ChannelId, model.PermissionReadChannel); !ok {
++		c.SetPermissionError(model.PermissionReadChannel)
++		return
++	}
++
++	receipts, appErr := c.App.GetChannelReadReceipts(c.AppContext, c.Params.ChannelId, c.AppContext.Session().UserId)
++	if appErr != nil {
++		c.Err = appErr
++		return
++	}
++
++	if err := json.NewEncoder(w).Encode(receipts); err != nil {
++		c.Logger.Warn("Error while writing response", mlog.Err(err))
++	}
++}
+diff --git a/server/channels/api4/read_receipts_test.go b/server/channels/api4/read_receipts_test.go
+new file mode 100644
+index 000000000000..10c086892a86
+--- /dev/null
++++ b/server/channels/api4/read_receipts_test.go
+@@ -0,0 +1,382 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++package api4
++
++import (
++	"context"
++	"encoding/json"
++	"strconv"
++	"testing"
++	"time"
++
++	"github.com/stretchr/testify/assert"
++	"github.com/stretchr/testify/require"
++
++	"github.com/mattermost/mattermost/server/public/model"
++)
++
++func getReadReceipts(t *testing.T, client *model.Client4, channelID string) (*model.ChannelReadReceipts, *model.Response) {
++	t.Helper()
++	r, err := client.DoAPIGet(context.Background(), "/channels/"+channelID+"/read_receipts", "")
++	if err != nil {
++		return nil, model.BuildResponse(r)
++	}
++	defer closeBody(r)
++	var receipts model.ChannelReadReceipts
++	require.NoError(t, json.NewDecoder(r.Body).Decode(&receipts))
++	return &receipts, model.BuildResponse(r)
++}
++
++func requireReadReceipts(t *testing.T, client *model.Client4, channelID string, otherMemberCount int, want map[string]int64) {
++	t.Helper()
++	receipts, resp := getReadReceipts(t, client, channelID)
++	CheckOKStatus(t, resp)
++	assert.Equal(t, channelID, receipts.ChannelId)
++	assert.Equal(t, otherMemberCount, receipts.OtherMemberCount)
++	assert.Equal(t, want, receipts.LastViewedAt)
++}
++
++func setReadReceiptsPref(t *testing.T, client *model.Client4, userID, value string) {
++	t.Helper()
++	_, err := client.UpdatePreferences(context.Background(), userID, model.Preferences{{
++		UserId:   userID,
++		Category: model.PreferenceCategoryDisplaySettings,
++		Name:     model.PreferenceNameReadReceipts,
++		Value:    value,
++	}})
++	require.NoError(t, err)
++}
++
++func clearReadReceiptsPref(t *testing.T, client *model.Client4, userID string) {
++	t.Helper()
++	_, err := client.DeletePreferences(context.Background(), userID, model.Preferences{{
++		UserId:   userID,
++		Category: model.PreferenceCategoryDisplaySettings,
++		Name:     model.PreferenceNameReadReceipts,
++	}})
++	require.NoError(t, err)
++}
++
++func postReadReceiptMessage(t *testing.T, client *model.Client4, channelID string) *model.Post {
++	t.Helper()
++	post, _, err := client.CreatePost(context.Background(), &model.Post{ChannelId: channelID, Message: model.NewId()})
++	require.NoError(t, err)
++	return post
++}
++
++func viewReadReceiptChannel(t *testing.T, client *model.Client4, channelID string) {
++	t.Helper()
++	_, _, err := client.ViewChannel(context.Background(), "me", &model.ChannelView{ChannelId: channelID})
++	require.NoError(t, err)
++}
++
++func loggedInClient(t *testing.T, th *TestHelper, user *model.User) *model.Client4 {
++	t.Helper()
++	client := th.CreateClient()
++	_, _, err := client.Login(context.Background(), user.Email, user.Password)
++	require.NoError(t, err)
++	return client
++}
++
++func setReadReceiptsEnabled(th *TestHelper, enabled bool) {
++	th.App.UpdateConfig(func(cfg *model.Config) { *cfg.TeamSettings.EnableReadReceipts = enabled })
++}
++
++const noReadReceiptWait = 2 * time.Second
++
++func nextReadReceipt(t *testing.T, ws *model.WebSocketClient, channelID string, timeout time.Duration) *model.WebSocketEvent {
++	t.Helper()
++	deadline := time.After(timeout)
++	for {
++		select {
++		case ev := <-ws.EventChannel:
++			if ev.EventType() == model.WebsocketEventReadReceipt && ev.GetBroadcast().ChannelId == channelID {
++				return ev
++			}
++		case <-deadline:
++			return nil
++		}
++	}
++}
++
++func requireReadReceiptEvent(t *testing.T, ws *model.WebSocketClient, channelID, readerID string, lastViewedAt int64) {
++	t.Helper()
++	ev := nextReadReceipt(t, ws, channelID, 5*time.Second)
++	require.NotNil(t, ev, "expected a read_receipt event")
++	assert.Equal(t, readerID, ev.GetData()["user_id"])
++	assert.EqualValues(t, lastViewedAt, ev.GetData()["last_viewed_at"])
++}
++
++func requireNoReadReceiptEvent(t *testing.T, ws *model.WebSocketClient, channelID string) {
++	t.Helper()
++	assert.Nil(t, nextReadReceipt(t, ws, channelID, noReadReceiptWait), "expected no read_receipt event")
++}
++
++func TestGetChannelReadReceiptsAPI(t *testing.T) {
++	mainHelper.Parallel(t)
++	th := Setup(t).InitBasic(t)
++	setReadReceiptsEnabled(th, true)
++
++	user1, user2 := th.BasicUser, th.BasicUser2
++	client1 := th.Client
++	client2 := loggedInClient(t, th, user2)
++
++	dm := th.CreateDmChannel(t, user2)
++	first := postReadReceiptMessage(t, client1, dm.Id)
++	viewReadReceiptChannel(t, client2, dm.Id)
++
++	t.Run("both on, each member sees the other", func(t *testing.T) {
++		requireReadReceipts(t, client1, dm.Id, 1, map[string]int64{user2.Id: first.CreateAt})
++		requireReadReceipts(t, client2, dm.Id, 1, map[string]int64{user1.Id: first.CreateAt})
++	})
++
++	t.Run("switch off", func(t *testing.T) {
++		setReadReceiptsEnabled(th, false)
++		defer setReadReceiptsEnabled(th, true)
++		requireReadReceipts(t, client1, dm.Id, 0, map[string]int64{})
++	})
++
++	t.Run("public channel", func(t *testing.T) {
++		postReadReceiptMessage(t, client1, th.BasicChannel.Id)
++		viewReadReceiptChannel(t, client2, th.BasicChannel.Id)
++		receipts, resp := getReadReceipts(t, client1, th.BasicChannel.Id)
++		CheckOKStatus(t, resp)
++		assert.Empty(t, receipts.LastViewedAt)
++	})
++
++	t.Run("private channel", func(t *testing.T) {
++		postReadReceiptMessage(t, client1, th.BasicPrivateChannel.Id)
++		viewReadReceiptChannel(t, client2, th.BasicPrivateChannel.Id)
++		receipts, resp := getReadReceipts(t, client1, th.BasicPrivateChannel.Id)
++		CheckOKStatus(t, resp)
++		assert.Empty(t, receipts.LastViewedAt)
++	})
++
++	t.Run("viewer opted out sees nothing and is not seen", func(t *testing.T) {
++		setReadReceiptsPref(t, client1, user1.Id, "false")
++		defer clearReadReceiptsPref(t, client1, user1.Id)
++		requireReadReceipts(t, client1, dm.Id, 1, map[string]int64{})
++		requireReadReceipts(t, client2, dm.Id, 1, map[string]int64{})
++	})
++
++	t.Run("reader opted out", func(t *testing.T) {
++		setReadReceiptsPref(t, client2, user2.Id, "false")
++		defer clearReadReceiptsPref(t, client2, user2.Id)
++		requireReadReceipts(t, client1, dm.Id, 1, map[string]int64{})
++	})
++
++	t.Run("re-enable floor hides reads before the reader turned receipts back on", func(t *testing.T) {
++		defer clearReadReceiptsPref(t, client2, user2.Id)
++		setReadReceiptsPref(t, client2, user2.Id, "false")
++		older := postReadReceiptMessage(t, client1, dm.Id)
++		viewReadReceiptChannel(t, client2, dm.Id)
++
++		setReadReceiptsPref(t, client2, user2.Id, "true")
++		requireReadReceipts(t, client1, dm.Id, 1, map[string]int64{})
++
++		time.Sleep(5 * time.Millisecond)
++		newer := postReadReceiptMessage(t, client1, dm.Id)
++		require.Greater(t, newer.CreateAt, older.CreateAt)
++		viewReadReceiptChannel(t, client2, dm.Id)
++		requireReadReceipts(t, client1, dm.Id, 1, map[string]int64{user2.Id: newer.CreateAt})
++	})
++
++	t.Run("group message hides only the member who opted out", func(t *testing.T) {
++		user3, user4 := th.CreateUser(t), th.CreateUser(t)
++		client3, client4 := loggedInClient(t, th, user3), loggedInClient(t, th, user4)
++		gm, appErr := th.App.CreateGroupChannel(th.Context, []string{user1.Id, user2.Id, user3.Id, user4.Id}, user1.Id)
++		require.Nil(t, appErr)
++
++		setReadReceiptsPref(t, client4, user4.Id, "false")
++		post := postReadReceiptMessage(t, client1, gm.Id)
++		viewReadReceiptChannel(t, client2, gm.Id)
++		viewReadReceiptChannel(t, client3, gm.Id)
++		viewReadReceiptChannel(t, client4, gm.Id)
++
++		requireReadReceipts(t, client1, gm.Id, 3, map[string]int64{user2.Id: post.CreateAt, user3.Id: post.CreateAt})
++		requireReadReceipts(t, client4, gm.Id, 3, map[string]int64{})
++	})
++
++	t.Run("non-member regular user is forbidden", func(t *testing.T) {
++		outsider := th.CreateUser(t)
++		_, resp := getReadReceipts(t, loggedInClient(t, th, outsider), dm.Id)
++		CheckForbiddenStatus(t, resp)
++	})
++
++	t.Run("system admin who is not a member sees nothing", func(t *testing.T) {
++		requireReadReceipts(t, th.SystemAdminClient, dm.Id, 0, map[string]int64{})
++	})
++}
++
++func storedReadReceiptsPref(t *testing.T, th *TestHelper, userID string) string {
++	t.Helper()
++	pref, err := th.App.Srv().Store().Preference().Get(userID, model.PreferenceCategoryDisplaySettings, model.PreferenceNameReadReceipts)
++	require.NoError(t, err)
++	return pref.Value
++}
++
++func requireServerStamp(t *testing.T, value string, before, after int64) {
++	t.Helper()
++	stamp, err := strconv.ParseInt(value, 10, 64)
++	require.NoError(t, err, "stored value %q is not a timestamp", value)
++	require.GreaterOrEqual(t, stamp, before)
++	require.LessOrEqual(t, stamp, after)
++}
++
++func TestReadReceiptsPrefServerStamp(t *testing.T) {
++	mainHelper.Parallel(t)
++	th := Setup(t).InitBasic(t)
++	setReadReceiptsEnabled(th, true)
++
++	user1, user2 := th.BasicUser, th.BasicUser2
++	client1 := th.Client
++	client2 := loggedInClient(t, th, user2)
++	dm := th.CreateDmChannel(t, user2)
++
++	for name, value := range map[string]string{
++		"true":           "true",
++		"far future":     strconv.FormatInt(model.GetMillis()+365*24*time.Hour.Milliseconds(), 10),
++		"past timestamp": "1",
++		"garbage":        "maybe",
++	} {
++		t.Run("turning on with "+name+" stores the server time", func(t *testing.T) {
++			setReadReceiptsPref(t, client2, user2.Id, "false")
++			before := model.GetMillis()
++			setReadReceiptsPref(t, client2, user2.Id, value)
++			requireServerStamp(t, storedReadReceiptsPref(t, th, user2.Id), before, model.GetMillis())
++		})
++	}
++
++	t.Run("re-saving on keeps the floor", func(t *testing.T) {
++		setReadReceiptsPref(t, client2, user2.Id, "false")
++		setReadReceiptsPref(t, client2, user2.Id, "true")
++		floor := storedReadReceiptsPref(t, th, user2.Id)
++
++		time.Sleep(5 * time.Millisecond)
++		setReadReceiptsPref(t, client2, user2.Id, "true")
++		setReadReceiptsPref(t, client2, user2.Id, "1")
++		assert.Equal(t, floor, storedReadReceiptsPref(t, th, user2.Id))
++	})
++
++	t.Run("saving on with no row keeps the default floor", func(t *testing.T) {
++		user3 := th.CreateUser(t)
++		client3 := loggedInClient(t, th, user3)
++		setReadReceiptsPref(t, client3, user3.Id, strconv.FormatInt(model.GetMillis()+time.Hour.Milliseconds(), 10))
++		assert.Equal(t, "0", storedReadReceiptsPref(t, th, user3.Id))
++	})
++
++	t.Run("deleting the preference does not lower the floor", func(t *testing.T) {
++		setReadReceiptsPref(t, client2, user2.Id, "false")
++		before := model.GetMillis()
++		clearReadReceiptsPref(t, client2, user2.Id)
++		requireServerStamp(t, storedReadReceiptsPref(t, th, user2.Id), before, model.GetMillis())
++	})
++
++	t.Run("a client-chosen floor cannot expose reads made while off", func(t *testing.T) {
++		setReadReceiptsPref(t, client2, user2.Id, "false")
++		postReadReceiptMessage(t, client1, dm.Id)
++		viewReadReceiptChannel(t, client2, dm.Id)
++
++		setReadReceiptsPref(t, client2, user2.Id, "1")
++		requireReadReceipts(t, client1, dm.Id, 1, map[string]int64{})
++	})
++
++	t.Run("a far-future floor does not let a reader see receipts while hiding their own", func(t *testing.T) {
++		post := postReadReceiptMessage(t, client2, dm.Id)
++		viewReadReceiptChannel(t, client1, dm.Id)
++		setReadReceiptsPref(t, client2, user2.Id, "false")
++		setReadReceiptsPref(t, client2, user2.Id, strconv.FormatInt(model.GetMillis()+365*24*time.Hour.Milliseconds(), 10))
++
++		requireReadReceipts(t, client2, dm.Id, 1, map[string]int64{user1.Id: post.CreateAt})
++		time.Sleep(5 * time.Millisecond)
++		newer := postReadReceiptMessage(t, client1, dm.Id)
++		viewReadReceiptChannel(t, client2, dm.Id)
++		requireReadReceipts(t, client1, dm.Id, 1, map[string]int64{user2.Id: newer.CreateAt})
++	})
++
++	t.Run("a legacy true value written before the fix exposes nothing", func(t *testing.T) {
++		setReadReceiptsPref(t, client2, user2.Id, "false")
++		old := postReadReceiptMessage(t, client1, dm.Id)
++		viewReadReceiptChannel(t, client2, dm.Id)
++		require.NoError(t, th.App.Srv().Store().Preference().Save(model.Preferences{{
++			UserId:   user2.Id,
++			Category: model.PreferenceCategoryDisplaySettings,
++			Name:     model.PreferenceNameReadReceipts,
++			Value:    "true",
++		}}))
++
++		requireReadReceipts(t, client1, dm.Id, 1, map[string]int64{})
++		requireReadReceipts(t, client2, dm.Id, 1, map[string]int64{})
++
++		setReadReceiptsPref(t, client2, user2.Id, "true")
++		requireReadReceipts(t, client1, dm.Id, 1, map[string]int64{})
++		requireServerStamp(t, storedReadReceiptsPref(t, th, user2.Id), old.CreateAt, model.GetMillis())
++	})
++}
++
++func TestReadReceiptWebsocketEvent(t *testing.T) {
++	mainHelper.Parallel(t)
++	th := Setup(t).InitBasic(t)
++	setReadReceiptsEnabled(th, true)
++
++	user1, user2 := th.BasicUser, th.BasicUser2
++	client1 := th.Client
++	client2 := loggedInClient(t, th, user2)
++	ws1 := th.CreateConnectedWebSocketClientWithClient(t, client1)
++	ws2 := th.CreateConnectedWebSocketClientWithClient(t, client2)
++	dm := th.CreateDmChannel(t, user2)
++
++	t.Run("reader viewing an unread DM notifies the other member only", func(t *testing.T) {
++		post := postReadReceiptMessage(t, client2, dm.Id)
++		requireReadReceiptEvent(t, ws1, dm.Id, user2.Id, post.CreateAt)
++
++		viewReadReceiptChannel(t, client1, dm.Id)
++		requireReadReceiptEvent(t, ws2, dm.Id, user1.Id, post.CreateAt)
++		requireNoReadReceiptEvent(t, ws1, dm.Id)
++	})
++
++	t.Run("posting in a DM notifies the other member", func(t *testing.T) {
++		post := postReadReceiptMessage(t, client1, dm.Id)
++		requireReadReceiptEvent(t, ws2, dm.Id, user1.Id, post.CreateAt)
++	})
++
++	t.Run("viewer opted out", func(t *testing.T) {
++		setReadReceiptsPref(t, client2, user2.Id, "false")
++		defer clearReadReceiptsPref(t, client2, user2.Id)
++		postReadReceiptMessage(t, client1, dm.Id)
++		requireNoReadReceiptEvent(t, ws2, dm.Id)
++	})
++
++	t.Run("reader opted out", func(t *testing.T) {
++		setReadReceiptsPref(t, client1, user1.Id, "false")
++		defer clearReadReceiptsPref(t, client1, user1.Id)
++		postReadReceiptMessage(t, client1, dm.Id)
++		requireNoReadReceiptEvent(t, ws2, dm.Id)
++	})
++
++	t.Run("switch off", func(t *testing.T) {
++		setReadReceiptsEnabled(th, false)
++		defer setReadReceiptsEnabled(th, true)
++		postReadReceiptMessage(t, client1, dm.Id)
++		requireNoReadReceiptEvent(t, ws2, dm.Id)
++	})
++
++	t.Run("public channel", func(t *testing.T) {
++		postReadReceiptMessage(t, client1, th.BasicChannel.Id)
++		requireNoReadReceiptEvent(t, ws2, th.BasicChannel.Id)
++	})
++
++	t.Run("group message omits the member who opted out", func(t *testing.T) {
++		user3 := th.CreateUser(t)
++		client3 := loggedInClient(t, th, user3)
++		ws3 := th.CreateConnectedWebSocketClientWithClient(t, client3)
++		gm, appErr := th.App.CreateGroupChannel(th.Context, []string{user1.Id, user2.Id, user3.Id}, user1.Id)
++		require.Nil(t, appErr)
++		setReadReceiptsPref(t, client3, user3.Id, "false")
++
++		post := postReadReceiptMessage(t, client1, gm.Id)
++		requireReadReceiptEvent(t, ws2, gm.Id, user1.Id, post.CreateAt)
++		requireNoReadReceiptEvent(t, ws3, gm.Id)
++	})
++}
+diff --git a/server/channels/app/channel.go b/server/channels/app/channel.go
+index c58748b17638..a32191dd24cd 100644
+--- a/server/channels/app/channel.go
++++ b/server/channels/app/channel.go
+@@ -3705,6 +3705,7 @@ func (a *App) MarkAllDirectAndGroupMessagesViewed(rctx request.CTX, userID strin
+ 				return nil, model.NewAppError("MarkAllDirectAndGroupMessagesViewed", "app.channel.update_last_viewed_at.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
+ 			}
+ 		}
++		a.Srv().Go(func() { a.publishReadReceipts(request.EmptyContext(a.Log()), userID, messagesToView, times) })
+ 
+ 		if *a.Config().ServiceSettings.EnableChannelViewedMessages {
+ 			message := model.NewWebSocketEvent(model.WebsocketEventMultipleChannelsViewed, "", "", userID, nil, "")
+@@ -3768,6 +3769,7 @@ func (a *App) MarkChannelsAsViewed(rctx request.CTX, channelIDs []string, userID
+ 			return nil, model.NewAppError("MarkChannelsAsViewed", "app.channel.update_last_viewed_at.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
+ 		}
+ 	}
++	a.Srv().Go(func() { a.publishReadReceipts(request.EmptyContext(a.Log()), userID, channelsToView, times) })
+ 
+ 	if *a.Config().ServiceSettings.EnableChannelViewedMessages {
+ 		message := model.NewWebSocketEvent(model.WebsocketEventMultipleChannelsViewed, "", "", userID, nil, "")
+diff --git a/server/channels/app/preference.go b/server/channels/app/preference.go
+index b9f523680730..1c488c2acae7 100644
+--- a/server/channels/app/preference.go
++++ b/server/channels/app/preference.go
+@@ -49,6 +49,11 @@ func (a *App) UpdatePreferences(rctx request.CTX, userID string, preferences mod
+ 		}
+ 	}
+ 
++	preferences, appErr := a.stampReadReceiptsPrefs(userID, preferences)
++	if appErr != nil {
++		return appErr
++	}
++
+ 	if err := a.Srv().Store().Preference().Save(preferences); err != nil {
+ 		var appErr *model.AppError
+ 		switch {
+@@ -96,6 +101,12 @@ func (a *App) DeletePreferences(rctx request.CTX, userID string, preferences mod
+ 	}
+ 
+ 	for _, preference := range preferences {
++		if isReadReceiptsPref(preference) {
++			if appErr := a.resetReadReceiptsPref(userID); appErr != nil {
++				return appErr
++			}
++			continue
++		}
+ 		if err := a.Srv().Store().Preference().Delete(userID, preference.Category, preference.Name); err != nil {
+ 			return model.NewAppError("DeletePreferences", "app.preference.delete.app_error", nil, "", http.StatusBadRequest).Wrap(err)
+ 		}
+diff --git a/server/channels/app/read_receipts.go b/server/channels/app/read_receipts.go
+new file mode 100644
+index 000000000000..1c3f2c031f78
+--- /dev/null
++++ b/server/channels/app/read_receipts.go
+@@ -0,0 +1,157 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++package app
++
++import (
++	"net/http"
++	"slices"
++	"strconv"
++
++	"github.com/mattermost/mattermost/server/public/model"
++	"github.com/mattermost/mattermost/server/public/shared/mlog"
++	"github.com/mattermost/mattermost/server/public/shared/request"
++)
++
++func (a *App) loadReadReceiptInputs(rctx request.CTX, channelID string) (*model.Channel, []*model.ChannelMemberLastViewed, map[string]model.ReadReceiptsPref, *model.AppError) {
++	channel, err := a.Srv().Store().Channel().Get(channelID, true)
++	if err != nil {
++		return nil, nil, nil, model.NewAppError("loadReadReceiptInputs", "app.channel.get.find.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
++	}
++	if !channel.IsGroupOrDirect() {
++		return channel, nil, nil, nil
++	}
++
++	members, err := a.Srv().Store().Channel().GetMembersWithLastViewedAtSince(rctx, channelID, 0, "", 0)
++	if err != nil {
++		return nil, nil, nil, model.NewAppError("loadReadReceiptInputs", "app.channel.get_members.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
++	}
++
++	now := model.GetMillis()
++	prefs := make(map[string]model.ReadReceiptsPref, len(members))
++	for _, m := range members {
++		pref, err := a.Srv().Store().Preference().Get(m.UserId, model.PreferenceCategoryDisplaySettings, model.PreferenceNameReadReceipts)
++		if err != nil && !isNotFoundError(err) {
++			return nil, nil, nil, model.NewAppError("loadReadReceiptInputs", "app.preference.get.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
++		}
++		prefs[m.UserId] = model.ParseReadReceiptsPref(pref, now)
++	}
++
++	return channel, members, prefs, nil
++}
++
++func (a *App) GetChannelReadReceipts(rctx request.CTX, channelID, viewerID string) (*model.ChannelReadReceipts, *model.AppError) {
++	receipts := &model.ChannelReadReceipts{ChannelId: channelID, LastViewedAt: map[string]int64{}}
++	enabled := *a.Config().TeamSettings.EnableReadReceipts
++	if !enabled {
++		return receipts, nil
++	}
++
++	channel, members, prefs, appErr := a.loadReadReceiptInputs(rctx, channelID)
++	if appErr != nil {
++		return nil, appErr
++	}
++
++	viewer, isMember := prefs[viewerID]
++	if !isMember {
++		return receipts, nil
++	}
++	receipts.OtherMemberCount = len(members) - 1
++
++	for _, m := range members {
++		if m.UserId == viewerID {
++			continue
++		}
++		if model.ReadReceiptVisible(enabled, channel.Type, viewer, prefs[m.UserId], m.LastViewedAt) {
++			receipts.LastViewedAt[m.UserId] = m.LastViewedAt
++		}
++	}
++
++	return receipts, nil
++}
++
++func (a *App) publishReadReceipts(rctx request.CTX, readerID string, channelIDs []string, times map[string]int64) {
++	enabled := *a.Config().TeamSettings.EnableReadReceipts
++	if !enabled {
++		return
++	}
++
++	for _, channelID := range channelIDs {
++		channel, members, prefs, appErr := a.loadReadReceiptInputs(rctx, channelID)
++		if appErr != nil {
++			rctx.Logger().Warn("Failed to load read receipt inputs", mlog.String("channel_id", channelID), mlog.Err(appErr))
++			continue
++		}
++		if !channel.IsGroupOrDirect() {
++			continue
++		}
++
++		reader, isMember := prefs[readerID]
++		if !isMember {
++			continue
++		}
++
++		lastViewedAt := times[channelID]
++		omit := map[string]bool{readerID: true}
++		for _, m := range members {
++			if !model.ReadReceiptVisible(enabled, channel.Type, prefs[m.UserId], reader, lastViewedAt) {
++				omit[m.UserId] = true
++			}
++		}
++		if len(omit) == len(members) {
++			continue
++		}
++
++		message := model.NewWebSocketEvent(model.WebsocketEventReadReceipt, "", channelID, "", omit, "")
++		message.Add("user_id", readerID)
++		message.Add("last_viewed_at", lastViewedAt)
++		a.Publish(message)
++	}
++}
++
++func isReadReceiptsPref(p model.Preference) bool {
++	return p.Category == model.PreferenceCategoryDisplaySettings && p.Name == model.PreferenceNameReadReceipts
++}
++
++func (a *App) readReceiptsOnValue(userID string) (string, *model.AppError) {
++	stored, err := a.Srv().Store().Preference().Get(userID, model.PreferenceCategoryDisplaySettings, model.PreferenceNameReadReceipts)
++	if err != nil && !isNotFoundError(err) {
++		return "", model.NewAppError("readReceiptsOnValue", "app.preference.get.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
++	}
++	now := model.GetMillis()
++	if stored == nil {
++		return "0", nil
++	}
++	if model.ParseReadReceiptsPref(stored, now).On {
++		return stored.Value, nil
++	}
++	return strconv.FormatInt(now, 10), nil
++}
++
++func (a *App) stampReadReceiptsPrefs(userID string, preferences model.Preferences) (model.Preferences, *model.AppError) {
++	stamped := slices.Clone(preferences)
++	for i, p := range stamped {
++		if !isReadReceiptsPref(p) || p.Value == "false" {
++			continue
++		}
++		value, appErr := a.readReceiptsOnValue(userID)
++		if appErr != nil {
++			return nil, appErr
++		}
++		stamped[i].Value = value
++	}
++	return stamped, nil
++}
++
++// A missing row means on since 0, so deleting would expose reads made while off.
++func (a *App) resetReadReceiptsPref(userID string) *model.AppError {
++	value, appErr := a.readReceiptsOnValue(userID)
++	if appErr != nil {
++		return appErr
++	}
++	pref := model.Preference{UserId: userID, Category: model.PreferenceCategoryDisplaySettings, Name: model.PreferenceNameReadReceipts, Value: value}
++	if err := a.Srv().Store().Preference().Save(model.Preferences{pref}); err != nil {
++		return model.NewAppError("resetReadReceiptsPref", "app.preference.save.updating.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
++	}
++	return nil
++}
+diff --git a/server/config/client.go b/server/config/client.go
+index 9e882062be2a..811193c83531 100644
+--- a/server/config/client.go
++++ b/server/config/client.go
+@@ -18,6 +18,7 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
+ 
+ 	props["EnableCustomUserStatuses"] = strconv.FormatBool(*c.TeamSettings.EnableCustomUserStatuses)
+ 	props["EnableLastActiveTime"] = strconv.FormatBool(*c.TeamSettings.EnableLastActiveTime)
++	props["EnableReadReceipts"] = strconv.FormatBool(*c.TeamSettings.EnableReadReceipts)
+ 	props["EnableUserDeactivation"] = strconv.FormatBool(*c.TeamSettings.EnableUserDeactivation)
+ 	props["RestrictDirectMessage"] = *c.TeamSettings.RestrictDirectMessage
+ 	props["TeammateNameDisplay"] = *c.TeamSettings.TeammateNameDisplay
+diff --git a/server/config/client_test.go b/server/config/client_test.go
+index a6bdc1515b6f..ce739071a093 100644
+--- a/server/config/client_test.go
++++ b/server/config/client_test.go
+@@ -51,6 +51,30 @@ func TestGetClientConfig(t *testing.T) {
+ 			},
+ 			nil,
+ 		},
++		{
++			"read receipts default off",
++			&model.Config{},
++			"",
++			nil,
++			map[string]string{
++				"EnableReadReceipts": "false",
++			},
++			nil,
++		},
++		{
++			"read receipts on",
++			&model.Config{
++				TeamSettings: model.TeamSettings{
++					EnableReadReceipts: new(true),
++				},
++			},
++			"",
++			nil,
++			map[string]string{
++				"EnableReadReceipts": "true",
++			},
++			nil,
++		},
+ 		{
+ 			"unlicensed announcement banner",
+ 			&model.Config{
+diff --git a/server/public/model/config.go b/server/public/model/config.go
+index a80835f1abd8..9dbef6abc706 100644
+--- a/server/public/model/config.go
++++ b/server/public/model/config.go
+@@ -2612,6 +2612,7 @@ type TeamSettings struct {
+ 	CustomDescriptionText           *string `access:"site_customization"`
+ 	RestrictDirectMessage           *string `access:"site_users_and_teams"`
+ 	EnableLastActiveTime            *bool   `access:"site_users_and_teams"`
++	EnableReadReceipts              *bool   `access:"site_users_and_teams"`
+ 	// In seconds.
+ 	UserStatusAwayTimeout               *int64   `access:"site_users_and_teams"`
+ 	MaxChannelsPerTeam                  *int64   `access:"site_users_and_teams"`
+@@ -2659,6 +2660,10 @@ func (s *TeamSettings) SetDefaults() {
+ 		s.EnableLastActiveTime = new(true)
+ 	}
+ 
++	if s.EnableReadReceipts == nil {
++		s.EnableReadReceipts = new(false)
++	}
++
+ 	if s.EnableCustomBrand == nil {
+ 		s.EnableCustomBrand = new(false)
+ 	}
+diff --git a/server/public/model/read_receipts.go b/server/public/model/read_receipts.go
+new file mode 100644
+index 000000000000..44ddc56be534
+--- /dev/null
++++ b/server/public/model/read_receipts.go
+@@ -0,0 +1,48 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++package model
++
++import (
++	"strconv"
++	"strings"
++)
++
++const (
++	WebsocketEventReadReceipt  WebsocketEventType = "read_receipt"
++	PreferenceNameReadReceipts                    = "read_receipts"
++)
++
++type ChannelReadReceipts struct {
++	ChannelId        string           `json:"channel_id"`
++	OtherMemberCount int              `json:"other_member_count"`
++	LastViewedAt     map[string]int64 `json:"last_viewed_at"`
++}
++
++type ReadReceiptsPref struct {
++	On    bool
++	Since int64
++}
++
++func ParseReadReceiptsPref(p *Preference, now int64) ReadReceiptsPref {
++	if p == nil {
++		return ReadReceiptsPref{On: true}
++	}
++	if p.Value == "" || strings.Trim(p.Value, "0123456789") != "" {
++		return ReadReceiptsPref{}
++	}
++	since, err := strconv.ParseInt(p.Value, 10, 64)
++	if err != nil || since > now {
++		return ReadReceiptsPref{}
++	}
++	return ReadReceiptsPref{On: true, Since: since}
++}
++
++// ReadReceiptVisible reports whether viewer may see reader's watermark.
++func ReadReceiptVisible(enabled bool, channelType ChannelType, viewer, reader ReadReceiptsPref, readerLastViewedAt int64) bool {
++	return enabled &&
++		(channelType == ChannelTypeDirect || channelType == ChannelTypeGroup) &&
++		viewer.On &&
++		reader.On &&
++		readerLastViewedAt >= reader.Since
++}
+diff --git a/server/public/model/read_receipts_test.go b/server/public/model/read_receipts_test.go
+new file mode 100644
+index 000000000000..a28d706ef904
+--- /dev/null
++++ b/server/public/model/read_receipts_test.go
+@@ -0,0 +1,86 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++package model
++
++import (
++	"fmt"
++	"testing"
++
++	"github.com/stretchr/testify/assert"
++)
++
++func TestReadReceiptVisible(t *testing.T) {
++	off := ReadReceiptsPref{}
++	on := ReadReceiptsPref{On: true}
++	onSince := ReadReceiptsPref{On: true, Since: 1000}
++
++	anyType := []ChannelType{ChannelTypeOpen, ChannelTypePrivate, ChannelTypeDirect, ChannelTypeGroup}
++	directOrGroup := []ChannelType{ChannelTypeDirect, ChannelTypeGroup}
++	anyPref := []ReadReceiptsPref{off, on, onSince}
++	anyWatermark := []int64{0, 999, 1000, 5000}
++
++	rows := []struct {
++		name       string
++		enabled    []bool
++		types      []ChannelType
++		viewer     []ReadReceiptsPref
++		reader     []ReadReceiptsPref
++		watermarks []int64
++		want       bool
++	}{
++		{"switch off", []bool{false}, anyType, anyPref, anyPref, anyWatermark, false},
++		{"open or private channel", []bool{true}, []ChannelType{ChannelTypeOpen, ChannelTypePrivate}, anyPref, anyPref, anyWatermark, false},
++		{"viewer off", []bool{true}, directOrGroup, []ReadReceiptsPref{off}, anyPref, anyWatermark, false},
++		{"reader off", []bool{true}, directOrGroup, []ReadReceiptsPref{on, onSince}, []ReadReceiptsPref{off}, anyWatermark, false},
++		{"reader watermark before re-enable", []bool{true}, directOrGroup, []ReadReceiptsPref{on, onSince}, []ReadReceiptsPref{onSince}, []int64{0, 999}, false},
++		{"reader watermark at or after re-enable", []bool{true}, directOrGroup, []ReadReceiptsPref{on, onSince}, []ReadReceiptsPref{onSince}, []int64{1000, 5000}, true},
++		{"reader on since 0", []bool{true}, directOrGroup, []ReadReceiptsPref{on, onSince}, []ReadReceiptsPref{on}, anyWatermark, true},
++	}
++
++	for _, row := range rows {
++		for _, enabled := range row.enabled {
++			for _, channelType := range row.types {
++				for _, viewer := range row.viewer {
++					for _, reader := range row.reader {
++						for _, watermark := range row.watermarks {
++							name := fmt.Sprintf("%s/E=%v T=%s V=%+v R=%+v W=%d", row.name, enabled, channelType, viewer, reader, watermark)
++							t.Run(name, func(t *testing.T) {
++								assert.Equal(t, row.want, ReadReceiptVisible(enabled, channelType, viewer, reader, watermark))
++							})
++						}
++					}
++				}
++			}
++		}
++	}
++}
++
++func TestParseReadReceiptsPref(t *testing.T) {
++	const now = int64(1762934400000)
++	for _, tc := range []struct {
++		name string
++		pref *Preference
++		want ReadReceiptsPref
++	}{
++		{"no row", nil, ReadReceiptsPref{On: true}},
++		{"false", &Preference{Value: "false"}, ReadReceiptsPref{}},
++		{"true", &Preference{Value: "true"}, ReadReceiptsPref{}},
++		{"junk", &Preference{Value: "maybe"}, ReadReceiptsPref{}},
++		{"empty", &Preference{Value: ""}, ReadReceiptsPref{}},
++		{"negative", &Preference{Value: "-5"}, ReadReceiptsPref{}},
++		{"signed", &Preference{Value: "+5"}, ReadReceiptsPref{}},
++		{"decimal", &Preference{Value: "1.5"}, ReadReceiptsPref{}},
++		{"padded", &Preference{Value: " 5"}, ReadReceiptsPref{}},
++		{"overflow", &Preference{Value: "99999999999999999999"}, ReadReceiptsPref{}},
++		{"future", &Preference{Value: "1762934400001"}, ReadReceiptsPref{}},
++		{"far future", &Preference{Value: "9223372036854775807"}, ReadReceiptsPref{}},
++		{"zero", &Preference{Value: "0"}, ReadReceiptsPref{On: true}},
++		{"past", &Preference{Value: "1762934399999"}, ReadReceiptsPref{On: true, Since: 1762934399999}},
++		{"now", &Preference{Value: "1762934400000"}, ReadReceiptsPref{On: true, Since: now}},
++	} {
++		t.Run(tc.name, func(t *testing.T) {
++			assert.Equal(t, tc.want, ParseReadReceiptsPref(tc.pref, now))
++		})
++	}
++}
+diff --git a/webapp/channels/src/components/admin_console/admin_definition.tsx b/webapp/channels/src/components/admin_console/admin_definition.tsx
+index 87d00e26c723..b8ff808c79f7 100644
+--- a/webapp/channels/src/components/admin_console/admin_definition.tsx
++++ b/webapp/channels/src/components/admin_console/admin_definition.tsx
+@@ -3113,6 +3113,13 @@ const AdminDefinition: AdminDefinitionType = {
+                             help_text: defineMessage({id: 'admin.team.lastActiveTimeDescription', defaultMessage: 'When enabled, last active time allows users to see when someone was last online.'}),
+                             isDisabled: it.not(it.userHasWritePermissionOnResource(RESOURCE_KEYS.SITE.USERS_AND_TEAMS)),
+                         },
++                        {
++                            type: 'bool',
++                            key: 'TeamSettings.EnableReadReceipts',
++                            label: defineMessage({id: 'admin.team.readReceiptsTitle', defaultMessage: 'Enable read receipts: '}),
++                            help_text: defineMessage({id: 'admin.team.readReceiptsDescription', defaultMessage: 'When true, members of direct and group messages see when the other members have read their messages. Each user can turn read receipts off in Settings > Display. Read receipts never appear in channels.'}),
++                            isDisabled: it.not(it.userHasWritePermissionOnResource(RESOURCE_KEYS.SITE.USERS_AND_TEAMS)),
++                        },
+                         {
+                             type: 'number',
+                             key: 'TeamSettings.UserStatusAwayTimeout',
+diff --git a/webapp/channels/src/components/admin_console/admin_definition_read_receipts.test.tsx b/webapp/channels/src/components/admin_console/admin_definition_read_receipts.test.tsx
+new file mode 100644
+index 000000000000..be3c4cb9a596
+--- /dev/null
++++ b/webapp/channels/src/components/admin_console/admin_definition_read_receipts.test.tsx
+@@ -0,0 +1,74 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++import React from 'react';
++
++import type {CloudState} from '@mattermost/types/cloud';
++import type {AdminConfig} from '@mattermost/types/config';
++
++import {RESOURCE_KEYS} from 'mattermost-redux/constants/permissions_sysconsole';
++
++import {renderWithContext, screen} from 'tests/react_testing_utils';
++
++import AdminDefinition from './admin_definition';
++import SchemaAdminSettings from './schema_admin_settings';
++import type {AdminDefinitionSetting, AdminDefinitionSubSection, AdminDefinitionSubSectionSchema, ConsoleAccess} from './types';
++
++type DisabledCheck = (config: object, state: object, license: undefined, enterpriseReady: boolean, consoleAccess: ConsoleAccess) => boolean;
++
++const READ_RECEIPTS_KEY = 'TeamSettings.EnableReadReceipts';
++
++function settingsOf(subsection: AdminDefinitionSubSection): AdminDefinitionSetting[] {
++    const schema = subsection.schema;
++
++    return schema && 'settings' in schema && schema.settings ? schema.settings : [];
++}
++
++function writeAccessTo(resourceKey: string): ConsoleAccess {
++    return {read: {}, write: {[resourceKey]: true}};
++}
++
++describe('AdminDefinition - Enable read receipts setting', () => {
++    const usersAndTeams = AdminDefinition.site.subsections.users_and_teams;
++    const getSetting = () => settingsOf(usersAndTeams).find((setting) => setting.key === READ_RECEIPTS_KEY);
++
++    test('sits right after Enable last active time on the Users and Teams page', () => {
++        const keys = settingsOf(usersAndTeams).map((setting) => setting.key);
++
++        expect(getSetting()?.type).toBe('bool');
++        expect(keys.indexOf(READ_RECEIPTS_KEY)).toBe(keys.indexOf('TeamSettings.EnableLastActiveTime') + 1);
++    });
++
++    test('is gated on write access to the Users and Teams console resource', () => {
++        const isDisabled = getSetting()?.isDisabled as DisabledCheck;
++
++        expect(isDisabled({}, {}, undefined, true, writeAccessTo(RESOURCE_KEYS.SITE.USERS_AND_TEAMS))).toBe(false);
++        expect(isDisabled({}, {}, undefined, true, writeAccessTo(RESOURCE_KEYS.SITE.CUSTOMIZATION))).toBe(true);
++    });
++
++    test('renders with its label, help text and saved value', () => {
++        const schema = usersAndTeams.schema as AdminDefinitionSubSectionSchema;
++
++        renderWithContext(
++            <SchemaAdminSettings
++                cloud={{} as CloudState}
++                consoleAccess={writeAccessTo(RESOURCE_KEYS.SITE.USERS_AND_TEAMS)}
++                editRole={jest.fn()}
++                enterpriseReady={false}
++                isCurrentUserSystemAdmin={true}
++                isDisabled={false}
++                license={{}}
++                roles={{}}
++                setNavigationBlocked={jest.fn()}
++                config={{TeamSettings: {EnableReadReceipts: true}} as unknown as Partial<AdminConfig>}
++                environmentConfig={{}}
++                schema={{...schema, settings: settingsOf(usersAndTeams).filter((setting) => setting.key === READ_RECEIPTS_KEY)} as AdminDefinitionSubSectionSchema}
++                patchConfig={jest.fn()}
++            />,
++        );
++
++        expect(screen.getByText('Enable read receipts:')).toBeInTheDocument();
++        expect(screen.getByText(/Read receipts never appear in channels\./)).toBeInTheDocument();
++        expect(screen.getByTestId('TeamSettings.EnableReadReceiptstrue')).toBeChecked();
++    });
++});
+diff --git a/webapp/channels/src/components/post/post_component.tsx b/webapp/channels/src/components/post/post_component.tsx
+index 5f564e33b89f..53a4c5cd0b2e 100644
+--- a/webapp/channels/src/components/post/post_component.tsx
++++ b/webapp/channels/src/components/post/post_component.tsx
+@@ -39,6 +39,7 @@ import PostMessageContainer from 'components/post_view/post_message_view';
+ import PostPreHeader from 'components/post_view/post_pre_header';
+ import PostTime from 'components/post_view/post_time';
+ import ReactionList from 'components/post_view/reaction_list';
++import PostReadReceipt from 'components/read_receipts/post_read_receipt';
+ import RedactedFilesPlaceholder from 'components/post_view/redacted_files_placeholder';
+ import ThreadFooter from 'components/threading/channel_threads/thread_footer';
+ import type {Props as TimestampProps} from 'components/timestamp/timestamp';
+@@ -946,6 +947,10 @@ function PostComponent(props: Props) {
+                                 )}
+                                 {showReactions && <ReactionList post={post}/>}
+                             </div>
++                            <PostReadReceipt
++                                post={post}
++                                location={props.location}
++                            />
+                             {threadFooter}
+                         </div>
+                     </div>
+diff --git a/webapp/channels/src/components/post_view/post_view.tsx b/webapp/channels/src/components/post_view/post_view.tsx
+index a44b553bbe22..a810cf1f7f1b 100644
+--- a/webapp/channels/src/components/post_view/post_view.tsx
++++ b/webapp/channels/src/components/post_view/post_view.tsx
+@@ -4,6 +4,7 @@
+ import React from 'react';
+ 
+ import LoadingScreen from 'components/loading_screen';
++import ReadReceiptsSync from 'components/read_receipts/read_receipts_sync';
+ 
+ import {Preferences} from 'utils/constants';
+ 
+@@ -100,6 +101,7 @@ export default class PostView extends React.PureComponent<Props, State> {
+                     toggleShouldStartFromBottomWhenUnread={this.toggleShouldStartFromBottomWhenUnread}
+                     focusedPostId={this.props.focusedPostId}
+                 />
++                <ReadReceiptsSync channelId={this.props.channelId}/>
+             </div>
+         );
+     }
+diff --git a/webapp/channels/src/components/read_receipts/post_read_receipt.scss b/webapp/channels/src/components/read_receipts/post_read_receipt.scss
+new file mode 100644
+index 000000000000..79184758f098
+--- /dev/null
++++ b/webapp/channels/src/components/read_receipts/post_read_receipt.scss
+@@ -0,0 +1,8 @@
++.post-read-receipt {
++    display: flex;
++    justify-content: flex-end;
++    margin-top: 4px;
++    color: rgba(var(--center-channel-color-rgb), 0.64);
++    font-size: 11px;
++    line-height: 16px;
++}
+diff --git a/webapp/channels/src/components/read_receipts/post_read_receipt.test.tsx b/webapp/channels/src/components/read_receipts/post_read_receipt.test.tsx
+new file mode 100644
+index 000000000000..364489717c16
+--- /dev/null
++++ b/webapp/channels/src/components/read_receipts/post_read_receipt.test.tsx
+@@ -0,0 +1,126 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++import React from 'react';
++
++import type {Post} from '@mattermost/types/posts';
++import type {DeepPartial} from '@mattermost/types/utilities';
++
++import {renderWithContext, screen, userEvent} from 'tests/react_testing_utils';
++import {Locations} from 'utils/constants';
++
++import type {GlobalState} from 'types/store';
++
++import PostReadReceipt from './post_read_receipt';
++import type {ChannelReadReceipts} from './state';
++
++const ME = 'me';
++const CHANNEL = 'channel1';
++
++function post(id: string, createAt: number): Post {
++    return {id, user_id: ME, channel_id: CHANNEL, create_at: createAt, type: '', state: '', props: {}} as unknown as Post;
++}
++
++const older = post('older', 100);
++const newest = post('newest', 300);
++
++function makeState(channelType: string, receipts: ChannelReadReceipts, enabled = 'true') {
++    return {
++        entities: {
++            general: {config: {EnableReadReceipts: enabled, TeammateNameDisplay: 'username'}},
++            channels: {channels: {[CHANNEL]: {id: CHANNEL, type: channelType}}},
++            posts: {
++                posts: {older, newest},
++                postsInChannel: {[CHANNEL]: [{order: ['newest', 'older'], recent: true}]},
++            },
++            users: {
++                currentUserId: ME,
++                profiles: {
++                    u2: {id: 'u2', username: 'alice'},
++                    u3: {id: 'u3', username: 'bob'},
++                    u4: {id: 'u4', username: 'carol'},
++                },
++            },
++        },
++        readReceipts: {[CHANNEL]: receipts},
++    } as unknown as DeepPartial<GlobalState>;
++}
++
++function renderReceipt(p: Post, state: DeepPartial<GlobalState>, location: keyof typeof Locations = Locations.CENTER) {
++    return renderWithContext(
++        <PostReadReceipt
++            post={p}
++            location={location}
++        />,
++        state,
++        {pluginReducers: ['readReceipts']},
++    );
++}
++
++describe('PostReadReceipt', () => {
++    test('DM shows Seen under the newest own post the other member has read', () => {
++        const state = makeState('D', {otherMemberCount: 1, lastViewedAt: {u2: 300}});
++
++        renderReceipt(newest, state);
++        expect(screen.getByText('Seen')).toBeInTheDocument();
++    });
++
++    test('DM shows nothing under an older own post', () => {
++        const state = makeState('D', {otherMemberCount: 1, lastViewedAt: {u2: 300}});
++
++        const {container} = renderReceipt(older, state);
++        expect(container).toBeEmptyDOMElement();
++    });
++
++    test('DM with the newest post unread moves Seen to the older post', () => {
++        const state = makeState('D', {otherMemberCount: 1, lastViewedAt: {u2: 200}});
++
++        renderReceipt(older, state);
++        expect(screen.getByText('Seen')).toBeInTheDocument();
++    });
++
++    test('DM shows nothing when the other member is not in the receipts', () => {
++        const state = makeState('D', {otherMemberCount: 1, lastViewedAt: {}});
++
++        const {container} = renderReceipt(newest, state);
++        expect(container).toBeEmptyDOMElement();
++    });
++
++    test('GM partial read shows Seen by N with the readers on hover', async () => {
++        const state = makeState('G', {otherMemberCount: 3, lastViewedAt: {u2: 300, u3: 300, u4: 100}});
++
++        renderReceipt(newest, state);
++        const label = screen.getByText('Seen by 2');
++
++        await userEvent.hover(label);
++        expect(await screen.findByText('Seen by alice and bob')).toBeInTheDocument();
++    });
++
++    test('GM older post read by everyone shows Seen with every reader on hover', async () => {
++        const state = makeState('G', {otherMemberCount: 3, lastViewedAt: {u2: 300, u3: 300, u4: 100}});
++
++        renderReceipt(older, state);
++        const label = screen.getByText('Seen');
++
++        await userEvent.hover(label);
++        expect(await screen.findByText('Seen by alice, bob, and carol')).toBeInTheDocument();
++    });
++
++    test.each([
++        Locations.RHS_ROOT,
++        Locations.RHS_COMMENT,
++        Locations.SEARCH,
++    ])('shows nothing in %s', (location) => {
++        const state = makeState('D', {otherMemberCount: 1, lastViewedAt: {u2: 300}});
++
++        const {container} = renderReceipt(newest, state, location);
++        expect(container).toBeEmptyDOMElement();
++    });
++
++    test('shows nothing when the switch is off', () => {
++        const state = makeState('D', {otherMemberCount: 1, lastViewedAt: {u2: 300}}, 'false');
++
++        const {container} = renderReceipt(newest, state);
++        expect(container).toBeEmptyDOMElement();
++    });
++});
+diff --git a/webapp/channels/src/components/read_receipts/post_read_receipt.tsx b/webapp/channels/src/components/read_receipts/post_read_receipt.tsx
+new file mode 100644
+index 000000000000..a1d00afb4a44
+--- /dev/null
++++ b/webapp/channels/src/components/read_receipts/post_read_receipt.tsx
+@@ -0,0 +1,89 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++import React from 'react';
++import {FormattedMessage, useIntl} from 'react-intl';
++import {shallowEqual, useSelector} from 'react-redux';
++
++import {WithTooltip} from '@mattermost/shared/components/tooltip';
++import type {Post} from '@mattermost/types/posts';
++
++import {getTeammateNameDisplaySetting} from 'mattermost-redux/selectors/entities/preferences';
++import {getUser} from 'mattermost-redux/selectors/entities/users';
++import {displayUsername} from 'mattermost-redux/utils/user_utils';
++
++import {Locations} from 'utils/constants';
++
++import type {GlobalState} from 'types/store';
++
++import {isReadReceiptsActive, makeGetReadReceiptAnchors} from './state';
++import type {ReadReceiptAnchor} from './state';
++
++import './post_read_receipt.scss';
++
++const getReadReceiptAnchors = makeGetReadReceiptAnchors();
++
++const noUserIds: string[] = [];
++
++type Props = {
++    post: Post;
++    location: keyof typeof Locations;
++};
++
++function selectAnchor(state: GlobalState, post: Post): ReadReceiptAnchor | undefined {
++    if (!isReadReceiptsActive(state, post.channel_id)) {
++        return undefined;
++    }
++    const anchors = getReadReceiptAnchors(state, post.channel_id);
++    if (anchors?.seen?.postId === post.id) {
++        return anchors.seen;
++    }
++    if (anchors?.partial?.postId === post.id) {
++        return anchors.partial;
++    }
++    return undefined;
++}
++
++export default function PostReadReceipt({post, location}: Props) {
++    const intl = useIntl();
++    const anchor = useSelector((state: GlobalState) => (location === Locations.CENTER ? selectAnchor(state, post) : undefined));
++    const userIds = anchor?.userIds ?? noUserIds;
++    const names = useSelector((state: GlobalState) => {
++        const nameDisplay = getTeammateNameDisplaySetting(state);
++        return userIds.map((userId) => displayUsername(getUser(state, userId), nameDisplay));
++    }, shallowEqual);
++
++    if (!anchor) {
++        return null;
++    }
++
++    const label = anchor.kind === 'seen' ? (
++        <FormattedMessage
++            id='post.readReceipt.seen'
++            defaultMessage='Seen'
++        />
++    ) : (
++        <FormattedMessage
++            id='post.readReceipt.seenBy'
++            defaultMessage='Seen by {count}'
++            values={{count: userIds.length}}
++        />
++    );
++
++    if (anchor.kind === 'seen' && userIds.length < 2) {
++        return <div className='post-read-receipt'><span>{label}</span></div>;
++    }
++
++    return (
++        <div className='post-read-receipt'>
++            <WithTooltip
++                title={intl.formatMessage(
++                    {id: 'post.readReceipt.readers', defaultMessage: 'Seen by {names}'},
++                    {names: intl.formatList(names, {type: 'conjunction'})},
++                )}
++            >
++                <span>{label}</span>
++            </WithTooltip>
++        </div>
++    );
++}
+diff --git a/webapp/channels/src/components/read_receipts/read_receipts_sync.test.tsx b/webapp/channels/src/components/read_receipts/read_receipts_sync.test.tsx
+new file mode 100644
+index 000000000000..576649caa97e
+--- /dev/null
++++ b/webapp/channels/src/components/read_receipts/read_receipts_sync.test.tsx
+@@ -0,0 +1,108 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++import React from 'react';
++
++import type {WebSocketMessage} from '@mattermost/client';
++import type {DeepPartial} from '@mattermost/types/utilities';
++
++import WebSocketClient from 'client/web_websocket_client';
++import {act, renderWithContext, waitFor} from 'tests/react_testing_utils';
++
++import type {GlobalState} from 'types/store';
++
++import ReadReceiptsSync from './read_receipts_sync';
++import {READ_RECEIPT_RECEIVED} from './state';
++
++const CHANNEL = 'channel1';
++
++function makeState({channelType = 'D', ownSetting, lastConnectAt = 1}: {channelType?: string; ownSetting?: string; lastConnectAt?: number} = {}) {
++    return {
++        entities: {
++            general: {config: {EnableReadReceipts: 'true'}},
++            channels: {channels: {[CHANNEL]: {id: CHANNEL, type: channelType}}},
++            preferences: {
++                myPreferences: ownSetting === undefined ? {} : {
++                    'display_settings--read_receipts': {user_id: 'me', category: 'display_settings', name: 'read_receipts', value: ownSetting},
++                },
++            },
++            users: {currentUserId: 'me'},
++        },
++        websocket: {lastConnectAt},
++    } as unknown as DeepPartial<GlobalState>;
++}
++
++describe('ReadReceiptsSync', () => {
++    let fetchSpy: jest.SpyInstance;
++
++    beforeEach(() => {
++        fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValue({
++            ok: true,
++            json: async () => ({channel_id: CHANNEL, other_member_count: 1, last_viewed_at: {u2: 500}}),
++        } as Response);
++    });
++
++    afterEach(() => {
++        jest.restoreAllMocks();
++    });
++
++    function readReceiptFetches() {
++        return fetchSpy.mock.calls.filter(([url]) => String(url).endsWith(`/channels/${CHANNEL}/read_receipts`));
++    }
++
++    test('registers its reducer and stores fetched receipts for an active DM', async () => {
++        const {store} = renderWithContext(<ReadReceiptsSync channelId={CHANNEL}/>, makeState());
++
++        await waitFor(() => {
++            expect((store.getState() as GlobalState & {readReceipts: unknown}).readReceipts).toEqual({
++                [CHANNEL]: {otherMemberCount: 1, lastViewedAt: {u2: 500}},
++            });
++        });
++        expect(readReceiptFetches()).toHaveLength(1);
++    });
++
++    test('does not fetch for a public channel', async () => {
++        renderWithContext(<ReadReceiptsSync channelId={CHANNEL}/>, makeState({channelType: 'O'}), {useMockedStore: true});
++
++        await act(async () => {});
++        expect(readReceiptFetches()).toHaveLength(0);
++    });
++
++    test('refetches after the websocket reconnects', async () => {
++        const {updateStoreState} = renderWithContext(<ReadReceiptsSync channelId={CHANNEL}/>, makeState(), {useMockedStore: true});
++        await waitFor(() => expect(readReceiptFetches()).toHaveLength(1));
++
++        updateStoreState({websocket: {lastConnectAt: 2}});
++        await waitFor(() => expect(readReceiptFetches()).toHaveLength(2));
++    });
++
++    test('fetches when the user turns read receipts back on', async () => {
++        const {replaceStoreState} = renderWithContext(<ReadReceiptsSync channelId={CHANNEL}/>, makeState({ownSetting: 'false'}), {useMockedStore: true});
++        await act(async () => {});
++        expect(readReceiptFetches()).toHaveLength(0);
++
++        replaceStoreState(makeState({ownSetting: '1762934400000'}));
++        await waitFor(() => expect(readReceiptFetches()).toHaveLength(1));
++    });
++
++    test('dispatches read_receipt events and ignores other events', async () => {
++        const listeners: Array<(msg: WebSocketMessage) => void> = [];
++        jest.spyOn(WebSocketClient, 'addMessageListener').mockImplementation((listener) => {
++            listeners.push(listener);
++        });
++
++        const {store} = renderWithContext(<ReadReceiptsSync channelId={CHANNEL}/>, makeState(), {useMockedStore: true});
++        await waitFor(() => expect(listeners).not.toHaveLength(0));
++
++        act(() => {
++            listeners.forEach((listener) => {
++                listener({event: 'typing', data: {user_id: 'u2'}, broadcast: {channel_id: CHANNEL}, seq: 1} as unknown as WebSocketMessage);
++                listener({event: 'read_receipt', data: {user_id: 'u2', last_viewed_at: 900}, broadcast: {channel_id: CHANNEL}, seq: 2} as unknown as WebSocketMessage);
++            });
++        });
++
++        const actions = (store as unknown as {getActions: () => Array<{type: string}>}).getActions();
++        const receiptActions = actions.filter((action) => action.type === READ_RECEIPT_RECEIVED);
++        expect(receiptActions).toEqual([{type: READ_RECEIPT_RECEIVED, channelId: CHANNEL, userId: 'u2', lastViewedAt: 900}]);
++    });
++});
+diff --git a/webapp/channels/src/components/read_receipts/read_receipts_sync.tsx b/webapp/channels/src/components/read_receipts/read_receipts_sync.tsx
+new file mode 100644
+index 000000000000..c1524bbbd7ed
+--- /dev/null
++++ b/webapp/channels/src/components/read_receipts/read_receipts_sync.tsx
+@@ -0,0 +1,56 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++import {useCallback, useEffect} from 'react';
++import {useDispatch, useSelector} from 'react-redux';
++
++import type {WebSocketMessage} from '@mattermost/client';
++
++import {useWebSocket} from 'utils/use_websocket';
++
++import type {GlobalState} from 'types/store';
++
++import {
++    READ_RECEIPT_EVENT,
++    fetchReadReceipts,
++    isReadReceiptsActive,
++    receivedReadReceipt,
++    registerReadReceiptsReducer,
++} from './state';
++
++type Props = {
++    channelId: string;
++};
++
++type ReadReceiptMessage = {
++    event: string;
++    broadcast: {channel_id: string};
++    data: {user_id: string; last_viewed_at: number};
++};
++
++export default function ReadReceiptsSync({channelId}: Props) {
++    const dispatch = useDispatch();
++    const active = useSelector((state: GlobalState) => isReadReceiptsActive(state, channelId));
++    const lastConnectAt = useSelector((state: GlobalState) => state.websocket.lastConnectAt);
++
++    useEffect(() => {
++        registerReadReceiptsReducer();
++    }, []);
++
++    useEffect(() => {
++        if (active) {
++            dispatch(fetchReadReceipts(channelId));
++        }
++    }, [active, channelId, lastConnectAt, dispatch]);
++
++    useWebSocket({
++        handler: useCallback((msg: WebSocketMessage) => {
++            const {event, broadcast, data} = msg as unknown as ReadReceiptMessage;
++            if (event === READ_RECEIPT_EVENT) {
++                dispatch(receivedReadReceipt(broadcast.channel_id, data.user_id, data.last_viewed_at));
++            }
++        }, [dispatch]),
++    });
++
++    return null;
++}
+diff --git a/webapp/channels/src/components/read_receipts/state.test.ts b/webapp/channels/src/components/read_receipts/state.test.ts
+new file mode 100644
+index 000000000000..b754a27e569c
+--- /dev/null
++++ b/webapp/channels/src/components/read_receipts/state.test.ts
+@@ -0,0 +1,219 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++import type {Post} from '@mattermost/types/posts';
++
++import {UserTypes} from 'mattermost-redux/action_types';
++
++import type {GlobalState} from 'types/store';
++
++import {
++    READ_RECEIPTS_RECEIVED,
++    makeGetReadReceiptAnchors,
++    receivedReadReceipt,
++    reducer,
++} from './state';
++import type {ChannelReadReceipts} from './state';
++
++const ME = 'me';
++const CHANNEL = 'channel1';
++
++function post(id: string, createAt: number, override: Partial<Post> = {}): Post {
++    return {id, user_id: ME, channel_id: CHANNEL, create_at: createAt, type: '', state: '', props: {}, ...override} as Post;
++}
++
++type StateOptions = {
++    channelType?: string;
++    enabled?: string;
++    ownSetting?: string;
++    posts: Post[];
++    receipts?: ChannelReadReceipts;
++};
++
++function makeState({channelType = 'D', enabled = 'true', ownSetting, posts, receipts}: StateOptions): GlobalState {
++    const sorted = [...posts].sort((a, b) => b.create_at - a.create_at);
++    return {
++        entities: {
++            general: {config: {EnableReadReceipts: enabled}},
++            channels: {channels: {[CHANNEL]: {id: CHANNEL, type: channelType}}},
++            posts: {
++                posts: Object.fromEntries(posts.map((p) => [p.id, p])),
++                postsInChannel: {[CHANNEL]: [{order: sorted.map((p) => p.id), recent: true}]},
++            },
++            preferences: {
++                myPreferences: ownSetting === undefined ? {} : {
++                    'display_settings--read_receipts': {user_id: ME, category: 'display_settings', name: 'read_receipts', value: ownSetting},
++                },
++            },
++            users: {currentUserId: ME},
++        },
++        readReceipts: receipts ? {[CHANNEL]: receipts} : {},
++    } as unknown as GlobalState;
++}
++
++describe('read receipts reducer', () => {
++    test('replaces a channel entry on fetch', () => {
++        const state = reducer({[CHANNEL]: {otherMemberCount: 1, lastViewedAt: {u2: 500}}}, {
++            type: READ_RECEIPTS_RECEIVED,
++            channelId: CHANNEL,
++            otherMemberCount: 2,
++            lastViewedAt: {u3: 100},
++        });
++
++        expect(state).toEqual({[CHANNEL]: {otherMemberCount: 2, lastViewedAt: {u3: 100}}});
++    });
++
++    test('merges an event and never moves a watermark backwards', () => {
++        let state = reducer({[CHANNEL]: {otherMemberCount: 2, lastViewedAt: {u2: 500}}}, receivedReadReceipt(CHANNEL, 'u2', 700));
++        state = reducer(state, receivedReadReceipt(CHANNEL, 'u3', 300));
++        const afterStale = reducer(state, receivedReadReceipt(CHANNEL, 'u2', 600));
++
++        expect(afterStale).toBe(state);
++        expect(state).toEqual({[CHANNEL]: {otherMemberCount: 2, lastViewedAt: {u2: 700, u3: 300}}});
++    });
++
++    test('ignores events for channels that were never fetched', () => {
++        const state = {};
++        expect(reducer(state, receivedReadReceipt(CHANNEL, 'u2', 700))).toBe(state);
++    });
++
++    test('resets on logout', () => {
++        expect(reducer({[CHANNEL]: {otherMemberCount: 1, lastViewedAt: {u2: 1}}}, {type: UserTypes.LOGOUT_SUCCESS})).toEqual({});
++    });
++});
++
++describe('makeGetReadReceiptAnchors', () => {
++    const getAnchors = makeGetReadReceiptAnchors();
++
++    test('DM read up to the newest own post shows Seen there', () => {
++        const state = makeState({
++            posts: [post('a', 100), post('b', 200, {user_id: 'u2'}), post('c', 300)],
++            receipts: {otherMemberCount: 1, lastViewedAt: {u2: 300}},
++        });
++
++        expect(getAnchors(state, CHANNEL)).toEqual({seen: {kind: 'seen', postId: 'c', userIds: ['u2']}, partial: undefined});
++    });
++
++    test('DM read up to an older own post shows Seen on that post', () => {
++        const state = makeState({
++            posts: [post('a', 100), post('b', 300)],
++            receipts: {otherMemberCount: 1, lastViewedAt: {u2: 200}},
++        });
++
++        expect(getAnchors(state, CHANNEL)?.seen?.postId).toBe('a');
++        expect(getAnchors(state, CHANNEL)?.partial).toBeUndefined();
++    });
++
++    test('DM with nothing read shows nothing', () => {
++        const state = makeState({
++            posts: [post('a', 100)],
++            receipts: {otherMemberCount: 1, lastViewedAt: {u2: 50}},
++        });
++
++        expect(getAnchors(state, CHANNEL)).toBeNull();
++    });
++
++    test('newer posts from others do not take the indicator', () => {
++        const state = makeState({
++            posts: [post('a', 300), post('b', 400, {user_id: 'u2'})],
++            receipts: {otherMemberCount: 1, lastViewedAt: {u2: 400}},
++        });
++
++        expect(getAnchors(state, CHANNEL)?.seen?.postId).toBe('a');
++    });
++
++    test('GM read by everyone shows Seen with all readers', () => {
++        const state = makeState({
++            channelType: 'G',
++            posts: [post('a', 100), post('b', 300)],
++            receipts: {otherMemberCount: 3, lastViewedAt: {u2: 300, u3: 400, u4: 300}},
++        });
++
++        expect(getAnchors(state, CHANNEL)).toEqual({seen: {kind: 'seen', postId: 'b', userIds: ['u2', 'u3', 'u4']}, partial: undefined});
++    });
++
++    test('GM read by some shows Seen on the older post and Seen by N on the newest', () => {
++        const state = makeState({
++            channelType: 'G',
++            posts: [post('a', 100), post('b', 300)],
++            receipts: {otherMemberCount: 3, lastViewedAt: {u2: 400, u3: 250, u4: 300}},
++        });
++
++        expect(getAnchors(state, CHANNEL)).toEqual({
++            seen: {kind: 'seen', postId: 'a', userIds: ['u2', 'u3', 'u4']},
++            partial: {kind: 'partial', postId: 'b', userIds: ['u2', 'u4']},
++        });
++    });
++
++    test('GM where nobody reached the newest post shows only the older Seen', () => {
++        const state = makeState({
++            channelType: 'G',
++            posts: [post('a', 100), post('b', 300)],
++            receipts: {otherMemberCount: 3, lastViewedAt: {u2: 150, u3: 150, u4: 150}},
++        });
++
++        expect(getAnchors(state, CHANNEL)).toEqual({seen: {kind: 'seen', postId: 'a', userIds: ['u2', 'u3', 'u4']}, partial: undefined});
++    });
++
++    test('GM member absent from the receipts blocks Seen', () => {
++        const state = makeState({
++            channelType: 'G',
++            posts: [post('a', 100), post('b', 300)],
++            receipts: {otherMemberCount: 3, lastViewedAt: {u2: 500, u3: 500}},
++        });
++
++        expect(getAnchors(state, CHANNEL)).toEqual({partial: {kind: 'partial', postId: 'b', userIds: ['u2', 'u3']}});
++    });
++
++    test('skips own system, pending, failed, ephemeral, deleted, burn-on-read and webhook posts', () => {
++        const state = makeState({
++            posts: [
++                post('real', 100),
++                post('system', 200, {type: 'system_join_channel'}),
++                post('pending', 300, {pending_post_id: 'pending'}),
++                post('failed', 350, {failed: true}),
++                post('ephemeral', 400, {type: 'system_ephemeral'}),
++                post('deleted', 500, {state: 'DELETED'}),
++                post('bor', 600, {type: 'burn_on_read'}),
++                post('webhook', 700, {props: {from_webhook: 'true'}}),
++            ],
++            receipts: {otherMemberCount: 1, lastViewedAt: {u2: 1000}},
++        });
++
++        expect(getAnchors(state, CHANNEL)?.seen?.postId).toBe('real');
++    });
++
++    test('returns the same result while inputs are unchanged', () => {
++        const state = makeState({
++            posts: [post('a', 100)],
++            receipts: {otherMemberCount: 1, lastViewedAt: {u2: 100}},
++        });
++
++        expect(getAnchors(state, CHANNEL)).toBe(getAnchors(state, CHANNEL));
++    });
++
++    test.each([
++        ['the switch is off', {enabled: 'false'}],
++        ['the channel is public', {channelType: 'O'}],
++        ['the channel is private', {channelType: 'P'}],
++        ['the user turned read receipts off', {ownSetting: 'false'}],
++    ])('returns null when %s', (_, options) => {
++        const state = makeState({
++            posts: [post('a', 100)],
++            receipts: {otherMemberCount: 1, lastViewedAt: {u2: 100}},
++            ...options,
++        });
++
++        expect(getAnchors(state, CHANNEL)).toBeNull();
++    });
++
++    test('a timestamp setting means on', () => {
++        const state = makeState({
++            ownSetting: '1762934400000',
++            posts: [post('a', 100)],
++            receipts: {otherMemberCount: 1, lastViewedAt: {u2: 100}},
++        });
++
++        expect(getAnchors(state, CHANNEL)?.seen?.postId).toBe('a');
++    });
++});
+diff --git a/webapp/channels/src/components/read_receipts/state.ts b/webapp/channels/src/components/read_receipts/state.ts
+new file mode 100644
+index 000000000000..9590d3cfe8b8
+--- /dev/null
++++ b/webapp/channels/src/components/read_receipts/state.ts
+@@ -0,0 +1,176 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++import type {AnyAction} from 'redux';
++
++import type {Post} from '@mattermost/types/posts';
++
++import {UserTypes} from 'mattermost-redux/action_types';
++import {Client4} from 'mattermost-redux/client';
++import {General, Posts, Preferences} from 'mattermost-redux/constants';
++import {createSelector} from 'mattermost-redux/selectors/create_selector';
++import {getChannel} from 'mattermost-redux/selectors/entities/channels';
++import {getConfig} from 'mattermost-redux/selectors/entities/general';
++import {getAllPosts, getRecentPostsChunkInChannel} from 'mattermost-redux/selectors/entities/posts';
++import {get as getPreference} from 'mattermost-redux/selectors/entities/preferences';
++import {getCurrentUserId} from 'mattermost-redux/selectors/entities/users';
++import reducerRegistry from 'mattermost-redux/store/reducer_registry';
++import {isFromWebhook, isPostEphemeral, isPostPendingOrFailed, isSystemMessage} from 'mattermost-redux/utils/post_utils';
++
++import type {GlobalState, ThunkActionFunc} from 'types/store';
++
++export const READ_RECEIPT_EVENT = 'read_receipt';
++export const READ_RECEIPTS_RECEIVED = 'READ_RECEIPTS_RECEIVED';
++export const READ_RECEIPT_RECEIVED = 'READ_RECEIPT_RECEIVED';
++export const PREFERENCE_NAME_READ_RECEIPTS = 'read_receipts';
++
++const STATE_KEY = 'readReceipts';
++
++export type ChannelReadReceipts = {
++    otherMemberCount: number;
++    lastViewedAt: Record<string, number>;
++};
++
++export type ReadReceiptsState = Record<string, ChannelReadReceipts>;
++
++export type ReadReceiptAnchor = {
++    kind: 'seen' | 'partial';
++    postId: string;
++    userIds: string[];
++};
++
++export type ReadReceiptAnchors = {
++    seen?: ReadReceiptAnchor;
++    partial?: ReadReceiptAnchor;
++};
++
++export function reducer(state: ReadReceiptsState = {}, action: AnyAction): ReadReceiptsState {
++    switch (action.type) {
++    case READ_RECEIPTS_RECEIVED:
++        return {
++            ...state,
++            [action.channelId]: {
++                otherMemberCount: action.otherMemberCount,
++                lastViewedAt: action.lastViewedAt,
++            },
++        };
++    case READ_RECEIPT_RECEIVED: {
++        const current = state[action.channelId];
++        if (!current || (current.lastViewedAt[action.userId] ?? 0) >= action.lastViewedAt) {
++            return state;
++        }
++        return {
++            ...state,
++            [action.channelId]: {
++                ...current,
++                lastViewedAt: {...current.lastViewedAt, [action.userId]: action.lastViewedAt},
++            },
++        };
++    }
++    case UserTypes.LOGOUT_SUCCESS:
++        return {};
++    default:
++        return state;
++    }
++}
++
++let registered = false;
++
++export function registerReadReceiptsReducer() {
++    if (!registered) {
++        reducerRegistry.register(STATE_KEY, reducer);
++        registered = true;
++    }
++}
++
++export function receivedReadReceipt(channelId: string, userId: string, lastViewedAt: number) {
++    return {type: READ_RECEIPT_RECEIVED, channelId, userId, lastViewedAt};
++}
++
++export function fetchReadReceipts(channelId: string): ThunkActionFunc<Promise<void>> {
++    return async (dispatch) => {
++        let data;
++        try {
++            const response = await fetch(`${Client4.getChannelRoute(channelId)}/read_receipts`, Client4.getOptions({method: 'get'}));
++            if (!response.ok) {
++                return;
++            }
++            data = await response.json();
++        } catch {
++            return;
++        }
++        dispatch({
++            type: READ_RECEIPTS_RECEIVED,
++            channelId,
++            otherMemberCount: data.other_member_count,
++            lastViewedAt: data.last_viewed_at ?? {},
++        });
++    };
++}
++
++function getReadReceipts(state: GlobalState, channelId: string): ChannelReadReceipts | undefined {
++    return (state as GlobalState & {[STATE_KEY]?: ReadReceiptsState})[STATE_KEY]?.[channelId];
++}
++
++export function isReadReceiptsActive(state: GlobalState, channelId: string): boolean {
++    if (getConfig(state).EnableReadReceipts !== 'true') {
++        return false;
++    }
++    const channel = getChannel(state, channelId);
++    if (channel?.type !== General.DM_CHANNEL && channel?.type !== General.GM_CHANNEL) {
++        return false;
++    }
++    return getPreference(state, Preferences.CATEGORY_DISPLAY_SETTINGS, PREFERENCE_NAME_READ_RECEIPTS, '') !== 'false';
++}
++
++function countsAsOwnPost(post: Post, currentUserId: string): boolean {
++    return post.user_id === currentUserId &&
++        post.state !== Posts.POST_DELETED &&
++        post.type !== Posts.POST_TYPES.BURN_ON_READ &&
++        !isSystemMessage(post) &&
++        !isPostEphemeral(post) &&
++        !isPostPendingOrFailed(post) &&
++        !isFromWebhook(post);
++}
++
++export function makeGetReadReceiptAnchors() {
++    return createSelector(
++        'makeGetReadReceiptAnchors',
++        isReadReceiptsActive,
++        (state: GlobalState, channelId: string) => getRecentPostsChunkInChannel(state, channelId)?.order,
++        getAllPosts,
++        getReadReceipts,
++        getCurrentUserId,
++        (active, order, posts, receipts, currentUserId): ReadReceiptAnchors | null => {
++            if (!active || !order || !receipts || receipts.otherMemberCount <= 0) {
++                return null;
++            }
++
++            const readerIds = Object.keys(receipts.lastViewedAt);
++            const seenPossible = readerIds.length >= receipts.otherMemberCount;
++            let partial: ReadReceiptAnchor | undefined;
++            let newest = true;
++
++            for (const postId of order) {
++                const post = posts[postId];
++                if (!post || !countsAsOwnPost(post, currentUserId)) {
++                    continue;
++                }
++
++                const userIds = readerIds.filter((userId) => receipts.lastViewedAt[userId] >= post.create_at);
++                if (seenPossible && userIds.length >= receipts.otherMemberCount) {
++                    return {seen: {kind: 'seen', postId, userIds}, partial};
++                }
++                if (newest && userIds.length > 0) {
++                    partial = {kind: 'partial', postId, userIds};
++                }
++                newest = false;
++                if (!seenPossible) {
++                    break;
++                }
++            }
++
++            return partial ? {partial} : null;
++        },
++    );
++}
+diff --git a/webapp/channels/src/components/user_settings/display/read_receipts/index.ts b/webapp/channels/src/components/user_settings/display/read_receipts/index.ts
+new file mode 100644
+index 000000000000..73937164db57
+--- /dev/null
++++ b/webapp/channels/src/components/user_settings/display/read_receipts/index.ts
+@@ -0,0 +1,34 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++import {connect} from 'react-redux';
++import {bindActionCreators} from 'redux';
++import type {Dispatch} from 'redux';
++
++import {savePreferences} from 'mattermost-redux/actions/preferences';
++import {Preferences} from 'mattermost-redux/constants';
++import {getConfig} from 'mattermost-redux/selectors/entities/general';
++import {get} from 'mattermost-redux/selectors/entities/preferences';
++
++import {PREFERENCE_NAME_READ_RECEIPTS} from 'components/read_receipts/state';
++
++import type {GlobalState} from 'types/store';
++
++import ReadReceipts from './read_receipts';
++
++function mapStateToProps(state: GlobalState) {
++    return {
++        enabled: getConfig(state).EnableReadReceipts === 'true',
++        readReceipts: get(state, Preferences.CATEGORY_DISPLAY_SETTINGS, PREFERENCE_NAME_READ_RECEIPTS, ''),
++    };
++}
++
++function mapDispatchToProps(dispatch: Dispatch) {
++    return {
++        actions: bindActionCreators({
++            savePreferences,
++        }, dispatch),
++    };
++}
++
++export default connect(mapStateToProps, mapDispatchToProps)(ReadReceipts);
+diff --git a/webapp/channels/src/components/user_settings/display/read_receipts/read_receipts.test.tsx b/webapp/channels/src/components/user_settings/display/read_receipts/read_receipts.test.tsx
+new file mode 100644
+index 000000000000..2fd69cfba135
+--- /dev/null
++++ b/webapp/channels/src/components/user_settings/display/read_receipts/read_receipts.test.tsx
+@@ -0,0 +1,141 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++import React from 'react';
++
++import type {UserProfile} from '@mattermost/types/users';
++import type {DeepPartial} from '@mattermost/types/utilities';
++
++import {renderWithContext, screen, userEvent} from 'tests/react_testing_utils';
++
++import type {GlobalState} from 'types/store';
++
++import ReadReceipts from './read_receipts';
++
++import ConnectedReadReceipts from './index';
++
++const user = {id: 'user_id', username: 'username'} as UserProfile;
++
++function makeState(enabled: string, ownSetting?: string) {
++    return {
++        entities: {
++            general: {config: {EnableReadReceipts: enabled}},
++            preferences: {
++                myPreferences: ownSetting === undefined ? {} : {
++                    'display_settings--read_receipts': {user_id: user.id, category: 'display_settings', name: 'read_receipts', value: ownSetting},
++                },
++            },
++            users: {currentUserId: user.id},
++        },
++    } as unknown as DeepPartial<GlobalState>;
++}
++
++describe('ReadReceipts setting', () => {
++    test('is hidden when the admin switch is off', () => {
++        const {container} = renderWithContext(
++            <ConnectedReadReceipts
++                user={user}
++                activeSection=''
++                updateSection={jest.fn()}
++            />,
++            makeState('false'),
++        );
++
++        expect(container).toBeEmptyDOMElement();
++    });
++
++    test('is hidden when an admin edits another user', () => {
++        const {container} = renderWithContext(
++            <ConnectedReadReceipts
++                user={user}
++                adminMode={true}
++                activeSection=''
++                updateSection={jest.fn()}
++            />,
++            makeState('true'),
++        );
++
++        expect(container).toBeEmptyDOMElement();
++    });
++
++    test('shows On by default when the admin switch is on', () => {
++        renderWithContext(
++            <ConnectedReadReceipts
++                user={user}
++                activeSection=''
++                updateSection={jest.fn()}
++            />,
++            makeState('true'),
++        );
++
++        expect(screen.getByText('Read receipts')).toBeInTheDocument();
++        expect(screen.getByText('On')).toBeInTheDocument();
++    });
++
++    test('shows Off after the user turned it off', () => {
++        renderWithContext(
++            <ConnectedReadReceipts
++                user={user}
++                activeSection=''
++                updateSection={jest.fn()}
++            />,
++            makeState('true', 'false'),
++        );
++
++        expect(screen.getByText('Off')).toBeInTheDocument();
++    });
++
++    function renderOpen(readReceipts: string) {
++        const savePreferences = jest.fn();
++        const updateSection = jest.fn();
++        renderWithContext(
++            <ReadReceipts
++                user={user}
++                activeSection='readReceipts'
++                updateSection={updateSection}
++                enabled={true}
++                readReceipts={readReceipts}
++                actions={{savePreferences}}
++            />,
++        );
++        return {savePreferences, updateSection};
++    }
++
++    test('saving Off stores false', async () => {
++        const {savePreferences, updateSection} = renderOpen('');
++
++        await userEvent.click(screen.getByLabelText('Off'));
++        await userEvent.click(screen.getByRole('button', {name: 'Save'}));
++
++        expect(savePreferences).toHaveBeenCalledWith(user.id, [{
++            user_id: user.id,
++            category: 'display_settings',
++            name: 'read_receipts',
++            value: 'false',
++        }]);
++        expect(updateSection).toHaveBeenCalledWith('');
++    });
++
++    test('saving On stores true and leaves the time to the server', async () => {
++        const {savePreferences} = renderOpen('false');
++
++        await userEvent.click(screen.getByLabelText('On'));
++        await userEvent.click(screen.getByRole('button', {name: 'Save'}));
++
++        expect(savePreferences).toHaveBeenCalledWith(user.id, [{
++            user_id: user.id,
++            category: 'display_settings',
++            name: 'read_receipts',
++            value: 'true',
++        }]);
++    });
++
++    test('saving without a change stores nothing', async () => {
++        const {savePreferences, updateSection} = renderOpen('');
++
++        await userEvent.click(screen.getByRole('button', {name: 'Save'}));
++
++        expect(savePreferences).not.toHaveBeenCalled();
++        expect(updateSection).toHaveBeenCalledWith('');
++    });
++});
+diff --git a/webapp/channels/src/components/user_settings/display/read_receipts/read_receipts.tsx b/webapp/channels/src/components/user_settings/display/read_receipts/read_receipts.tsx
+new file mode 100644
+index 000000000000..f723eda9c7a3
+--- /dev/null
++++ b/webapp/channels/src/components/user_settings/display/read_receipts/read_receipts.tsx
+@@ -0,0 +1,144 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++import React, {useCallback, useState} from 'react';
++import {FormattedMessage} from 'react-intl';
++
++import type {PreferenceType} from '@mattermost/types/preferences';
++import type {UserProfile} from '@mattermost/types/users';
++
++import {Preferences} from 'mattermost-redux/constants';
++
++import {PREFERENCE_NAME_READ_RECEIPTS} from 'components/read_receipts/state';
++import SettingItem from 'components/setting_item';
++import SettingItemMax from 'components/setting_item_max';
++
++const SECTION = 'readReceipts';
++
++type OnOff = 'on' | 'off';
++
++export type OwnProps = {
++    user: UserProfile;
++    adminMode?: boolean;
++    activeSection?: string;
++    updateSection: (section: string) => void;
++};
++
++type Props = OwnProps & {
++    enabled: boolean;
++    readReceipts: string;
++    actions: {
++        savePreferences: (userId: string, preferences: PreferenceType[]) => void;
++    };
++};
++
++const title = (
++    <FormattedMessage
++        id='user.settings.display.readReceiptsTitle'
++        defaultMessage='Read receipts'
++    />
++);
++
++const options: Array<{value: OnOff; inputId: string; messageId: string; defaultMessage: string}> = [
++    {value: 'on', inputId: 'readReceiptsOn', messageId: 'user.settings.advance.on', defaultMessage: 'On'},
++    {value: 'off', inputId: 'readReceiptsOff', messageId: 'user.settings.advance.off', defaultMessage: 'Off'},
++];
++
++const ReadReceipts = ({user, adminMode, activeSection, updateSection, enabled, readReceipts, actions}: Props) => {
++    const saved: OnOff = readReceipts === 'false' ? 'off' : 'on';
++    const [value, setValue] = useState<OnOff>(saved);
++
++    const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
++        setValue(e.currentTarget.value as OnOff);
++    }, []);
++
++    const handleUpdateSection = useCallback((section: string) => {
++        setValue(saved);
++        updateSection(section);
++    }, [saved, updateSection]);
++
++    const submit = useCallback(() => {
++        if (value !== saved) {
++            actions.savePreferences(user.id, [{
++                user_id: user.id,
++                category: Preferences.CATEGORY_DISPLAY_SETTINGS,
++                name: PREFERENCE_NAME_READ_RECEIPTS,
++                value: String(value === 'on'),
++            }]);
++        }
++        updateSection('');
++    }, [actions, saved, updateSection, user.id, value]);
++
++    if (!enabled || adminMode) {
++        return null;
++    }
++
++    const input = (
++        <fieldset key='readReceiptsSetting'>
++            <legend className='form-legend hidden-label'>{title}</legend>
++            {options.map((option) => (
++                <div
++                    className='radio'
++                    key={option.value}
++                >
++                    <label>
++                        <input
++                            id={option.inputId}
++                            type='radio'
++                            name='readReceipts'
++                            value={option.value}
++                            checked={value === option.value}
++                            onChange={handleChange}
++                        />
++                        <FormattedMessage
++                            id={option.messageId}
++                            defaultMessage={option.defaultMessage}
++                        />
++                    </label>
++                    <br/>
++                </div>
++            ))}
++            <div className='mt-5'>
++                <FormattedMessage
++                    id='user.settings.display.readReceiptsDesc'
++                    defaultMessage='When on, people in your direct and group messages can see when you have read their messages, and you can see when they have read yours. When off, neither happens.'
++                />
++            </div>
++        </fieldset>
++    );
++
++    return (
++        <div>
++            <SettingItem
++                active={activeSection === SECTION}
++                areAllSectionsInactive={activeSection === ''}
++                title={title}
++                describe={saved === 'on' ? (
++                    <FormattedMessage
++                        id='user.settings.advance.on'
++                        defaultMessage='On'
++                    />
++                ) : (
++                    <FormattedMessage
++                        id='user.settings.advance.off'
++                        defaultMessage='Off'
++                    />
++                )}
++                section={SECTION}
++                updateSection={handleUpdateSection}
++                max={(
++                    <SettingItemMax
++                        title={title}
++                        inputs={[input]}
++                        submit={submit}
++                        updateSection={handleUpdateSection}
++                        disableEnterSubmit={true}
++                    />
++                )}
++            />
++            <div className='divider-dark'/>
++        </div>
++    );
++};
++
++export default ReadReceipts;
+diff --git a/webapp/channels/src/components/user_settings/display/user_settings_display.tsx b/webapp/channels/src/components/user_settings/display/user_settings_display.tsx
+index 1d10974ab568..f5fd73d8963e 100644
+--- a/webapp/channels/src/components/user_settings/display/user_settings_display.tsx
++++ b/webapp/channels/src/components/user_settings/display/user_settings_display.tsx
+@@ -26,6 +26,7 @@ import {a11yFocus} from 'utils/utils';
+ 
+ import ManageLanguages from './manage_languages';
+ import ManageTimezones from './manage_timezones';
++import ReadReceipts from './read_receipts';
+ import RenderEmoticonsAsEmoji from './render_emoticons_as_emoji';
+ 
+ import SettingDesktopHeader from '../headers/setting_desktop_header';
+@@ -1205,6 +1206,12 @@ export default class UserSettingsDisplay extends React.PureComponent<Props, Stat
+                     {teammateNameDisplaySection}
+                     {availabilityStatusOnPostsSection}
+                     {lastActiveSection}
++                    <ReadReceipts
++                        user={this.props.user}
++                        adminMode={this.props.adminMode}
++                        activeSection={this.props.activeSection}
++                        updateSection={this.updateSection}
++                    />
+                     {timezoneSelection}
+                     {linkPreviewSection}
+                     {collapseSection}
+diff --git a/webapp/channels/src/i18n/en.json b/webapp/channels/src/i18n/en.json
+index bf8582e94cc5..41e1095ea257 100644
+--- a/webapp/channels/src/i18n/en.json
++++ b/webapp/channels/src/i18n/en.json
+@@ -16471,6 +16471,14 @@
+     "defaultMessage": "Enable Open Server: ",
+     "description": "Admin console boolean setting name under Authentication > Signup; 'Open Server' means anyone can sign up without an invitation. Trailing space is intentional."
+   },
++  "admin.team.readReceiptsDescription": {
++    "defaultMessage": "When true, members of direct and group messages see when the other members have read their messages. Each user can turn read receipts off in Settings > Display. Read receipts never appear in channels.",
++    "description": "Admin console help text for the 'Enable read receipts' toggle under Site Configuration > Users and Teams. 'Settings > Display' names the user settings page."
++  },
++  "admin.team.readReceiptsTitle": {
++    "defaultMessage": "Enable read receipts: ",
++    "description": "Admin console toggle setting name under Site Configuration > Users and Teams; controls whether members of direct and group messages can see who has read their messages. Trailing space is intentional."
++  },
+   "admin.team.refreshPostStatsRunTimeDescription": {
+     "defaultMessage": "Set the server time for updating the user post statistics, including each user's total post count and the timestamp of their most recent post. Must be a 24-hour time stamp in the form HH:MM based on the local time of the server.",
+     "description": "Admin console help text for the 'User Statistics Update Time' text setting; explains the required HH:MM 24-hour format."
+@@ -27411,6 +27419,18 @@
+     "defaultMessage": "Action failed to execute",
+     "description": "Error shown when the action behind an interactive message-attachment button (from an integration) fails to run."
+   },
++  "post.readReceipt.readers": {
++    "defaultMessage": "Seen by {names}",
++    "description": "Tooltip on a read receipt in a direct or group message. {names} is a localized list of the display names of the people who have read the message."
++  },
++  "post.readReceipt.seen": {
++    "defaultMessage": "Seen",
++    "description": "Small label under the user's own newest message in a direct or group message once every other member has read it."
++  },
++  "post.readReceipt.seenBy": {
++    "defaultMessage": "Seen by {count}",
++    "description": "Small label under the user's own newest message in a group message when only some members have read it. {count} is the number of members who have read it."
++  },
+   "post.redacted_files.subtitle": {
+     "defaultMessage": "Access to files is restricted based on attributes",
+     "description": "Explanatory subtitle of the placeholder shown instead of file attachments the user is not permitted to see under attribute-based access control."
+@@ -32171,6 +32191,14 @@
+     "defaultMessage": "Select how you prefer time displayed.",
+     "description": "Help text for the Clock Display setting asking the preferred time format."
+   },
++  "user.settings.display.readReceiptsDesc": {
++    "defaultMessage": "When on, people in your direct and group messages can see when you have read their messages, and you can see when they have read yours. When off, neither happens.",
++    "description": "Help text for the Read receipts setting in Settings > Display; explains that the setting works both ways."
++  },
++  "user.settings.display.readReceiptsTitle": {
++    "defaultMessage": "Read receipts",
++    "description": "Setting name in Settings > Display that turns read receipts in direct and group messages on or off."
++  },
+   "user.settings.display.renderEmoticonsAsEmojiDesc": {
+     "defaultMessage": "When enabled, text emoticons in messages will automatically be rendered as emojis (For example :D as 😄)",
+     "description": "Help text for the emoticon rendering setting; ':D' is a literal text emoticon example converted to an emoji."
+diff --git a/webapp/platform/types/src/config.ts b/webapp/platform/types/src/config.ts
+index 420323446eec..299d26ebff14 100644
+--- a/webapp/platform/types/src/config.ts
++++ b/webapp/platform/types/src/config.ts
+@@ -62,6 +62,7 @@ export type ClientConfig = {
+     EnableCustomUserStatuses: string;
+     EnableUserStatuses: string;
+     EnableLastActiveTime: string;
++    EnableReadReceipts: string;
+     EnableChannelCategorySorting: string;
+     EnableTimedDND: string;
+     EnableCrossTeamSearch: 'true' | 'false';
+@@ -476,6 +477,7 @@ export type TeamSettings = {
+     ExperimentalPrimaryTeam: string;
+     ExperimentalDefaultChannels: string[];
+     EnableLastActiveTime: boolean;
++    EnableReadReceipts: boolean;
+     EnableJoinLeaveMessageByDefault: boolean;
+     EnableChannelCategorySorting: boolean;
+ };

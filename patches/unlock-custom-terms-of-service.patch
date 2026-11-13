@@ -1,0 +1,476 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Karan Sharma <hello@mrkaran.dev>
+Date: Fri, 13 Nov 2026 00:56:58 +0530
+Subject: [PATCH] feat: custom terms of service without a license
+
+Mattermax-Patch: unlock-custom-terms-of-service.patch
+---
+ server/channels/api4/terms_of_service.go      |   5 -
+ server/channels/api4/terms_of_service_test.go |  40 ++++-
+ server/config/client.go                       |   7 +-
+ server/config/client_test.go                  |  15 ++
+ .../admin_console/admin_definition.tsx        |   1 -
+ .../__snapshots__/admin_sidebar.test.tsx.snap | 152 ++++++++++++++++++
+ .../custom_terms_of_service_settings.test.tsx |   4 -
+ .../custom_terms_of_service_settings.tsx      |   5 +-
+ .../src/selectors/entities/users.test.ts      |   2 +-
+ .../src/selectors/entities/users.ts           |   7 +-
+ .../src/selectors/admin_console.test.tsx      |  13 ++
+ 11 files changed, 221 insertions(+), 30 deletions(-)
+
+diff --git a/server/channels/api4/terms_of_service.go b/server/channels/api4/terms_of_service.go
+index cfbfb24e98e9..b1e869538f8b 100644
+--- a/server/channels/api4/terms_of_service.go
++++ b/server/channels/api4/terms_of_service.go
+@@ -35,11 +35,6 @@ func createTermsOfService(c *Context, w http.ResponseWriter, r *http.Request) {
+ 		return
+ 	}
+ 
+-	if license := c.App.Channels().License(); license == nil || !*license.Features.CustomTermsOfService {
+-		c.Err = model.NewAppError("createTermsOfService", "api.create_terms_of_service.custom_terms_of_service_disabled.app_error", nil, "", http.StatusBadRequest)
+-		return
+-	}
+-
+ 	auditRec := c.MakeAuditRecord(model.AuditEventCreateTermsOfService, model.AuditStatusFail)
+ 	defer c.LogAuditRec(auditRec)
+ 
+diff --git a/server/channels/api4/terms_of_service_test.go b/server/channels/api4/terms_of_service_test.go
+index cd130bae0782..0d5cc7549dc4 100644
+--- a/server/channels/api4/terms_of_service_test.go
++++ b/server/channels/api4/terms_of_service_test.go
+@@ -44,16 +44,42 @@ func TestCreateTermsOfServiceAdminUser(t *testing.T) {
+ 	th := Setup(t).InitBasic(t)
+ 	client := th.SystemAdminClient
+ 
+-	termsOfService, _, err := client.CreateTermsOfService(context.Background(), "terms of service new", th.SystemAdminUser.Id)
+-	CheckErrorID(t, err, "api.create_terms_of_service.custom_terms_of_service_disabled.app_error")
+-	assert.Nil(t, termsOfService)
+-
+-	th.App.Srv().SetLicense(model.NewTestLicense("EnableCustomTermsOfService"))
+-
+-	termsOfService, _, err = client.CreateTermsOfService(context.Background(), "terms of service new_2", th.SystemAdminUser.Id)
++	termsOfService, _, err := client.CreateTermsOfService(context.Background(), "terms of service new_2", th.SystemAdminUser.Id)
+ 	require.NoError(t, err)
+ 	assert.NotEmpty(t, termsOfService.Id)
+ 	assert.NotEmpty(t, termsOfService.CreateAt)
+ 	assert.Equal(t, "terms of service new_2", termsOfService.Text)
+ 	assert.Equal(t, th.SystemAdminUser.Id, termsOfService.UserId)
+ }
++
++func TestCustomTermsOfServiceWithoutLicense(t *testing.T) {
++	mainHelper.Parallel(t)
++	th := Setup(t).InitBasic(t)
++	require.Nil(t, th.App.Srv().License())
++
++	termsOfService, _, err := th.SystemAdminClient.CreateTermsOfService(context.Background(), "accept these terms", th.SystemAdminUser.Id)
++	require.NoError(t, err)
++
++	th.App.UpdateConfig(func(cfg *model.Config) {
++		*cfg.SupportSettings.CustomTermsOfServiceEnabled = true
++		*cfg.SupportSettings.CustomTermsOfServiceReAcceptancePeriod = 30
++	})
++
++	clientConfig, _, err := th.Client.GetClientConfig(context.Background(), "")
++	require.NoError(t, err)
++	assert.Equal(t, "true", clientConfig["EnableCustomTermsOfService"])
++	assert.Equal(t, "30", clientConfig["CustomTermsOfServiceReAcceptancePeriod"])
++	assert.Equal(t, termsOfService.Id, clientConfig["CustomTermsOfServiceId"])
++
++	me, _, err := th.Client.GetMe(context.Background(), "")
++	require.NoError(t, err)
++	assert.Empty(t, me.TermsOfServiceId)
++
++	_, err = th.Client.RegisterTermsOfServiceAction(context.Background(), th.BasicUser.Id, termsOfService.Id, true)
++	require.NoError(t, err)
++
++	me, _, err = th.Client.GetMe(context.Background(), "")
++	require.NoError(t, err)
++	assert.Equal(t, termsOfService.Id, me.TermsOfServiceId)
++	assert.NotZero(t, me.TermsOfServiceCreateAt)
++}
+diff --git a/server/config/client.go b/server/config/client.go
+index 70ebff4c6ba9..500ccd95f4e3 100644
+--- a/server/config/client.go
++++ b/server/config/client.go
+@@ -359,6 +359,8 @@ func GenerateLimitedClientConfig(c *model.Config, telemetryID string, license *m
+ 	props["MobilePreventScreenCapture"] = strconv.FormatBool(*c.NativeAppSettings.MobilePreventScreenCapture)
+ 	props["MobileJailbreakProtection"] = strconv.FormatBool(*c.NativeAppSettings.MobileJailbreakProtection)
+ 	props["ExperimentalEnableWatermark"] = strconv.FormatBool(*c.ExperimentalSettings.EnableWatermark)
++	props["EnableCustomTermsOfService"] = strconv.FormatBool(*c.SupportSettings.CustomTermsOfServiceEnabled)
++	props["CustomTermsOfServiceReAcceptancePeriod"] = strconv.FormatInt(int64(*c.SupportSettings.CustomTermsOfServiceReAcceptancePeriod), 10)
+ 
+ 	if license != nil {
+ 		if *license.Features.LDAP {
+@@ -371,11 +373,6 @@ func GenerateLimitedClientConfig(c *model.Config, telemetryID string, license *m
+ 			props["SamlLoginButtonText"] = *c.SamlSettings.LoginButtonText
+ 		}
+ 
+-		if *license.Features.CustomTermsOfService {
+-			props["EnableCustomTermsOfService"] = strconv.FormatBool(*c.SupportSettings.CustomTermsOfServiceEnabled)
+-			props["CustomTermsOfServiceReAcceptancePeriod"] = strconv.FormatInt(int64(*c.SupportSettings.CustomTermsOfServiceReAcceptancePeriod), 10)
+-		}
+-
+ 		if license.IsCloud() {
+ 			// MM-48727: enable SSO options for free cloud - not in self hosted
+ 			*license.Features.GoogleOAuth = true
+diff --git a/server/config/client_test.go b/server/config/client_test.go
+index ddf7720b4608..2914dd0d3c70 100644
+--- a/server/config/client_test.go
++++ b/server/config/client_test.go
+@@ -1088,6 +1088,21 @@ func TestGetLimitedClientConfig(t *testing.T) {
+ 				"WebsocketSecurePort":              "443",
+ 			},
+ 		},
++		{
++			"unlicensed custom terms of service",
++			&model.Config{
++				SupportSettings: model.SupportSettings{
++					CustomTermsOfServiceEnabled:            new(true),
++					CustomTermsOfServiceReAcceptancePeriod: new(30),
++				},
++			},
++			"",
++			nil,
++			map[string]string{
++				"EnableCustomTermsOfService":             "true",
++				"CustomTermsOfServiceReAcceptancePeriod": "30",
++			},
++		},
+ 		{
+ 			"password settings",
+ 			&model.Config{
+diff --git a/webapp/channels/src/components/admin_console/admin_definition.tsx b/webapp/channels/src/components/admin_console/admin_definition.tsx
+index 40b13b655adb..3b24b7476d9e 100644
+--- a/webapp/channels/src/components/admin_console/admin_definition.tsx
++++ b/webapp/channels/src/components/admin_console/admin_definition.tsx
+@@ -6548,7 +6548,6 @@ const AdminDefinition: AdminDefinitionType = {
+                 title: defineMessage({id: 'admin.sidebar.customTermsOfService', defaultMessage: 'Custom Terms of Service'}),
+                 searchableStrings: customTermsOfServiceSearchableStrings,
+                 isHidden: it.any(
+-                    it.not(it.licensedForFeature('CustomTermsOfService')),
+                     it.not(it.userHasReadPermissionOnResource(RESOURCE_KEYS.COMPLIANCE.CUSTOM_TERMS_OF_SERVICE)),
+                 ),
+                 isDisabled: it.not(it.userHasWritePermissionOnResource(RESOURCE_KEYS.COMPLIANCE.CUSTOM_TERMS_OF_SERVICE)),
+diff --git a/webapp/channels/src/components/admin_console/admin_sidebar/__snapshots__/admin_sidebar.test.tsx.snap b/webapp/channels/src/components/admin_console/admin_sidebar/__snapshots__/admin_sidebar.test.tsx.snap
+index da0dcd3c4110..4a78b29286b2 100644
+--- a/webapp/channels/src/components/admin_console/admin_sidebar/__snapshots__/admin_sidebar.test.tsx.snap
++++ b/webapp/channels/src/components/admin_console/admin_sidebar/__snapshots__/admin_sidebar.test.tsx.snap
+@@ -2012,6 +2012,25 @@ c0,1.1,0.9,2,2,2h16c1.1,0,2-0.9,2-2V4z M20,4v5H4V4H20z M22,15v5c0,1.1-0.9,2-2,2H
+                               class="nav nav__sub-menu subsections"
+                             />
+                           </li>
++                          <li
++                            class="sidebar-section"
++                            data-testid="compliance.custom_terms_of_service"
++                          >
++                            <a
++                              class="sidebar-section-title"
++                              href="/admin_console/compliance/custom_terms_of_service"
++                              id="compliance/custom_terms_of_service"
++                            >
++                              <span
++                                class="sidebar-section-title__text"
++                              >
++                                Custom Terms of Service
++                              </span>
++                            </a>
++                            <ul
++                              class="nav nav__sub-menu subsections"
++                            />
++                          </li>
+                           <li
+                             class="sidebar-section"
+                             data-testid="compliance.custom_terms_of_service_feature_discovery"
+@@ -3911,6 +3930,25 @@ c0,1.1,0.9,2,2,2h16c1.1,0,2-0.9,2-2V4z M20,4v5H4V4H20z M22,15v5c0,1.1-0.9,2-2,2H
+                               class="nav nav__sub-menu subsections"
+                             />
+                           </li>
++                          <li
++                            class="sidebar-section"
++                            data-testid="compliance.custom_terms_of_service"
++                          >
++                            <a
++                              class="sidebar-section-title"
++                              href="/admin_console/compliance/custom_terms_of_service"
++                              id="compliance/custom_terms_of_service"
++                            >
++                              <span
++                                class="sidebar-section-title__text"
++                              >
++                                Custom Terms of Service
++                              </span>
++                            </a>
++                            <ul
++                              class="nav nav__sub-menu subsections"
++                            />
++                          </li>
+                           <li
+                             class="sidebar-section"
+                             data-testid="compliance.custom_terms_of_service_feature_discovery"
+@@ -5795,6 +5833,25 @@ c0,1.1,0.9,2,2,2h16c1.1,0,2-0.9,2-2V4z M20,4v5H4V4H20z M22,15v5c0,1.1-0.9,2-2,2H
+                               class="nav nav__sub-menu subsections"
+                             />
+                           </li>
++                          <li
++                            class="sidebar-section"
++                            data-testid="compliance.custom_terms_of_service"
++                          >
++                            <a
++                              class="sidebar-section-title"
++                              href="/admin_console/compliance/custom_terms_of_service"
++                              id="compliance/custom_terms_of_service"
++                            >
++                              <span
++                                class="sidebar-section-title__text"
++                              >
++                                Custom Terms of Service
++                              </span>
++                            </a>
++                            <ul
++                              class="nav nav__sub-menu subsections"
++                            />
++                          </li>
+                           <li
+                             class="sidebar-section"
+                             data-testid="compliance.custom_terms_of_service_feature_discovery"
+@@ -7601,6 +7658,25 @@ c0,1.1,0.9,2,2,2h16c1.1,0,2-0.9,2-2V4z M20,4v5H4V4H20z M22,15v5c0,1.1-0.9,2-2,2H
+                               class="nav nav__sub-menu subsections"
+                             />
+                           </li>
++                          <li
++                            class="sidebar-section"
++                            data-testid="compliance.custom_terms_of_service"
++                          >
++                            <a
++                              class="sidebar-section-title"
++                              href="/admin_console/compliance/custom_terms_of_service"
++                              id="compliance/custom_terms_of_service"
++                            >
++                              <span
++                                class="sidebar-section-title__text"
++                              >
++                                Custom Terms of Service
++                              </span>
++                            </a>
++                            <ul
++                              class="nav nav__sub-menu subsections"
++                            />
++                          </li>
+                           <li
+                             class="sidebar-section"
+                             data-testid="compliance.custom_terms_of_service_feature_discovery"
+@@ -9388,6 +9464,25 @@ c0,1.1,0.9,2,2,2h16c1.1,0,2-0.9,2-2V4z M20,4v5H4V4H20z M22,15v5c0,1.1-0.9,2-2,2H
+                               class="nav nav__sub-menu subsections"
+                             />
+                           </li>
++                          <li
++                            class="sidebar-section"
++                            data-testid="compliance.custom_terms_of_service"
++                          >
++                            <a
++                              class="sidebar-section-title"
++                              href="/admin_console/compliance/custom_terms_of_service"
++                              id="compliance/custom_terms_of_service"
++                            >
++                              <span
++                                class="sidebar-section-title__text"
++                              >
++                                Custom Terms of Service
++                              </span>
++                            </a>
++                            <ul
++                              class="nav nav__sub-menu subsections"
++                            />
++                          </li>
+                           <li
+                             class="sidebar-section"
+                             data-testid="compliance.custom_terms_of_service_feature_discovery"
+@@ -11284,6 +11379,25 @@ c0,1.1,0.9,2,2,2h16c1.1,0,2-0.9,2-2V4z M20,4v5H4V4H20z M22,15v5c0,1.1-0.9,2-2,2H
+                               class="nav nav__sub-menu subsections"
+                             />
+                           </li>
++                          <li
++                            class="sidebar-section"
++                            data-testid="compliance.custom_terms_of_service"
++                          >
++                            <a
++                              class="sidebar-section-title"
++                              href="/admin_console/compliance/custom_terms_of_service"
++                              id="compliance/custom_terms_of_service"
++                            >
++                              <span
++                                class="sidebar-section-title__text"
++                              >
++                                Custom Terms of Service
++                              </span>
++                            </a>
++                            <ul
++                              class="nav nav__sub-menu subsections"
++                            />
++                          </li>
+                           <li
+                             class="sidebar-section"
+                             data-testid="compliance.custom_terms_of_service_feature_discovery"
+@@ -13071,6 +13185,25 @@ c0,1.1,0.9,2,2,2h16c1.1,0,2-0.9,2-2V4z M20,4v5H4V4H20z M22,15v5c0,1.1-0.9,2-2,2H
+                               class="nav nav__sub-menu subsections"
+                             />
+                           </li>
++                          <li
++                            class="sidebar-section"
++                            data-testid="compliance.custom_terms_of_service"
++                          >
++                            <a
++                              class="sidebar-section-title"
++                              href="/admin_console/compliance/custom_terms_of_service"
++                              id="compliance/custom_terms_of_service"
++                            >
++                              <span
++                                class="sidebar-section-title__text"
++                              >
++                                Custom Terms of Service
++                              </span>
++                            </a>
++                            <ul
++                              class="nav nav__sub-menu subsections"
++                            />
++                          </li>
+                           <li
+                             class="sidebar-section"
+                             data-testid="compliance.custom_terms_of_service_feature_discovery"
+@@ -16552,6 +16685,25 @@ c0,1.1,0.9,2,2,2h16c1.1,0,2-0.9,2-2V4z M20,4v5H4V4H20z M22,15v5c0,1.1-0.9,2-2,2H
+                               class="nav nav__sub-menu subsections"
+                             />
+                           </li>
++                          <li
++                            class="sidebar-section"
++                            data-testid="compliance.custom_terms_of_service"
++                          >
++                            <a
++                              class="sidebar-section-title"
++                              href="/admin_console/compliance/custom_terms_of_service"
++                              id="compliance/custom_terms_of_service"
++                            >
++                              <span
++                                class="sidebar-section-title__text"
++                              >
++                                Custom Terms of Service
++                              </span>
++                            </a>
++                            <ul
++                              class="nav nav__sub-menu subsections"
++                            />
++                          </li>
+                           <li
+                             class="sidebar-section"
+                             data-testid="compliance.custom_terms_of_service_feature_discovery"
+diff --git a/webapp/channels/src/components/admin_console/custom_terms_of_service_settings/custom_terms_of_service_settings.test.tsx b/webapp/channels/src/components/admin_console/custom_terms_of_service_settings/custom_terms_of_service_settings.test.tsx
+index 6805345a6eca..48c3f27bc80b 100644
+--- a/webapp/channels/src/components/admin_console/custom_terms_of_service_settings/custom_terms_of_service_settings.test.tsx
++++ b/webapp/channels/src/components/admin_console/custom_terms_of_service_settings/custom_terms_of_service_settings.test.tsx
+@@ -22,10 +22,6 @@ describe('components/admin_console/CustomTermsOfServiceSettings', () => {
+                 CustomTermsOfServiceReAcceptancePeriod: 365,
+             },
+         } as AdminConfig,
+-        license: {
+-            IsLicensed: 'true',
+-            CustomTermsOfService: 'true',
+-        },
+         setNavigationBlocked: jest.fn(),
+         patchConfig: jest.fn(),
+     });
+diff --git a/webapp/channels/src/components/admin_console/custom_terms_of_service_settings/custom_terms_of_service_settings.tsx b/webapp/channels/src/components/admin_console/custom_terms_of_service_settings/custom_terms_of_service_settings.tsx
+index 894eac895377..c91c34fd8d38 100644
+--- a/webapp/channels/src/components/admin_console/custom_terms_of_service_settings/custom_terms_of_service_settings.tsx
++++ b/webapp/channels/src/components/admin_console/custom_terms_of_service_settings/custom_terms_of_service_settings.tsx
+@@ -5,7 +5,7 @@ import React, {type JSX} from 'react';
+ import {FormattedMessage, defineMessages} from 'react-intl';
+ import {Link} from 'react-router-dom';
+ 
+-import type {AdminConfig, ClientLicense} from '@mattermost/types/config';
++import type {AdminConfig} from '@mattermost/types/config';
+ import type {TermsOfService} from '@mattermost/types/terms_of_service';
+ 
+ import type {ActionResult} from 'mattermost-redux/types/actions';
+@@ -25,7 +25,6 @@ type Props = BaseProps & {
+         createTermsOfService: (text: string) => Promise<ActionResult<TermsOfService>>;
+     };
+     config: AdminConfig;
+-    license: ClientLicense;
+     setNavigationBlocked: () => void;
+ 
+     /*
+@@ -212,7 +211,7 @@ export default class CustomTermsOfServiceSettings extends OLDAdminSettings<Props
+                     value={Boolean(this.state.termsEnabled)}
+                     onChange={this.handleTermsEnabledChange}
+                     setByEnv={this.isSetByEnv('SupportSettings.CustomTermsOfServiceEnabled')}
+-                    disabled={this.props.isDisabled || !(this.props.license.IsLicensed && this.props.license.CustomTermsOfService === 'true')}
++                    disabled={this.props.isDisabled}
+                 />
+                 <TextSetting
+                     key={'customTermsOfServiceText'}
+diff --git a/webapp/channels/src/packages/mattermost-redux/src/selectors/entities/users.test.ts b/webapp/channels/src/packages/mattermost-redux/src/selectors/entities/users.test.ts
+index 504f37af70a4..64bb778936b2 100644
+--- a/webapp/channels/src/packages/mattermost-redux/src/selectors/entities/users.test.ts
++++ b/webapp/channels/src/packages/mattermost-redux/src/selectors/entities/users.test.ts
+@@ -828,7 +828,7 @@ describe('Selectors.Users', () => {
+                     },
+                 },
+             },
+-        } as unknown as GlobalState)).toEqual(false);
++        } as unknown as GlobalState)).toEqual(true);
+ 
+         // Test terms already accepted
+         expect(Selectors.shouldShowTermsOfService({
+diff --git a/webapp/channels/src/packages/mattermost-redux/src/selectors/entities/users.ts b/webapp/channels/src/packages/mattermost-redux/src/selectors/entities/users.ts
+index 9e90d51beb58..1167430119f7 100644
+--- a/webapp/channels/src/packages/mattermost-redux/src/selectors/entities/users.ts
++++ b/webapp/channels/src/packages/mattermost-redux/src/selectors/entities/users.ts
+@@ -24,7 +24,7 @@ import {
+     getMembersInTeam,
+     getMembersInChannel,
+ } from 'mattermost-redux/selectors/entities/common';
+-import {getConfig, getLicense} from 'mattermost-redux/selectors/entities/general';
++import {getConfig} from 'mattermost-redux/selectors/entities/general';
+ import {getDirectShowPreferences, getTeammateNameDisplaySetting} from 'mattermost-redux/selectors/entities/preferences';
+ import {secureGetFromRecord} from 'mattermost-redux/utils/post_utils';
+ import {
+@@ -570,13 +570,12 @@ export const shouldShowTermsOfService: (state: GlobalState) => boolean = createS
+     'shouldShowTermsOfService',
+     getConfig,
+     getCurrentUser,
+-    getLicense,
+-    (config, user, license) => {
++    (config, user) => {
+         // Defaults to false if the user is not logged in or the setting doesn't exist
+         const acceptedTermsId = user ? user.terms_of_service_id : '';
+         const acceptedAt = user ? user.terms_of_service_create_at : 0;
+ 
+-        const featureEnabled = license.IsLicensed === 'true' && config.EnableCustomTermsOfService === 'true';
++        const featureEnabled = config.EnableCustomTermsOfService === 'true';
+         const reacceptanceTime = parseInt(config.CustomTermsOfServiceReAcceptancePeriod!, 10) * 1000 * 60 * 60 * 24;
+         const timeElapsed = new Date().getTime() - acceptedAt;
+         return Boolean(user && featureEnabled && (config.CustomTermsOfServiceId !== acceptedTermsId || timeElapsed > reacceptanceTime));
+diff --git a/webapp/channels/src/selectors/admin_console.test.tsx b/webapp/channels/src/selectors/admin_console.test.tsx
+index 17be050e10f5..7e25316f55fe 100644
+--- a/webapp/channels/src/selectors/admin_console.test.tsx
++++ b/webapp/channels/src/selectors/admin_console.test.tsx
+@@ -50,6 +50,19 @@ describe('Selectors.AdminConsole', () => {
+             expect(isHidden({}, {}, {}, false, {read: {}, write: {}})).toBe(true);
+         });
+ 
++        it('should show the custom terms of service page without a license', () => {
++            const state = {plugins: {adminConsoleReducers: {}}} as GlobalState;
++            const terms = getAdminDefinition(state).compliance.subsections.custom_terms_of_service;
++            const isHidden = terms.isHidden as Exclude<Check, boolean>;
++            const consoleAccess = {
++                read: {[RESOURCE_KEYS.COMPLIANCE.CUSTOM_TERMS_OF_SERVICE]: true},
++                write: {[RESOURCE_KEYS.COMPLIANCE.CUSTOM_TERMS_OF_SERVICE]: true},
++            };
++
++            expect(isHidden({}, {}, {}, false, consoleAccess)).toBe(false);
++            expect(isHidden({}, {}, {}, false, {read: {}, write: {}})).toBe(true);
++        });
++
+         it('should allow to remove everything with a plugin', () => {
+             const result = getAdminDefinition({
+                 plugins: {

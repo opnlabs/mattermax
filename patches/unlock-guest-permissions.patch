@@ -1,0 +1,492 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Karan Sharma <hello@mrkaran.dev>
+Date: Thu, 12 Nov 2026 23:36:38 +0530
+Subject: [PATCH] feat: custom guest role permissions without a license
+
+Mattermax-Patch: unlock-guest-permissions.patch
+---
+ server/channels/api4/role.go                  | 13 --------
+ server/channels/api4/role_test.go             | 22 +++++++++++---
+ .../guest_permissions_tree.test.tsx           | 18 +++++++++++
+ .../guest_permissions_tree.tsx                |  7 +++--
+ .../guest_permissions_tree/index.tsx          |  3 +-
+ ...ssion_system_scheme_settings.test.tsx.snap | 30 +++++++++----------
+ ...permission_system_scheme_settings.test.tsx | 30 ++++++++++++++++++-
+ .../permission_system_scheme_settings.tsx     | 21 +++++--------
+ .../permission_team_scheme_settings.test.tsx  |  3 ++
+ .../permission_team_scheme_settings.tsx       | 16 ++++------
+ 10 files changed, 100 insertions(+), 63 deletions(-)
+
+diff --git a/server/channels/api4/role.go b/server/channels/api4/role.go
+index 1956002ffc2e..110fa1bde3bb 100644
+--- a/server/channels/api4/role.go
++++ b/server/channels/api4/role.go
+@@ -164,14 +164,6 @@ func patchRole(c *Context, w http.ResponseWriter, r *http.Request) {
+ 		return
+ 	}
+ 
+-	isGuest := oldRole.Name == model.SystemGuestRoleId || oldRole.Name == model.TeamGuestRoleId || oldRole.Name == model.ChannelGuestRoleId
+-	if c.App.Channels().License() == nil && patch.Permissions != nil {
+-		if isGuest {
+-			c.Err = model.NewAppError("Api4.PatchRoles", "api.roles.patch_roles.license.error", nil, "", http.StatusNotImplemented)
+-			return
+-		}
+-	}
+-
+ 	// Licensed instances can not change permissions in the blacklist set.
+ 	if patch.Permissions != nil {
+ 		deltaPermissions := model.PermissionsChangedByPatch(oldRole, &patch)
+@@ -193,11 +185,6 @@ func patchRole(c *Context, w http.ResponseWriter, r *http.Request) {
+ 		*patch.Permissions = model.RemoveDuplicateStrings(*patch.Permissions)
+ 	}
+ 
+-	if c.App.Channels().License() != nil && isGuest && !*c.App.Channels().License().Features.GuestAccountsPermissions {
+-		c.Err = model.NewAppError("Api4.PatchRoles", "api.roles.patch_roles.license.error", nil, "", http.StatusNotImplemented)
+-		return
+-	}
+-
+ 	if oldRole.Name == model.TeamAdminRoleId ||
+ 		oldRole.Name == model.ChannelAdminRoleId ||
+ 		oldRole.Name == model.SystemUserRoleId ||
+diff --git a/server/channels/api4/role_test.go b/server/channels/api4/role_test.go
+index 1c9df6b0eb40..cf1a8060d36e 100644
+--- a/server/channels/api4/role_test.go
++++ b/server/channels/api4/role_test.go
+@@ -392,16 +392,30 @@ func TestPatchRole(t *testing.T) {
+ 		assert.ElementsMatch(t, expectedPermissions, received.Permissions)
+ 		assert.Equal(t, received.SchemeManaged, role.SchemeManaged)
+ 
+-		t.Run("Check guest permissions editing without E20 license", func(t *testing.T) {
++		t.Run("Check guest permissions editing without a license", func(t *testing.T) {
++			th.App.Srv().SetLicense(nil)
++
++			for _, roleName := range []string{model.SystemGuestRoleId, model.TeamGuestRoleId, model.ChannelGuestRoleId} {
++				guestRole, err := th.App.Srv().Store().Role().GetByName(th.Context, roleName)
++				require.NoError(t, err)
++				guestPatch := &model.RolePatch{
++					Permissions: &[]string{model.PermissionCreatePost.Id, model.PermissionUseChannelMentions.Id},
++				}
++				received, _, err = client.PatchRole(context.Background(), guestRole.Id, guestPatch)
++				require.NoError(t, err)
++				assert.ElementsMatch(t, *guestPatch.Permissions, received.Permissions)
++			}
++		})
++
++		t.Run("Check guest permissions editing with a license lacking guest permissions", func(t *testing.T) {
+ 			license := model.NewTestLicense()
+ 			license.Features.GuestAccountsPermissions = new(false)
+ 			th.App.Srv().SetLicense(license)
+ 
+ 			guestRole, err := th.App.Srv().Store().Role().GetByName(th.Context, "system_guest")
+ 			require.NoError(t, err)
+-			received, resp, err = client.PatchRole(context.Background(), guestRole.Id, patch)
+-			require.Error(t, err)
+-			CheckNotImplementedStatus(t, resp)
++			_, _, err = client.PatchRole(context.Background(), guestRole.Id, patch)
++			require.NoError(t, err)
+ 		})
+ 
+ 		t.Run("Check guest permissions editing with E20 license", func(t *testing.T) {
+diff --git a/webapp/channels/src/components/admin_console/permission_schemes_settings/guest_permissions_tree/guest_permissions_tree.test.tsx b/webapp/channels/src/components/admin_console/permission_schemes_settings/guest_permissions_tree/guest_permissions_tree.test.tsx
+index 96fafb636864..b331d85471bc 100644
+--- a/webapp/channels/src/components/admin_console/permission_schemes_settings/guest_permissions_tree/guest_permissions_tree.test.tsx
++++ b/webapp/channels/src/components/admin_console/permission_schemes_settings/guest_permissions_tree/guest_permissions_tree.test.tsx
+@@ -144,6 +144,24 @@ describe('components/admin_console/permission_schemes_settings/guest_permissions
+             const permissions = calls[0][0].permissions as Array<Permission | string>;
+             verifyDefaultPermissions(permissions, false);
+         });
++
++        test('should include group mentions for unlicensed when custom groups are enabled', () => {
++            renderWithContext(
++                <GuestPermissionsTree
++                    {...defaultProps}
++                    license={{
++                        SkuShortName: '',
++                        IsLicensed: 'false',
++                    }}
++                    customGroupsEnabled={true}
++                />,
++            );
++
++            expect(PermissionGroup).toHaveBeenCalledTimes(1);
++            const calls = PermissionGroup.mock.calls;
++            const permissions = calls[0][0].permissions as Array<Permission | string>;
++            verifyDefaultPermissions(permissions, true);
++        });
+     });
+ 
+     test('should call onToggle when permissions are changed', () => {
+diff --git a/webapp/channels/src/components/admin_console/permission_schemes_settings/guest_permissions_tree/guest_permissions_tree.tsx b/webapp/channels/src/components/admin_console/permission_schemes_settings/guest_permissions_tree/guest_permissions_tree.tsx
+index 4e95a9b147a0..5312012edf66 100644
+--- a/webapp/channels/src/components/admin_console/permission_schemes_settings/guest_permissions_tree/guest_permissions_tree.tsx
++++ b/webapp/channels/src/components/admin_console/permission_schemes_settings/guest_permissions_tree/guest_permissions_tree.tsx
+@@ -17,6 +17,7 @@ import PermissionGroup from '../permission_group';
+ 
+ type Props = {
+     license: ClientLicense;
++    customGroupsEnabled?: boolean;
+     onToggle: (role: string, permissions: string[]) => void;
+     readOnly: boolean;
+     scope: string;
+@@ -26,7 +27,7 @@ type Props = {
+     role?: Partial<Role>;
+ };
+ 
+-const GuestPermissionsTree = ({license, onToggle, readOnly, scope, selectRow, parentRole, selected, role = {permissions: []}}: Props) => {
++const GuestPermissionsTree = ({license, customGroupsEnabled, onToggle, readOnly, scope, selectRow, parentRole, selected, role = {permissions: []}}: Props) => {
+     const permissions = useMemo(() => {
+         const defaultPermissions = [
+             Permissions.CREATE_PRIVATE_CHANNEL,
+@@ -51,7 +52,7 @@ const GuestPermissionsTree = ({license, onToggle, readOnly, scope, selectRow, pa
+             },
+             Permissions.USE_CHANNEL_MENTIONS,
+         ];
+-        if (isMinimumProfessionalLicense(license)) {
++        if (isMinimumProfessionalLicense(license) || customGroupsEnabled) {
+             defaultPermissions.push(Permissions.USE_GROUP_MENTIONS);
+         }
+         return defaultPermissions.map((permission) => {
+@@ -64,7 +65,7 @@ const GuestPermissionsTree = ({license, onToggle, readOnly, scope, selectRow, pa
+             }
+             return permission;
+         });
+-    }, [license]);
++    }, [license, customGroupsEnabled]);
+ 
+     const [editTimeLimitModalIsVisible, setEditTimeLimitModalIsVisible] = React.useState(false);
+ 
+diff --git a/webapp/channels/src/components/admin_console/permission_schemes_settings/guest_permissions_tree/index.tsx b/webapp/channels/src/components/admin_console/permission_schemes_settings/guest_permissions_tree/index.tsx
+index 6ad5ce10239d..a051adbb028e 100644
+--- a/webapp/channels/src/components/admin_console/permission_schemes_settings/guest_permissions_tree/index.tsx
++++ b/webapp/channels/src/components/admin_console/permission_schemes_settings/guest_permissions_tree/index.tsx
+@@ -5,6 +5,7 @@ import {connect} from 'react-redux';
+ 
+ import Permissions from 'mattermost-redux/constants/permissions';
+ import {getLicense} from 'mattermost-redux/selectors/entities/general';
++import {isCustomGroupsEnabled} from 'mattermost-redux/selectors/entities/preferences';
+ 
+ import type {GlobalState} from 'types/store';
+ 
+@@ -26,7 +27,7 @@ export const GUEST_INCLUDED_PERMISSIONS = [
+ 
+ function mapStateToProps(state: GlobalState) {
+     const license = getLicense(state);
+-    return {license};
++    return {license, customGroupsEnabled: isCustomGroupsEnabled(state)};
+ }
+ 
+ export default connect(mapStateToProps)(GuestPermissionsTree);
+diff --git a/webapp/channels/src/components/admin_console/permission_schemes_settings/permission_system_scheme_settings/__snapshots__/permission_system_scheme_settings.test.tsx.snap b/webapp/channels/src/components/admin_console/permission_schemes_settings/permission_system_scheme_settings/__snapshots__/permission_system_scheme_settings.test.tsx.snap
+index 7ea7c3657536..317475eb7ff8 100644
+--- a/webapp/channels/src/components/admin_console/permission_schemes_settings/permission_system_scheme_settings/__snapshots__/permission_system_scheme_settings.test.tsx.snap
++++ b/webapp/channels/src/components/admin_console/permission_schemes_settings/permission_system_scheme_settings/__snapshots__/permission_system_scheme_settings.test.tsx.snap
+@@ -318,7 +318,7 @@ exports[`components/admin_console/permission_schemes_settings/permission_system_
+                       class="permission-group"
+                     >
+                       <div
+-                        class="permission-group-row  read-only combined"
++                        class="permission-group-row  combined"
+                         id="guests-guest_create_private_channel"
+                       >
+                         <div
+@@ -341,7 +341,7 @@ exports[`components/admin_console/permission_schemes_settings/permission_system_
+                       class="permission-group"
+                     >
+                       <div
+-                        class="permission-group-row  read-only combined"
++                        class="permission-group-row  combined"
+                         id="guests-guest_edit_post"
+                       >
+                         <div
+@@ -358,7 +358,6 @@ exports[`components/admin_console/permission_schemes_settings/permission_system_
+                         >
+                           <button
+                             class="edit-post-time-limit-button"
+-                            disabled=""
+                             type="button"
+                           >
+                             <i
+@@ -374,7 +373,7 @@ exports[`components/admin_console/permission_schemes_settings/permission_system_
+                       class="permission-group"
+                     >
+                       <div
+-                        class="permission-group-row  read-only combined"
++                        class="permission-group-row  combined"
+                         id="guests-guest_edit_file_attachment"
+                       >
+                         <div
+@@ -397,7 +396,7 @@ exports[`components/admin_console/permission_schemes_settings/permission_system_
+                       class="permission-group"
+                     >
+                       <div
+-                        class="permission-group-row  read-only combined"
++                        class="permission-group-row  combined"
+                         id="guests-guest_delete_post"
+                       >
+                         <div
+@@ -420,7 +419,7 @@ exports[`components/admin_console/permission_schemes_settings/permission_system_
+                       class="permission-group"
+                     >
+                       <div
+-                        class="permission-group-row  read-only combined"
++                        class="permission-group-row  combined"
+                         id="guests-guest_create_post"
+                       >
+                         <div
+@@ -443,7 +442,7 @@ exports[`components/admin_console/permission_schemes_settings/permission_system_
+                       class="permission-group"
+                     >
+                       <div
+-                        class="permission-group-row  read-only combined"
++                        class="permission-group-row  combined"
+                         id="guests-guest_reactions"
+                       >
+                         <div
+@@ -466,7 +465,7 @@ exports[`components/admin_console/permission_schemes_settings/permission_system_
+                       class="permission-group"
+                     >
+                       <div
+-                        class="permission-group-row  read-only combined"
++                        class="permission-group-row  combined"
+                         id="guests-guest_use_channel_mentions"
+                       >
+                         <div
+@@ -8453,7 +8452,7 @@ exports[`components/admin_console/permission_schemes_settings/permission_system_
+                       class="permission-group"
+                     >
+                       <div
+-                        class="permission-group-row  read-only combined"
++                        class="permission-group-row  combined"
+                         id="guests-guest_create_private_channel"
+                       >
+                         <div
+@@ -8476,7 +8475,7 @@ exports[`components/admin_console/permission_schemes_settings/permission_system_
+                       class="permission-group"
+                     >
+                       <div
+-                        class="permission-group-row  read-only combined"
++                        class="permission-group-row  combined"
+                         id="guests-guest_edit_post"
+                       >
+                         <div
+@@ -8493,7 +8492,6 @@ exports[`components/admin_console/permission_schemes_settings/permission_system_
+                         >
+                           <button
+                             class="edit-post-time-limit-button"
+-                            disabled=""
+                             type="button"
+                           >
+                             <i
+@@ -8509,7 +8507,7 @@ exports[`components/admin_console/permission_schemes_settings/permission_system_
+                       class="permission-group"
+                     >
+                       <div
+-                        class="permission-group-row  read-only combined"
++                        class="permission-group-row  combined"
+                         id="guests-guest_edit_file_attachment"
+                       >
+                         <div
+@@ -8532,7 +8530,7 @@ exports[`components/admin_console/permission_schemes_settings/permission_system_
+                       class="permission-group"
+                     >
+                       <div
+-                        class="permission-group-row  read-only combined"
++                        class="permission-group-row  combined"
+                         id="guests-guest_delete_post"
+                       >
+                         <div
+@@ -8555,7 +8553,7 @@ exports[`components/admin_console/permission_schemes_settings/permission_system_
+                       class="permission-group"
+                     >
+                       <div
+-                        class="permission-group-row  read-only combined"
++                        class="permission-group-row  combined"
+                         id="guests-guest_create_post"
+                       >
+                         <div
+@@ -8578,7 +8576,7 @@ exports[`components/admin_console/permission_schemes_settings/permission_system_
+                       class="permission-group"
+                     >
+                       <div
+-                        class="permission-group-row  read-only combined"
++                        class="permission-group-row  combined"
+                         id="guests-guest_reactions"
+                       >
+                         <div
+@@ -8601,7 +8599,7 @@ exports[`components/admin_console/permission_schemes_settings/permission_system_
+                       class="permission-group"
+                     >
+                       <div
+-                        class="permission-group-row  read-only combined"
++                        class="permission-group-row  combined"
+                         id="guests-guest_use_channel_mentions"
+                       >
+                         <div
+diff --git a/webapp/channels/src/components/admin_console/permission_schemes_settings/permission_system_scheme_settings/permission_system_scheme_settings.test.tsx b/webapp/channels/src/components/admin_console/permission_schemes_settings/permission_system_scheme_settings/permission_system_scheme_settings.test.tsx
+index 411b8a2bafa2..20b83dc28830 100644
+--- a/webapp/channels/src/components/admin_console/permission_schemes_settings/permission_system_scheme_settings/permission_system_scheme_settings.test.tsx
++++ b/webapp/channels/src/components/admin_console/permission_schemes_settings/permission_system_scheme_settings/permission_system_scheme_settings.test.tsx
+@@ -203,7 +203,7 @@ describe('components/admin_console/permission_schemes_settings/permission_system
+         await act(async () => {
+             await (ref.current as any).handleSubmit();
+         });
+-        expect(editRole).toHaveBeenCalledTimes(8);
++        expect(editRole).toHaveBeenCalledTimes(11);
+         license.GuestAccountsPermissions = 'true';
+         editRole = jest.fn().mockImplementation(() => Promise.resolve({data: {}}));
+         const ref2 = React.createRef<InstanceType<typeof PermissionSystemSchemeSettings>>();
+@@ -224,6 +224,34 @@ describe('components/admin_console/permission_schemes_settings/permission_system
+         expect(editRole).toHaveBeenCalledTimes(11);
+     });
+ 
++    test('should save guest roles without a license', async () => {
++        const editRole = jest.fn().mockImplementation(() => Promise.resolve({data: {}}));
++        const ref = React.createRef<InstanceType<typeof PermissionSystemSchemeSettings>>();
++        renderWithContext(
++            <PermissionSystemSchemeSettings
++                {...defaultProps}
++                license={{IsLicensed: 'false'}}
++                roles={{
++                    ...defaultProps.roles,
++                    system_guest: {...defaultRole, name: 'system_guest'},
++                    team_guest: {...defaultRole, name: 'team_guest'},
++                    channel_guest: {...defaultRole, name: 'channel_guest'},
++                }}
++                actions={{...defaultProps.actions, editRole}}
++                ref={ref}
++            />,
++        );
++
++        expect(screen.getByText('Guests')).toBeInTheDocument();
++
++        await act(async () => {
++            await (ref.current as any).handleSubmit();
++        });
++        expect(editRole).toHaveBeenCalledTimes(11);
++        const editedRoles = editRole.mock.calls.map(([role]) => role.name);
++        expect(editedRoles).toEqual(expect.arrayContaining(['system_guest', 'team_guest', 'channel_guest']));
++    });
++
+     test('should show error if editRole fails', async () => {
+         const editRole = jest.fn().mockImplementation(() => Promise.resolve({error: {message: 'test error'}}));
+         const ref = React.createRef<InstanceType<typeof PermissionSystemSchemeSettings>>();
+diff --git a/webapp/channels/src/components/admin_console/permission_schemes_settings/permission_system_scheme_settings/permission_system_scheme_settings.tsx b/webapp/channels/src/components/admin_console/permission_schemes_settings/permission_system_scheme_settings/permission_system_scheme_settings.tsx
+index 77021deb24a9..27d442ec9e56 100644
+--- a/webapp/channels/src/components/admin_console/permission_schemes_settings/permission_system_scheme_settings/permission_system_scheme_settings.tsx
++++ b/webapp/channels/src/components/admin_console/permission_schemes_settings/permission_system_scheme_settings/permission_system_scheme_settings.tsx
+@@ -295,13 +295,11 @@ export class PermissionSystemSchemeSettings extends React.PureComponent<Props, S
+             runMemberPromise,
+         ];
+ 
+-        if (this.haveGuestAccountsPermissions()) {
+-            const guestRoles = this.restoreGuestPermissions(this.deriveRolesFromGuests(this.state.roles.guests));
+-            const systemGuestPromise = this.props.actions.editRole(guestRoles.system_guest);
+-            const teamGuestPromise = this.props.actions.editRole(guestRoles.team_guest);
+-            const channelGuestPromise = this.props.actions.editRole(guestRoles.channel_guest);
+-            promises.push(systemGuestPromise, teamGuestPromise, channelGuestPromise);
+-        }
++        const guestRoles = this.restoreGuestPermissions(this.deriveRolesFromGuests(this.state.roles.guests));
++        const systemGuestPromise = this.props.actions.editRole(guestRoles.system_guest);
++        const teamGuestPromise = this.props.actions.editRole(guestRoles.team_guest);
++        const channelGuestPromise = this.props.actions.editRole(guestRoles.channel_guest);
++        promises.push(systemGuestPromise, teamGuestPromise, channelGuestPromise);
+ 
+         this.setState({saving: true});
+ 
+@@ -378,16 +376,11 @@ export class PermissionSystemSchemeSettings extends React.PureComponent<Props, S
+         this.props.actions.setNavigationBlocked(true);
+     };
+ 
+-    haveGuestAccountsPermissions = () => {
+-        return this.props.license.GuestAccountsPermissions === 'true';
+-    };
+-
+     render = () => {
+         if (!this.state.loaded) {
+             return <LoadingScreen/>;
+         }
+ 
+-        const isLicensed = this.props.license?.IsLicensed === 'true';
+         return (
+             <div className='wrapper--fixed'>
+                 <AdminHeader withBackButton={true}>
+@@ -426,7 +419,7 @@ export class PermissionSystemSchemeSettings extends React.PureComponent<Props, S
+                             </div>
+                         </div>
+ 
+-                        {isLicensed && this.props.config.EnableGuestAccounts === 'true' &&
++                        {this.props.config.EnableGuestAccounts === 'true' &&
+                             <AdminPanelTogglable
+                                 className='permissions-block'
+                                 open={this.state.openRoles.guests}
+@@ -441,7 +434,7 @@ export class PermissionSystemSchemeSettings extends React.PureComponent<Props, S
+                                     scope={'system_scope'}
+                                     onToggle={this.togglePermission}
+                                     selectRow={this.selectRow}
+-                                    readOnly={this.props.isDisabled || !this.haveGuestAccountsPermissions()}
++                                    readOnly={this.props.isDisabled || false}
+                                 />
+                             </AdminPanelTogglable>}
+ 
+diff --git a/webapp/channels/src/components/admin_console/permission_schemes_settings/permission_team_scheme_settings/permission_team_scheme_settings.test.tsx b/webapp/channels/src/components/admin_console/permission_schemes_settings/permission_team_scheme_settings/permission_team_scheme_settings.test.tsx
+index 19705e16f184..191754810469 100644
+--- a/webapp/channels/src/components/admin_console/permission_schemes_settings/permission_team_scheme_settings/permission_team_scheme_settings.test.tsx
++++ b/webapp/channels/src/components/admin_console/permission_schemes_settings/permission_team_scheme_settings/permission_team_scheme_settings.test.tsx
+@@ -608,6 +608,9 @@ describe('components/admin_console/permission_schemes_settings/permission_team_s
+         expect(screen.getByTestId('permissions-tree-all_users')).toBeInTheDocument();
+         expect(screen.getByTestId('permissions-tree-channel_admin')).toBeInTheDocument();
+         expect(screen.getByTestId('permissions-tree-team_admin')).toBeInTheDocument();
++
++        expect(screen.getByTestId('guest-permissions-tree-guests')).toBeInTheDocument();
++        expect(mockGuestTreeProps.guests.readOnly).toBe(false);
+     });
+ 
+     test('should set moderated permissions on team/channel admins', () => {
+diff --git a/webapp/channels/src/components/admin_console/permission_schemes_settings/permission_team_scheme_settings/permission_team_scheme_settings.tsx b/webapp/channels/src/components/admin_console/permission_schemes_settings/permission_team_scheme_settings/permission_team_scheme_settings.tsx
+index 135d11a9d651..cc43a3285aa7 100644
+--- a/webapp/channels/src/components/admin_console/permission_schemes_settings/permission_team_scheme_settings/permission_team_scheme_settings.tsx
++++ b/webapp/channels/src/components/admin_console/permission_schemes_settings/permission_team_scheme_settings/permission_team_scheme_settings.tsx
+@@ -455,11 +455,9 @@ export default class PermissionTeamSchemeSettings extends React.PureComponent<Pr
+         promises.push(teamUserPromise);
+         promises.push(channelUserPromise);
+ 
+-        if (this.haveGuestAccountsPermissions()) {
+-            const teamGuestPromise = this.props.actions.editRole(teamGuest as Role);
+-            const channelGuestPromise = this.props.actions.editRole(channelGuest as Role);
+-            promises.push(teamGuestPromise, channelGuestPromise);
+-        }
++        const teamGuestPromise = this.props.actions.editRole(teamGuest as Role);
++        const channelGuestPromise = this.props.actions.editRole(channelGuest as Role);
++        promises.push(teamGuestPromise, channelGuestPromise);
+ 
+         const currentTeams = new Set((this.state.teams || this.props.teams || []).map((team) => team.id));
+         const serverTeams = new Set((this.props.teams || []).map((team) => team.id));
+@@ -572,10 +570,6 @@ export default class PermissionTeamSchemeSettings extends React.PureComponent<Pr
+         this.setState({addTeamOpen: false});
+     };
+ 
+-    haveGuestAccountsPermissions = () => {
+-        return this.props.license.GuestAccountsPermissions === 'true';
+-    };
+-
+     render = () => {
+         if (!this.isLoaded(this.props)) {
+             return <LoadingScreen/>;
+@@ -713,7 +707,7 @@ export default class PermissionTeamSchemeSettings extends React.PureComponent<Pr
+                             </div>
+                         </AdminPanelWithButton>
+ 
+-                        {this.props.license && this.props.config.EnableGuestAccounts === 'true' &&
++                        {this.props.config.EnableGuestAccounts === 'true' &&
+                             <AdminPanelTogglable
+                                 className='permissions-block'
+                                 open={this.state.openRoles.guests}
+@@ -728,7 +722,7 @@ export default class PermissionTeamSchemeSettings extends React.PureComponent<Pr
+                                     scope={'team_scope'}
+                                     onToggle={this.togglePermission}
+                                     selectRow={this.selectRow}
+-                                    readOnly={this.props.isDisabled || !this.haveGuestAccountsPermissions()}
++                                    readOnly={this.props.isDisabled}
+                                 />
+                             </AdminPanelTogglable>
+                         }

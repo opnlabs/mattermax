@@ -1,0 +1,760 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Karan Sharma <hello@mrkaran.dev>
+Date: Fri, 13 Nov 2026 00:54:48 +0530
+Subject: [PATCH] feat: mobile biometrics, screen capture, jailbreak protection
+ and watermark without a license
+
+Mattermax-Patch: unlock-mobile-security.patch
+---
+ server/config/client.go                       |  19 +-
+ server/config/client_test.go                  |  45 ++++
+ .../admin_console/admin_definition.tsx        |  25 --
+ ...admin_definition_enable_watermark.test.tsx |  39 +--
+ .../admin_definition_mobile_security.test.tsx |  51 ++++
+ .../__snapshots__/admin_sidebar.test.tsx.snap | 249 ++----------------
+ 6 files changed, 133 insertions(+), 295 deletions(-)
+ create mode 100644 webapp/channels/src/components/admin_console/admin_definition_mobile_security.test.tsx
+
+diff --git a/server/config/client.go b/server/config/client.go
+index 3f948dd4bd46..bc4e31eb35d3 100644
+--- a/server/config/client.go
++++ b/server/config/client.go
+@@ -177,6 +177,10 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
+ 	props["WranglerMoveThreadFromPrivateChannelEnable"] = strconv.FormatBool(*c.WranglerSettings.MoveThreadFromPrivateChannelEnable)
+ 	props["WranglerMoveThreadFromDirectMessageChannelEnable"] = strconv.FormatBool(*c.WranglerSettings.MoveThreadFromDirectMessageChannelEnable)
+ 	props["WranglerMoveThreadFromGroupMessageChannelEnable"] = strconv.FormatBool(*c.WranglerSettings.MoveThreadFromGroupMessageChannelEnable)
++	props["MobileEnableBiometrics"] = strconv.FormatBool(*c.NativeAppSettings.MobileEnableBiometrics)
++	props["MobilePreventScreenCapture"] = strconv.FormatBool(*c.NativeAppSettings.MobilePreventScreenCapture)
++	props["MobileJailbreakProtection"] = strconv.FormatBool(*c.NativeAppSettings.MobileJailbreakProtection)
++	props["ExperimentalEnableWatermark"] = strconv.FormatBool(*c.ExperimentalSettings.EnableWatermark)
+ 
+ 	if license != nil {
+ 		props["ExperimentalEnableAuthenticationTransfer"] = strconv.FormatBool(*c.ServiceSettings.ExperimentalEnableAuthenticationTransfer)
+@@ -220,10 +224,6 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
+ 		}
+ 
+ 		if model.MinimumEnterpriseLicense(license) {
+-			props["MobileEnableBiometrics"] = strconv.FormatBool(*c.NativeAppSettings.MobileEnableBiometrics)
+-			props["MobilePreventScreenCapture"] = strconv.FormatBool(*c.NativeAppSettings.MobilePreventScreenCapture)
+-			props["MobileJailbreakProtection"] = strconv.FormatBool(*c.NativeAppSettings.MobileJailbreakProtection)
+-			props["ExperimentalEnableWatermark"] = strconv.FormatBool(*c.ExperimentalSettings.EnableWatermark)
+ 			props["LockProfileFieldsForEmailUsers"] = *c.TeamSettings.LockProfileFieldsForEmailUsers
+ 		}
+ 
+@@ -359,6 +359,10 @@ func GenerateLimitedClientConfig(c *model.Config, telemetryID string, license *m
+ 	props["HideGuestTags"] = strconv.FormatBool(*c.GuestAccountsSettings.HideTags)
+ 	props["GuestAccountsEnforceMultifactorAuthentication"] = strconv.FormatBool(*c.GuestAccountsSettings.EnforceMultifactorAuthentication)
+ 	props["EnableGuestMagicLink"] = strconv.FormatBool(*c.GuestAccountsSettings.EnableGuestMagicLink)
++	props["MobileEnableBiometrics"] = strconv.FormatBool(*c.NativeAppSettings.MobileEnableBiometrics)
++	props["MobilePreventScreenCapture"] = strconv.FormatBool(*c.NativeAppSettings.MobilePreventScreenCapture)
++	props["MobileJailbreakProtection"] = strconv.FormatBool(*c.NativeAppSettings.MobileJailbreakProtection)
++	props["ExperimentalEnableWatermark"] = strconv.FormatBool(*c.ExperimentalSettings.EnableWatermark)
+ 
+ 	if license != nil {
+ 		if *license.Features.LDAP {
+@@ -403,13 +407,6 @@ func GenerateLimitedClientConfig(c *model.Config, telemetryID string, license *m
+ 			props["GitLabButtonText"] = *c.GitLabSettings.ButtonText
+ 		}
+ 
+-		if model.MinimumEnterpriseLicense(license) {
+-			props["MobileEnableBiometrics"] = strconv.FormatBool(*c.NativeAppSettings.MobileEnableBiometrics)
+-			props["MobilePreventScreenCapture"] = strconv.FormatBool(*c.NativeAppSettings.MobilePreventScreenCapture)
+-			props["MobileJailbreakProtection"] = strconv.FormatBool(*c.NativeAppSettings.MobileJailbreakProtection)
+-			props["ExperimentalEnableWatermark"] = strconv.FormatBool(*c.ExperimentalSettings.EnableWatermark)
+-		}
+-
+ 		if model.MinimumEnterpriseAdvancedLicense(license) {
+ 			// Check IntuneSettings configuration
+ 			intuneEnabled := (c.IntuneSettings.Enable != nil && *c.IntuneSettings.Enable && c.IntuneSettings.IsValid() == nil)
+diff --git a/server/config/client_test.go b/server/config/client_test.go
+index 9e611558b240..c546f51856f8 100644
+--- a/server/config/client_test.go
++++ b/server/config/client_test.go
+@@ -602,6 +602,30 @@ func TestGetClientConfig(t *testing.T) {
+ 			},
+ 			nil,
+ 		},
++		{
++			"unlicensed mobile security",
++			&model.Config{
++				NativeAppSettings: model.NativeAppSettings{
++					MobileEnableBiometrics:        new(true),
++					MobilePreventScreenCapture:    new(true),
++					MobileJailbreakProtection:     new(true),
++					MobileEnableSecureFilePreview: new(true),
++					MobileAllowPdfLinkNavigation:  new(true),
++				},
++				ExperimentalSettings: model.ExperimentalSettings{
++					EnableWatermark: new(true),
++				},
++			},
++			"",
++			nil,
++			map[string]string{
++				"MobileEnableBiometrics":      "true",
++				"MobilePreventScreenCapture":  "true",
++				"MobileJailbreakProtection":   "true",
++				"ExperimentalEnableWatermark": "true",
++			},
++			[]string{"MobileEnableSecureFilePreview", "MobileAllowPdfLinkNavigation"},
++		},
+ 		{
+ 			"Intune MAM enabled with Enterprise Advanced license and Office365 AuthService",
+ 			&model.Config{
+@@ -1119,6 +1143,27 @@ func TestGetLimitedClientConfig(t *testing.T) {
+ 				"ExperimentalEnableWatermark": "true",
+ 			},
+ 		},
++		{
++			"limited config unlicensed mobile security",
++			&model.Config{
++				NativeAppSettings: model.NativeAppSettings{
++					MobileEnableBiometrics:     new(true),
++					MobilePreventScreenCapture: new(true),
++					MobileJailbreakProtection:  new(true),
++				},
++				ExperimentalSettings: model.ExperimentalSettings{
++					EnableWatermark: new(true),
++				},
++			},
++			"",
++			nil,
++			map[string]string{
++				"MobileEnableBiometrics":      "true",
++				"MobilePreventScreenCapture":  "true",
++				"MobileJailbreakProtection":   "true",
++				"ExperimentalEnableWatermark": "true",
++			},
++		},
+ 	}
+ 
+ 	for _, testCase := range testCases {
+diff --git a/webapp/channels/src/components/admin_console/admin_definition.tsx b/webapp/channels/src/components/admin_console/admin_definition.tsx
+index 227166cc57ed..d3e4982d15de 100644
+--- a/webapp/channels/src/components/admin_console/admin_definition.tsx
++++ b/webapp/channels/src/components/admin_console/admin_definition.tsx
+@@ -83,7 +83,6 @@ import {
+     GroupsFeatureDiscovery,
+     GuestAccessFeatureDiscovery,
+     LDAPFeatureDiscovery,
+-    MobileSecurityFeatureDiscovery,
+     OpenIDCustomFeatureDiscovery,
+     OpenIDFeatureDiscovery,
+     SAMLFeatureDiscovery,
+@@ -2346,7 +2345,6 @@ const AdminDefinition: AdminDefinitionType = {
+                 title: defineMessage({id: 'admin.sidebar.mobileSecurity', defaultMessage: 'Mobile Security'}),
+                 isHidden: it.any(
+                     it.not(it.userHasReadPermissionOnResource(RESOURCE_KEYS.ENVIRONMENT.MOBILE_SECURITY)),
+-                    it.not(it.minLicenseTier(LicenseSkus.Enterprise)),
+                 ),
+                 schema: {
+                     id: 'MobileSecuritySettings',
+@@ -2558,28 +2556,6 @@ const AdminDefinition: AdminDefinitionType = {
+                     ],
+                 },
+             },
+-            mobile_security_feature_discovery: {
+-                url: 'environment/mobile_security_feature_discovery',
+-                isDiscovery: true,
+-                title: defineMessage({id: 'admin.sidebar.mobileSecurity', defaultMessage: 'Mobile Security'}),
+-                isHidden: it.any(
+-                    it.not(it.userHasReadPermissionOnResource(RESOURCE_KEYS.ENVIRONMENT.MOBILE_SECURITY)),
+-                    it.minLicenseTier(LicenseSkus.Enterprise),
+-                ),
+-                schema: {
+-                    id: 'MobileSecurityFeatureDiscoverySettings',
+-                    name: defineMessage({id: 'admin.mobileSecurity.title', defaultMessage: 'Mobile Security'}),
+-                    settings: [
+-                        {
+-                            type: 'custom',
+-                            component: MobileSecurityFeatureDiscovery,
+-                            key: 'MobileSecurityFeatureDiscovery',
+-                            isDisabled: it.not(it.userHasWritePermissionOnResource(RESOURCE_KEYS.ABOUT.EDITION_AND_LICENSE)),
+-                        },
+-                    ],
+-                },
+-                restrictedIndicator: getRestrictedIndicator(true),
+-            },
+         },
+     },
+     site: {
+@@ -6723,7 +6699,6 @@ const AdminDefinition: AdminDefinitionType = {
+                             label: defineMessage({id: 'admin.experimental.enableWatermark.title', defaultMessage: 'Enable Mobile Watermark:'}),
+                             help_text: defineMessage({id: 'admin.experimental.enableWatermark.desc', defaultMessage: 'When true, authenticated mobile sessions will display a watermark overlay showing the username, domain, date (YYYY-MM-DD), and time (HH:mm) for data loss prevention (DLP) purposes.'}),
+                             help_text_markdown: false,
+-                            isHidden: it.not(it.minLicenseTier(LicenseSkus.Enterprise)),
+                             isDisabled: it.not(it.userHasWritePermissionOnResource(RESOURCE_KEYS.EXPERIMENTAL.FEATURES)),
+                         },
+                     ],
+diff --git a/webapp/channels/src/components/admin_console/admin_definition_enable_watermark.test.tsx b/webapp/channels/src/components/admin_console/admin_definition_enable_watermark.test.tsx
+index 722379cb37ac..3842b27c5171 100644
+--- a/webapp/channels/src/components/admin_console/admin_definition_enable_watermark.test.tsx
++++ b/webapp/channels/src/components/admin_console/admin_definition_enable_watermark.test.tsx
+@@ -1,15 +1,9 @@
+ // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+ // See LICENSE.txt for license information.
+ 
+-import type {ClientLicense} from '@mattermost/types/config';
+-
+-import {LicenseSkus} from 'utils/constants';
+-
+ import AdminDefinition from './admin_definition';
+ import type {AdminDefinitionSetting} from './types';
+ 
+-type IsHiddenCheck = (config: object, state: object, license?: ClientLicense) => boolean;
+-
+ describe('AdminDefinition - Enable Watermark setting', () => {
+     const getFeatureSettings = () => {
+         const featureSection = AdminDefinition.experimental.subsections.experimental_features;
+@@ -22,14 +16,6 @@ describe('AdminDefinition - Enable Watermark setting', () => {
+         return getFeatureSettings().find((setting: AdminDefinitionSetting) => setting.key === 'ExperimentalSettings.EnableWatermark');
+     };
+ 
+-    const getEnableWatermarkIsHidden = (): IsHiddenCheck => {
+-        const enableWatermarkSetting = getEnableWatermarkSetting();
+-        expect(enableWatermarkSetting).toBeDefined();
+-        expect(typeof enableWatermarkSetting?.isHidden).toBe('function');
+-
+-        return enableWatermarkSetting!.isHidden as IsHiddenCheck;
+-    };
+-
+     test('uses ExperimentalSettings.EnableWatermark in the experimental features section', () => {
+         const enableWatermarkSetting = getEnableWatermarkSetting();
+ 
+@@ -39,28 +25,7 @@ describe('AdminDefinition - Enable Watermark setting', () => {
+         expect(enableWatermarkSetting?.help_text).toBeDefined();
+     });
+ 
+-    test('is hidden below Enterprise license tier', () => {
+-        const professionalLicense = {
+-            IsLicensed: 'true',
+-            SkuShortName: LicenseSkus.Professional,
+-        } as ClientLicense;
+-        const isHidden = getEnableWatermarkIsHidden();
+-
+-        expect(isHidden({}, {}, professionalLicense)).toBe(true);
+-    });
+-
+-    test('is visible for Enterprise license tier and above', () => {
+-        const enterpriseLicense = {
+-            IsLicensed: 'true',
+-            SkuShortName: LicenseSkus.Enterprise,
+-        } as ClientLicense;
+-        const enterpriseAdvancedLicense = {
+-            IsLicensed: 'true',
+-            SkuShortName: LicenseSkus.EnterpriseAdvanced,
+-        } as ClientLicense;
+-        const isHidden = getEnableWatermarkIsHidden();
+-
+-        expect(isHidden({}, {}, enterpriseLicense)).toBe(false);
+-        expect(isHidden({}, {}, enterpriseAdvancedLicense)).toBe(false);
++    test('is visible without a license', () => {
++        expect(getEnableWatermarkSetting()?.isHidden).toBeUndefined();
+     });
+ });
+diff --git a/webapp/channels/src/components/admin_console/admin_definition_mobile_security.test.tsx b/webapp/channels/src/components/admin_console/admin_definition_mobile_security.test.tsx
+new file mode 100644
+index 000000000000..59602187cbf7
+--- /dev/null
++++ b/webapp/channels/src/components/admin_console/admin_definition_mobile_security.test.tsx
+@@ -0,0 +1,51 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++import type {ClientLicense} from '@mattermost/types/config';
++
++import {RESOURCE_KEYS} from 'mattermost-redux/constants/permissions_sysconsole';
++
++import AdminDefinition from './admin_definition';
++import type {AdminDefinitionConfigSchemaSection, AdminDefinitionSetting, Check} from './types';
++
++describe('AdminDefinition - Mobile Security without a license', () => {
++    const unlicensed = {IsLicensed: 'false'} as ClientLicense;
++    const consoleAccess = {read: {[RESOURCE_KEYS.ENVIRONMENT.MOBILE_SECURITY]: true}, write: {}};
++    const mobileSecurity = AdminDefinition.environment.subsections.mobile_security;
++
++    const isHidden = (check?: Check) => (typeof check === 'function' ? check({}, {}, unlicensed, false, consoleAccess) : Boolean(check));
++
++    const generalSettings = () => {
++        const sections = 'sections' in mobileSecurity.schema! ? mobileSecurity.schema.sections : [];
++        const general = sections!.find((section: AdminDefinitionConfigSchemaSection) => section.key === 'MobileSecuritySettings.General');
++        return general?.settings || [];
++    };
++
++    const findSetting = (key: string) => generalSettings().find((setting: AdminDefinitionSetting) => setting.key === key);
++
++    test('shows the Mobile Security page', () => {
++        expect(isHidden(mobileSecurity.isHidden)).toBe(false);
++    });
++
++    test('has no separate feature discovery page', () => {
++        expect(AdminDefinition.environment.subsections).not.toHaveProperty('mobile_security_feature_discovery');
++    });
++
++    test.each([
++        'NativeAppSettings.MobileEnableBiometrics',
++        'NativeAppSettings.MobilePreventScreenCapture',
++        'NativeAppSettings.MobileJailbreakProtection',
++    ])('shows %s', (key) => {
++        const setting = findSetting(key);
++
++        expect(setting).toBeDefined();
++        expect(isHidden(setting?.isHidden)).toBe(false);
++    });
++
++    test.each([
++        'NativeAppSettings.MobileEnableSecureFilePreview',
++        'NativeAppSettings.MobileAllowPdfLinkNavigation',
++    ])('keeps %s hidden because the mobile app checks the license itself', (key) => {
++        expect(isHidden(findSetting(key)?.isHidden)).toBe(true);
++    });
++});
+diff --git a/webapp/channels/src/components/admin_console/admin_sidebar/__snapshots__/admin_sidebar.test.tsx.snap b/webapp/channels/src/components/admin_console/admin_sidebar/__snapshots__/admin_sidebar.test.tsx.snap
+index 405a91265a52..da0dcd3c4110 100644
+--- a/webapp/channels/src/components/admin_console/admin_sidebar/__snapshots__/admin_sidebar.test.tsx.snap
++++ b/webapp/channels/src/components/admin_console/admin_sidebar/__snapshots__/admin_sidebar.test.tsx.snap
+@@ -1134,33 +1134,18 @@ c0,1.1,0.9,2,2,2h16c1.1,0,2-0.9,2-2V4z M20,4v5H4V4H20z M22,15v5c0,1.1-0.9,2-2,2H
+                           </li>
+                           <li
+                             class="sidebar-section"
+-                            data-testid="environment.mobile_security_feature_discovery"
++                            data-testid="environment.mobile_security"
+                           >
+                             <a
+                               class="sidebar-section-title"
+-                              href="/admin_console/environment/mobile_security_feature_discovery"
+-                              id="environment/mobile_security_feature_discovery"
++                              href="/admin_console/environment/mobile_security"
++                              id="environment/mobile_security"
+                             >
+                               <span
+                                 class="sidebar-section-title__text"
+                               >
+                                 Mobile Security
+                               </span>
+-                              <span
+-                                class="sidebar-section-indicator"
+-                              >
+-                                <span
+-                                  class="RestrictedIndicator__icon-tooltip-container"
+-                                >
+-                                  <div
+-                                    class="RestrictedIndicator__content"
+-                                  >
+-                                    <i
+-                                      class="RestrictedIndicator__icon-tooltip icon icon-key-variant"
+-                                    />
+-                                  </div>
+-                                </span>
+-                              </span>
+                             </a>
+                             <ul
+                               class="nav nav__sub-menu subsections"
+@@ -1608,7 +1593,7 @@ c0,1.1,0.9,2,2,2h16c1.1,0,2-0.9,2-2V4z M20,4v5H4V4H20z M22,15v5c0,1.1-0.9,2-2,2H
+                           </li>
+                           <li
+                             class="sidebar-section"
+-                            data-testid="authentication.openid_feature_discovery"
++                            data-testid="authentication.openid"
+                           >
+                             <a
+                               class="sidebar-section-title"
+@@ -1620,21 +1605,6 @@ c0,1.1,0.9,2,2,2h16c1.1,0,2-0.9,2-2V4z M20,4v5H4V4H20z M22,15v5c0,1.1-0.9,2-2,2H
+                               >
+                                 OpenID Connect
+                               </span>
+-                              <span
+-                                class="sidebar-section-indicator"
+-                              >
+-                                <span
+-                                  class="RestrictedIndicator__icon-tooltip-container"
+-                                >
+-                                  <div
+-                                    class="RestrictedIndicator__content"
+-                                  >
+-                                    <i
+-                                      class="RestrictedIndicator__icon-tooltip icon icon-key-variant"
+-                                    />
+-                                  </div>
+-                                </span>
+-                              </span>
+                             </a>
+                             <ul
+                               class="nav nav__sub-menu subsections"
+@@ -6734,33 +6704,18 @@ c0,1.1,0.9,2,2,2h16c1.1,0,2-0.9,2-2V4z M20,4v5H4V4H20z M22,15v5c0,1.1-0.9,2-2,2H
+                           </li>
+                           <li
+                             class="sidebar-section"
+-                            data-testid="environment.mobile_security_feature_discovery"
++                            data-testid="environment.mobile_security"
+                           >
+                             <a
+                               class="sidebar-section-title"
+-                              href="/admin_console/environment/mobile_security_feature_discovery"
+-                              id="environment/mobile_security_feature_discovery"
++                              href="/admin_console/environment/mobile_security"
++                              id="environment/mobile_security"
+                             >
+                               <span
+                                 class="sidebar-section-title__text"
+                               >
+                                 Mobile Security
+                               </span>
+-                              <span
+-                                class="sidebar-section-indicator"
+-                              >
+-                                <span
+-                                  class="RestrictedIndicator__icon-tooltip-container"
+-                                >
+-                                  <div
+-                                    class="RestrictedIndicator__content"
+-                                  >
+-                                    <i
+-                                      class="RestrictedIndicator__icon-tooltip icon icon-key-variant"
+-                                    />
+-                                  </div>
+-                                </span>
+-                              </span>
+                             </a>
+                             <ul
+                               class="nav nav__sub-menu subsections"
+@@ -7227,7 +7182,7 @@ c0,1.1,0.9,2,2,2h16c1.1,0,2-0.9,2-2V4z M20,4v5H4V4H20z M22,15v5c0,1.1-0.9,2-2,2H
+                           </li>
+                           <li
+                             class="sidebar-section"
+-                            data-testid="authentication.openid_feature_discovery"
++                            data-testid="authentication.openid"
+                           >
+                             <a
+                               class="sidebar-section-title"
+@@ -7239,21 +7194,6 @@ c0,1.1,0.9,2,2,2h16c1.1,0,2-0.9,2-2V4z M20,4v5H4V4H20z M22,15v5c0,1.1-0.9,2-2,2H
+                               >
+                                 OpenID Connect
+                               </span>
+-                              <span
+-                                class="sidebar-section-indicator"
+-                              >
+-                                <span
+-                                  class="RestrictedIndicator__icon-tooltip-container"
+-                                >
+-                                  <div
+-                                    class="RestrictedIndicator__content"
+-                                  >
+-                                    <i
+-                                      class="RestrictedIndicator__icon-tooltip icon icon-key-variant"
+-                                    />
+-                                  </div>
+-                                </span>
+-                              </span>
+                             </a>
+                             <ul
+                               class="nav nav__sub-menu subsections"
+@@ -8570,33 +8510,18 @@ c0,1.1,0.9,2,2,2h16c1.1,0,2-0.9,2-2V4z M20,4v5H4V4H20z M22,15v5c0,1.1-0.9,2-2,2H
+                           </li>
+                           <li
+                             class="sidebar-section"
+-                            data-testid="environment.mobile_security_feature_discovery"
++                            data-testid="environment.mobile_security"
+                           >
+                             <a
+                               class="sidebar-section-title"
+-                              href="/admin_console/environment/mobile_security_feature_discovery"
+-                              id="environment/mobile_security_feature_discovery"
++                              href="/admin_console/environment/mobile_security"
++                              id="environment/mobile_security"
+                             >
+                               <span
+                                 class="sidebar-section-title__text"
+                               >
+                                 Mobile Security
+                               </span>
+-                              <span
+-                                class="sidebar-section-indicator"
+-                              >
+-                                <span
+-                                  class="RestrictedIndicator__icon-tooltip-container"
+-                                >
+-                                  <div
+-                                    class="RestrictedIndicator__content"
+-                                  >
+-                                    <i
+-                                      class="RestrictedIndicator__icon-tooltip icon icon-key-variant"
+-                                    />
+-                                  </div>
+-                                </span>
+-                              </span>
+                             </a>
+                             <ul
+                               class="nav nav__sub-menu subsections"
+@@ -9044,7 +8969,7 @@ c0,1.1,0.9,2,2,2h16c1.1,0,2-0.9,2-2V4z M20,4v5H4V4H20z M22,15v5c0,1.1-0.9,2-2,2H
+                           </li>
+                           <li
+                             class="sidebar-section"
+-                            data-testid="authentication.openid_feature_discovery"
++                            data-testid="authentication.openid"
+                           >
+                             <a
+                               class="sidebar-section-title"
+@@ -9056,21 +8981,6 @@ c0,1.1,0.9,2,2,2h16c1.1,0,2-0.9,2-2V4z M20,4v5H4V4H20z M22,15v5c0,1.1-0.9,2-2,2H
+                               >
+                                 OpenID Connect
+                               </span>
+-                              <span
+-                                class="sidebar-section-indicator"
+-                              >
+-                                <span
+-                                  class="RestrictedIndicator__icon-tooltip-container"
+-                                >
+-                                  <div
+-                                    class="RestrictedIndicator__content"
+-                                  >
+-                                    <i
+-                                      class="RestrictedIndicator__icon-tooltip icon icon-key-variant"
+-                                    />
+-                                  </div>
+-                                </span>
+-                              </span>
+                             </a>
+                             <ul
+                               class="nav nav__sub-menu subsections"
+@@ -10496,33 +10406,18 @@ c0,1.1,0.9,2,2,2h16c1.1,0,2-0.9,2-2V4z M20,4v5H4V4H20z M22,15v5c0,1.1-0.9,2-2,2H
+                           </li>
+                           <li
+                             class="sidebar-section"
+-                            data-testid="environment.mobile_security_feature_discovery"
++                            data-testid="environment.mobile_security"
+                           >
+                             <a
+                               class="sidebar-section-title"
+-                              href="/admin_console/environment/mobile_security_feature_discovery"
+-                              id="environment/mobile_security_feature_discovery"
++                              href="/admin_console/environment/mobile_security"
++                              id="environment/mobile_security"
+                             >
+                               <span
+                                 class="sidebar-section-title__text"
+                               >
+                                 Mobile Security
+                               </span>
+-                              <span
+-                                class="sidebar-section-indicator"
+-                              >
+-                                <span
+-                                  class="RestrictedIndicator__icon-tooltip-container"
+-                                >
+-                                  <div
+-                                    class="RestrictedIndicator__content"
+-                                  >
+-                                    <i
+-                                      class="RestrictedIndicator__icon-tooltip icon icon-key-variant"
+-                                    />
+-                                  </div>
+-                                </span>
+-                              </span>
+                             </a>
+                             <ul
+                               class="nav nav__sub-menu subsections"
+@@ -10970,7 +10865,7 @@ c0,1.1,0.9,2,2,2h16c1.1,0,2-0.9,2-2V4z M20,4v5H4V4H20z M22,15v5c0,1.1-0.9,2-2,2H
+                           </li>
+                           <li
+                             class="sidebar-section"
+-                            data-testid="authentication.openid_feature_discovery"
++                            data-testid="authentication.openid"
+                           >
+                             <a
+                               class="sidebar-section-title"
+@@ -10982,21 +10877,6 @@ c0,1.1,0.9,2,2,2h16c1.1,0,2-0.9,2-2V4z M20,4v5H4V4H20z M22,15v5c0,1.1-0.9,2-2,2H
+                               >
+                                 OpenID Connect
+                               </span>
+-                              <span
+-                                class="sidebar-section-indicator"
+-                              >
+-                                <span
+-                                  class="RestrictedIndicator__icon-tooltip-container"
+-                                >
+-                                  <div
+-                                    class="RestrictedIndicator__content"
+-                                  >
+-                                    <i
+-                                      class="RestrictedIndicator__icon-tooltip icon icon-key-variant"
+-                                    />
+-                                  </div>
+-                                </span>
+-                              </span>
+                             </a>
+                             <ul
+                               class="nav nav__sub-menu subsections"
+@@ -12313,33 +12193,18 @@ c0,1.1,0.9,2,2,2h16c1.1,0,2-0.9,2-2V4z M20,4v5H4V4H20z M22,15v5c0,1.1-0.9,2-2,2H
+                           </li>
+                           <li
+                             class="sidebar-section"
+-                            data-testid="environment.mobile_security_feature_discovery"
++                            data-testid="environment.mobile_security"
+                           >
+                             <a
+                               class="sidebar-section-title"
+-                              href="/admin_console/environment/mobile_security_feature_discovery"
+-                              id="environment/mobile_security_feature_discovery"
++                              href="/admin_console/environment/mobile_security"
++                              id="environment/mobile_security"
+                             >
+                               <span
+                                 class="sidebar-section-title__text"
+                               >
+                                 Mobile Security
+                               </span>
+-                              <span
+-                                class="sidebar-section-indicator"
+-                              >
+-                                <span
+-                                  class="RestrictedIndicator__icon-tooltip-container"
+-                                >
+-                                  <div
+-                                    class="RestrictedIndicator__content"
+-                                  >
+-                                    <i
+-                                      class="RestrictedIndicator__icon-tooltip icon icon-key-variant"
+-                                    />
+-                                  </div>
+-                                </span>
+-                              </span>
+                             </a>
+                             <ul
+                               class="nav nav__sub-menu subsections"
+@@ -12787,7 +12652,7 @@ c0,1.1,0.9,2,2,2h16c1.1,0,2-0.9,2-2V4z M20,4v5H4V4H20z M22,15v5c0,1.1-0.9,2-2,2H
+                           </li>
+                           <li
+                             class="sidebar-section"
+-                            data-testid="authentication.openid_feature_discovery"
++                            data-testid="authentication.openid"
+                           >
+                             <a
+                               class="sidebar-section-title"
+@@ -12799,21 +12664,6 @@ c0,1.1,0.9,2,2,2h16c1.1,0,2-0.9,2-2V4z M20,4v5H4V4H20z M22,15v5c0,1.1-0.9,2-2,2H
+                               >
+                                 OpenID Connect
+                               </span>
+-                              <span
+-                                class="sidebar-section-indicator"
+-                              >
+-                                <span
+-                                  class="RestrictedIndicator__icon-tooltip-container"
+-                                >
+-                                  <div
+-                                    class="RestrictedIndicator__content"
+-                                  >
+-                                    <i
+-                                      class="RestrictedIndicator__icon-tooltip icon icon-key-variant"
+-                                    />
+-                                  </div>
+-                                </span>
+-                              </span>
+                             </a>
+                             <ul
+                               class="nav nav__sub-menu subsections"
+@@ -14157,33 +14007,18 @@ c0,1.1,0.9,2,2,2h16c1.1,0,2-0.9,2-2V4z M20,4v5H4V4H20z M22,15v5c0,1.1-0.9,2-2,2H
+                           </li>
+                           <li
+                             class="sidebar-section"
+-                            data-testid="environment.mobile_security_feature_discovery"
++                            data-testid="environment.mobile_security"
+                           >
+                             <a
+                               class="sidebar-section-title"
+-                              href="/admin_console/environment/mobile_security_feature_discovery"
+-                              id="environment/mobile_security_feature_discovery"
++                              href="/admin_console/environment/mobile_security"
++                              id="environment/mobile_security"
+                             >
+                               <span
+                                 class="sidebar-section-title__text"
+                               >
+                                 Mobile Security
+                               </span>
+-                              <span
+-                                class="sidebar-section-indicator"
+-                              >
+-                                <span
+-                                  class="RestrictedIndicator__icon-tooltip-container"
+-                                >
+-                                  <div
+-                                    class="RestrictedIndicator__content"
+-                                  >
+-                                    <i
+-                                      class="RestrictedIndicator__icon-tooltip icon icon-key-variant"
+-                                    />
+-                                  </div>
+-                                </span>
+-                              </span>
+                             </a>
+                             <ul
+                               class="nav nav__sub-menu subsections"
+@@ -15820,33 +15655,18 @@ c0,1.1,0.9,2,2,2h16c1.1,0,2-0.9,2-2V4z M20,4v5H4V4H20z M22,15v5c0,1.1-0.9,2-2,2H
+                           </li>
+                           <li
+                             class="sidebar-section"
+-                            data-testid="environment.mobile_security_feature_discovery"
++                            data-testid="environment.mobile_security"
+                           >
+                             <a
+                               class="sidebar-section-title"
+-                              href="/admin_console/environment/mobile_security_feature_discovery"
+-                              id="environment/mobile_security_feature_discovery"
++                              href="/admin_console/environment/mobile_security"
++                              id="environment/mobile_security"
+                             >
+                               <span
+                                 class="sidebar-section-title__text"
+                               >
+                                 Mobile Security
+                               </span>
+-                              <span
+-                                class="sidebar-section-indicator"
+-                              >
+-                                <span
+-                                  class="RestrictedIndicator__icon-tooltip-container"
+-                                >
+-                                  <div
+-                                    class="RestrictedIndicator__content"
+-                                  >
+-                                    <i
+-                                      class="RestrictedIndicator__icon-tooltip icon icon-key-variant"
+-                                    />
+-                                  </div>
+-                                </span>
+-                              </span>
+                             </a>
+                             <ul
+                               class="nav nav__sub-menu subsections"
+@@ -16313,7 +16133,7 @@ c0,1.1,0.9,2,2,2h16c1.1,0,2-0.9,2-2V4z M20,4v5H4V4H20z M22,15v5c0,1.1-0.9,2-2,2H
+                           </li>
+                           <li
+                             class="sidebar-section"
+-                            data-testid="authentication.openid_feature_discovery"
++                            data-testid="authentication.openid"
+                           >
+                             <a
+                               class="sidebar-section-title"
+@@ -16325,21 +16145,6 @@ c0,1.1,0.9,2,2,2h16c1.1,0,2-0.9,2-2V4z M20,4v5H4V4H20z M22,15v5c0,1.1-0.9,2-2,2H
+                               >
+                                 OpenID Connect
+                               </span>
+-                              <span
+-                                class="sidebar-section-indicator"
+-                              >
+-                                <span
+-                                  class="RestrictedIndicator__icon-tooltip-container"
+-                                >
+-                                  <div
+-                                    class="RestrictedIndicator__content"
+-                                  >
+-                                    <i
+-                                      class="RestrictedIndicator__icon-tooltip icon icon-key-variant"
+-                                    />
+-                                  </div>
+-                                </span>
+-                              </span>
+                             </a>
+                             <ul
+                               class="nav nav__sub-menu subsections"

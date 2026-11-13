@@ -1,0 +1,324 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Karan Sharma <hello@mrkaran.dev>
+Date: Fri, 13 Nov 2026 07:32:25 +0530
+Subject: [PATCH] feat: user list CSV export without a license
+
+Mattermax-Patch: unlock-user-export.patch
+---
+ server/channels/app/report.go                 | 18 +++--
+ server/channels/app/report_test.go            | 72 +++++++++++++++++++
+ .../system_users_export/index.test.tsx        | 48 +++++++++++++
+ .../system_users_export/index.tsx             | 36 +---------
+ webapp/channels/src/i18n/en.json              |  8 ---
+ 5 files changed, 134 insertions(+), 48 deletions(-)
+ create mode 100644 webapp/channels/src/components/admin_console/system_users/system_users_export/index.test.tsx
+
+diff --git a/server/channels/app/report.go b/server/channels/app/report.go
+index 23cfd7af4ead..e748be4ef6dc 100644
+--- a/server/channels/app/report.go
++++ b/server/channels/app/report.go
+@@ -10,6 +10,7 @@ import (
+ 	"fmt"
+ 	"net/http"
+ 	"strconv"
++	"strings"
+ 
+ 	"github.com/mattermost/mattermost/server/public/model"
+ 	"github.com/mattermost/mattermost/server/public/shared/i18n"
+@@ -31,7 +32,7 @@ func (a *App) saveCSVChunk(prefix string, count int, reportData []model.Reportab
+ 	w := csv.NewWriter(&buf)
+ 
+ 	for _, report := range reportData {
+-		err := w.Write(report.ToReport())
++		err := w.Write(escapeCSVFormulas(report.ToReport()))
+ 		if err != nil {
+ 			return model.NewAppError("saveCSVChunk", "app.save_csv_chunk.write_error", nil, "", http.StatusInternalServerError).Wrap(err)
+ 		}
+@@ -45,6 +46,17 @@ func (a *App) saveCSVChunk(prefix string, count int, reportData []model.Reportab
+ 	return appErr
+ }
+ 
++func escapeCSVFormulas(row []string) []string {
++	escaped := make([]string, len(row))
++	for i, cell := range row {
++		if cell != "" && strings.ContainsRune("=+-@\t\r", rune(cell[0])) {
++			cell = "'" + cell
++		}
++		escaped[i] = cell
++	}
++	return escaped
++}
++
+ func (a *App) CompileReportChunks(format string, prefix string, numberOfChunks int, headers []string) *model.AppError {
+ 	switch format {
+ 	case "csv":
+@@ -201,10 +213,6 @@ func (a *App) GetUserCountForReport(filter *model.UserReportOptions) (*int64, *m
+ }
+ 
+ func (a *App) StartUsersBatchExport(rctx request.CTX, ro *model.UserReportOptions, startAt int64, endAt int64) *model.AppError {
+-	if !model.MinimumProfessionalLicense(a.Srv().License()) {
+-		return model.NewAppError("StartUsersBatchExport", "app.report.start_users_batch_export.license_error", nil, "", http.StatusBadRequest)
+-	}
+-
+ 	options := map[string]string{
+ 		"requesting_user_id": rctx.Session().UserId,
+ 		"date_range":         ro.DateRange,
+diff --git a/server/channels/app/report_test.go b/server/channels/app/report_test.go
+index 81f13a7ca76b..57c84708cbbc 100644
+--- a/server/channels/app/report_test.go
++++ b/server/channels/app/report_test.go
+@@ -4,12 +4,15 @@
+ package app
+ 
+ import (
++	"bytes"
++	"encoding/csv"
+ 	"fmt"
+ 	"strconv"
+ 	"testing"
+ 	"time"
+ 
+ 	"github.com/mattermost/mattermost/server/public/model"
++	"github.com/mattermost/mattermost/server/v8/channels/jobs/export_users_to_csv"
+ 	"github.com/stretchr/testify/require"
+ )
+ 
+@@ -321,3 +324,72 @@ func TestStartUsersBatchExport(t *testing.T) {
+ 		require.Equal(t, "app.report.start_users_batch_export.job_exists", appErr.Id)
+ 	})
+ }
++
++func TestUsersBatchExportWithoutLicense(t *testing.T) {
++	mainHelper.Parallel(t)
++	th := Setup(t).InitBasic(t)
++	require.Nil(t, th.App.Srv().RemoveLicense())
++	require.Nil(t, th.App.Srv().License())
++	rctx := th.Context.WithSession(&model.Session{UserId: th.BasicUser.Id})
++	require.Nil(t, th.App.StartUsersBatchExport(rctx, &model.UserReportOptions{
++		ReportingBaseOptions: model.ReportingBaseOptions{DateRange: model.ReportDurationAllTime},
++		SearchTerm:           th.BasicUser.Username,
++	}, 0, model.GetMillis()))
++	pending, appErr := th.App.Srv().Jobs.GetJobsByTypeAndStatus(rctx, model.JobTypeExportUsersToCSV, model.JobStatusPending)
++	require.Nil(t, appErr)
++	var exportJob *model.Job
++	for _, job := range pending {
++		if job.Data["requesting_user_id"] == th.BasicUser.Id {
++			exportJob = job
++		}
++	}
++	require.NotNil(t, exportJob)
++	worker := export_users_to_csv.MakeWorker(th.App.Srv().Jobs, th.App.Srv().Store(), th.App)
++	worker.(interface{ DoJob(*model.Job) }).DoJob(exportJob)
++	completed, appErr := th.App.Srv().Jobs.GetJob(rctx, exportJob.Id)
++	require.Nil(t, appErr)
++	require.Equal(t, model.JobStatusSuccess, completed.Status, completed.Data)
++	data, appErr := th.App.ReadFile(makeCompiledFilePath(exportJob.Id, "csv"))
++	require.Nil(t, appErr)
++	rows, err := csv.NewReader(bytes.NewReader(data)).ReadAll()
++	require.NoError(t, err)
++	require.Len(t, rows, 2)
++	require.Equal(t, []string{"Id", "Username", "Email", "CreateAt", "Name", "Roles", "LastLogin", "LastStatusAt", "LastPostDate", "DaysActive", "TotalPosts", "ChannelCount", "Teams", "DeletedAt"}, rows[0])
++	require.Equal(t, th.BasicUser.Id, rows[1][0])
++	require.Equal(t, th.BasicUser.Username, rows[1][1])
++	require.Equal(t, th.BasicUser.Email, rows[1][2])
++}
++
++func TestSaveCSVChunkEscapesFormulas(t *testing.T) {
++	mainHelper.Parallel(t)
++	th := Setup(t)
++	prefix := model.NewId()
++	var reports []model.ReportableObject
++	for _, trigger := range []string{"=", "+", "-", "@", "\t", "\r"} {
++		reports = append(reports, &model.UserReport{
++			User: model.User{
++				Id:        trigger + "id",
++				Username:  trigger + "username",
++				Email:     trigger + "user@example.com",
++				FirstName: trigger + "first",
++				LastName:  "last",
++			},
++			Teams: trigger + "team",
++		})
++	}
++	reports = append(reports, &model.UserReport{User: model.User{Id: "plain", Username: "user-name", Email: "a=b@example.com"}})
++	require.Nil(t, th.App.SaveReportChunk("csv", prefix, 0, reports))
++	data, appErr := th.App.ReadFile(makeFilePath(prefix, 0, "csv"))
++	require.Nil(t, appErr)
++	rows, err := csv.NewReader(bytes.NewReader(data)).ReadAll()
++	require.NoError(t, err)
++	require.Len(t, rows, 7)
++	for i, trigger := range []string{"=", "+", "-", "@", "\t", "\r"} {
++		require.Equal(t, "'"+trigger+"id", rows[i][0])
++		require.Equal(t, "'"+trigger+"username", rows[i][1])
++		require.Equal(t, "'"+trigger+"user@example.com", rows[i][2])
++		require.Equal(t, "'"+trigger+"first last", rows[i][4])
++		require.Equal(t, "'"+trigger+"team", rows[i][12])
++	}
++	require.Equal(t, []string{"plain", "user-name", "a=b@example.com"}, rows[6][:3])
++}
+diff --git a/webapp/channels/src/components/admin_console/system_users/system_users_export/index.test.tsx b/webapp/channels/src/components/admin_console/system_users/system_users_export/index.test.tsx
+new file mode 100644
+index 000000000000..f5ee69035500
+--- /dev/null
++++ b/webapp/channels/src/components/admin_console/system_users/system_users_export/index.test.tsx
+@@ -0,0 +1,48 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++import React from 'react';
++
++import {openModal} from 'actions/views/modals';
++
++import {renderWithContext, screen, userEvent} from 'tests/react_testing_utils';
++import {ModalIdentifiers} from 'utils/constants';
++
++import {ExportUserDataModal} from './export_user_data_modal';
++
++import {SystemUsersExport} from './index';
++
++jest.mock('actions/views/modals', () => ({
++    openModal: jest.fn(() => ({type: 'OPEN_MODAL'})),
++}));
++
++describe('SystemUsersExport without a license', () => {
++    test('opens the export confirmation instead of an upgrade dialog', async () => {
++        renderWithContext(
++            <SystemUsersExport
++                currentUserId='admin'
++                usersLenght={1}
++            />,
++            {entities: {general: {license: {IsLicensed: 'false'}}}},
++        );
++
++        await userEvent.click(screen.getByRole('button', {name: 'Export'}));
++
++        expect(openModal).toHaveBeenCalledWith({
++            modalId: ModalIdentifiers.EXPORT_USER_DATA_MODAL,
++            dialogType: ExportUserDataModal,
++            dialogProps: {onConfirm: expect.any(Function)},
++        });
++        expect(screen.queryByText('Professional feature')).not.toBeInTheDocument();
++    });
++
++    test('disables export when the user list is empty', () => {
++        renderWithContext(
++            <SystemUsersExport
++                currentUserId='admin'
++                usersLenght={0}
++            />,
++        );
++        expect(screen.getByRole('button', {name: 'Export'})).toBeDisabled();
++    });
++});
+diff --git a/webapp/channels/src/components/admin_console/system_users/system_users_export/index.tsx b/webapp/channels/src/components/admin_console/system_users/system_users_export/index.tsx
+index ff1f7ea71972..95b045663fda 100644
+--- a/webapp/channels/src/components/admin_console/system_users/system_users_export/index.tsx
++++ b/webapp/channels/src/components/admin_console/system_users/system_users_export/index.tsx
+@@ -2,18 +2,16 @@
+ // See LICENSE.txt for license information.
+ 
+ import React from 'react';
+-import {FormattedMessage, useIntl} from 'react-intl';
++import {FormattedMessage} from 'react-intl';
+ import {useDispatch, useSelector} from 'react-redux';
+ 
+ import {Button} from '@mattermost/shared/components/button';
+-import {WithTooltip} from '@mattermost/shared/components/tooltip';
+ import {ReportDuration} from '@mattermost/types/reports';
+ import type {GlobalState} from '@mattermost/types/store';
+ import type {UserProfile} from '@mattermost/types/users';
+ 
+ import {savePreferences} from 'mattermost-redux/actions/preferences';
+ import {Preferences} from 'mattermost-redux/constants';
+-import {getLicense} from 'mattermost-redux/selectors/entities/general';
+ import {get} from 'mattermost-redux/selectors/entities/preferences';
+ 
+ import {startUsersBatchExport} from 'actions/views/admin';
+@@ -21,11 +19,9 @@ import {openModal} from 'actions/views/modals';
+ import {getAdminConsoleUserManagementTableProperties} from 'selectors/views/admin';
+ 
+ import {ModalIdentifiers} from 'utils/constants';
+-import {isMinimumProfessionalLicense} from 'utils/license_utils';
+ 
+ import {ExportErrorModal} from './export_error_modal';
+ import {ExportUserDataModal} from './export_user_data_modal';
+-import {UpgradeExportDataModal} from './upgrade_export_data_modal';
+ 
+ import {convertTableOptionsToUserReportOptions} from '../utils';
+ 
+@@ -37,8 +33,6 @@ interface Props {
+ }
+ 
+ export function SystemUsersExport(props: Props) {
+-    const {formatMessage} = useIntl();
+-
+     const dispatch = useDispatch();
+ 
+     const skipDialog = useSelector((state: GlobalState) => get(state, Preferences.CATEGORY_REPORTING, Preferences.HIDE_BATCH_EXPORT_CONFIRM_MODAL, '')) === 'true';
+@@ -48,9 +42,6 @@ export function SystemUsersExport(props: Props) {
+         tableOptionsToUserReport.date_range = ReportDuration.AllTime;
+     }
+ 
+-    const license = useSelector(getLicense);
+-    const isLicensed = license.IsLicensed === 'true' && isMinimumProfessionalLicense(license);
+-
+     async function doExport(checked?: boolean) {
+         const {error} = await dispatch(startUsersBatchExport(tableOptionsToUserReport));
+         if (error) {
+@@ -76,15 +67,6 @@ export function SystemUsersExport(props: Props) {
+         if (!props.usersLenght) {
+             return;
+         }
+-        if (!isLicensed) {
+-            dispatch(openModal({
+-                modalId: ModalIdentifiers.UPGRADE_EXPORT_DATA_MODAL,
+-                dialogType: UpgradeExportDataModal,
+-                dialogProps: {},
+-            }));
+-            return;
+-        }
+-
+         if (skipDialog) {
+             doExport();
+             return;
+@@ -112,21 +94,5 @@ export function SystemUsersExport(props: Props) {
+         </Button>
+     );
+ 
+-    if (!isLicensed) {
+-        return (
+-            <>
+-                <WithTooltip
+-                    title={formatMessage({id: 'admin.system_users.exportButton.notLicensed.title', defaultMessage: 'Professional feature'})}
+-                    hint={formatMessage({id: 'admin.system_users.exportButton.notLicensed.hint', defaultMessage: 'This feature is available on the professional plan'})}
+-                >
+-                    {button}
+-                </WithTooltip>
+-                <div className='system-users-export__keyIndicator'>
+-                    <i className='icon icon-key-variant'/>
+-                </div>
+-            </>
+-        );
+-    }
+-
+     return button;
+ }
+diff --git a/webapp/channels/src/i18n/en.json b/webapp/channels/src/i18n/en.json
+index 28da8e312120..657c8fe120ba 100644
+--- a/webapp/channels/src/i18n/en.json
++++ b/webapp/channels/src/i18n/en.json
+@@ -15519,14 +15519,6 @@
+     "defaultMessage": "Export",
+     "description": "Button above the System Console users table that exports the user report as CSV; verb. Compact space."
+   },
+-  "admin.system_users.exportButton.notLicensed.hint": {
+-    "defaultMessage": "This feature is available on the professional plan",
+-    "description": "Tooltip body on the disabled export-user-data button in the System Console Users list when the server lacks a Professional license."
+-  },
+-  "admin.system_users.exportButton.notLicensed.title": {
+-    "defaultMessage": "Professional feature",
+-    "description": "Tooltip title on the disabled export-user-data button in the System Console Users list; 'Professional' is a Mattermost plan name."
+-  },
+   "admin.system_users.filters.role.any": {
+     "defaultMessage": "Any",
+     "description": "Option in the Role filter of the System Console users page meaning no role restriction."

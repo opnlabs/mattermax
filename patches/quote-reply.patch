@@ -1,0 +1,617 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Karan Sharma <hello@mrkaran.dev>
+Date: Fri, 13 Nov 2026 00:07:42 +0530
+Subject: [PATCH] feat: quote reply from the post menu
+
+Mattermax-Patch: quote-reply.patch
+---
+ .../advanced_text_editor.tsx                  |  11 ++
+ .../src/components/dot_menu/dot_menu.test.tsx |  54 +++++-
+ .../src/components/dot_menu/dot_menu.tsx      |  39 +++-
+ .../dot_menu/dot_menu_empty.test.tsx          |   1 +
+ .../dot_menu/dot_menu_mobile.test.tsx         |   1 +
+ .../channels/src/components/dot_menu/index.ts |   3 +
+ .../quote_reply/quote_reply.test.tsx          | 170 ++++++++++++++++++
+ .../src/components/quote_reply/quote_reply.ts |  66 +++++++
+ .../quote_reply/use_quote_reply_target.ts     |  61 +++++++
+ webapp/channels/src/i18n/en.json              |  12 ++
+ 10 files changed, 416 insertions(+), 2 deletions(-)
+ create mode 100644 webapp/channels/src/components/quote_reply/quote_reply.test.tsx
+ create mode 100644 webapp/channels/src/components/quote_reply/quote_reply.ts
+ create mode 100644 webapp/channels/src/components/quote_reply/use_quote_reply_target.ts
+
+diff --git a/webapp/channels/src/components/advanced_text_editor/advanced_text_editor.tsx b/webapp/channels/src/components/advanced_text_editor/advanced_text_editor.tsx
+index 313a056367b2..30e95eab806b 100644
+--- a/webapp/channels/src/components/advanced_text_editor/advanced_text_editor.tsx
++++ b/webapp/channels/src/components/advanced_text_editor/advanced_text_editor.tsx
+@@ -41,6 +41,7 @@ import {
+     DropOverlayIdCreatePost,
+     DropOverlayIdEditPost, FileUploadOverlay,
+ } from 'components/file_upload_overlay/file_upload_overlay';
++import useQuoteReplyTarget from 'components/quote_reply/use_quote_reply_target';
+ import RhsSuggestionList from 'components/suggestion/rhs_suggestion_list';
+ import SuggestionList from 'components/suggestion/suggestion_list';
+ import Textbox from 'components/textbox';
+@@ -424,6 +425,16 @@ const AdvancedTextEditor = ({
+ 
+     const pluginItems = usePluginItems(draft, textboxRef, handleDraftChange);
+     const focusTextbox = useTextboxFocus(textboxRef, channelId, isRHS, canPost, wysiwygRef);
++    useQuoteReplyTarget({
++        channelId,
++        rootId,
++        enabled: !isInEditMode && (location === Locations.CENTER || location === Locations.RHS_COMMENT),
++        draft,
++        handleDraftChange,
++        focusTextbox,
++        textboxRef,
++        wysiwygRef,
++    });
+     const {
+         rewriteMenuProps,
+         isProcessing: rewriteIsProcessing,
+diff --git a/webapp/channels/src/components/dot_menu/dot_menu.test.tsx b/webapp/channels/src/components/dot_menu/dot_menu.test.tsx
+index 94b4d469c683..821b0b914422 100644
+--- a/webapp/channels/src/components/dot_menu/dot_menu.test.tsx
++++ b/webapp/channels/src/components/dot_menu/dot_menu.test.tsx
+@@ -7,7 +7,7 @@ import type {ChannelType} from '@mattermost/types/channels';
+ import type {Post, PostType} from '@mattermost/types/posts';
+ import type {DeepPartial} from '@mattermost/types/utilities';
+ 
+-import {renderWithContext, screen, userEvent} from 'tests/react_testing_utils';
++import {renderWithContext, screen, userEvent, waitFor} from 'tests/react_testing_utils';
+ import {Locations} from 'utils/constants';
+ import {TestHelper} from 'utils/test_helper';
+ 
+@@ -194,6 +194,7 @@ describe('components/dot_menu/DotMenu', () => {
+             setGlobalItem: jest.fn(),
+             burnPostNow: jest.fn(),
+             savePreferences: jest.fn(),
++            quoteReply: jest.fn(),
+         },
+         canEdit: false,
+         canDelete: false,
+@@ -635,4 +636,55 @@ describe('components/dot_menu/DotMenu', () => {
+         // Since reply option doesn't exist, keyboard shortcut should be blocked (no way to verify action wasn't called, but menu item being hidden confirms it)
+         expect(replyOption).toBeNull();
+     });
++
++    describe('quote reply', () => {
++        const teamUrl = 'http://localhost:8065/team1';
++
++        const renderMenu = (overrides: Partial<typeof baseProps> & {location?: keyof typeof Locations; teamUrl?: string}) => {
++            const props = {...baseProps, teamUrl, ...overrides, actions: {...baseProps.actions, quoteReply: jest.fn()}};
++            renderWithContext(<DotMenu {...props}/>, initialState);
++            return props;
++        };
++
++        test('quotes a center channel post into the center composer', async () => {
++            const props = renderMenu({location: Locations.CENTER});
++
++            await userEvent.click(screen.getByTestId(`PostDotMenu-Button-${baseProps.post.id}`));
++            await userEvent.click(screen.getByRole('menuitem', {name: /Quote reply/}));
++
++            await waitFor(() => expect(props.actions.quoteReply).toHaveBeenCalledWith(baseProps.post, '', `${teamUrl}/pl/${baseProps.post.id}`));
++        });
++
++        test('quotes a thread reply into the thread composer with the Q shortcut', async () => {
++            const reply = {...baseProps.post, id: 'reply_id', root_id: 'root_id'};
++            const props = renderMenu({location: Locations.RHS_COMMENT, post: reply});
++
++            await userEvent.click(screen.getByTestId(`PostDotMenu-Button-${reply.id}`));
++            screen.getByRole('menu').focus();
++            await userEvent.keyboard('q');
++
++            expect(props.actions.quoteReply).toHaveBeenCalledWith(reply, 'root_id', `${teamUrl}/pl/reply_id`);
++        });
++
++        test('quotes a thread root into its own thread composer', async () => {
++            const props = renderMenu({location: Locations.RHS_ROOT});
++
++            await userEvent.click(screen.getByTestId(`PostDotMenu-Button-${baseProps.post.id}`));
++            await userEvent.click(screen.getByRole('menuitem', {name: /Quote reply/}));
++
++            await waitFor(() => expect(props.actions.quoteReply).toHaveBeenCalledWith(baseProps.post, baseProps.post.id, `${teamUrl}/pl/${baseProps.post.id}`));
++        });
++
++        test.each([
++            ['in search results', {location: Locations.SEARCH}],
++            ['when the text cannot be copied', {canCopyText: false}],
++            ['in an archived channel', {channelIsArchived: true}],
++        ] as Array<[string, Partial<typeof baseProps> & {location?: keyof typeof Locations}]>)('is hidden %s', async (_, overrides) => {
++            renderMenu({location: Locations.CENTER, ...overrides});
++
++            await userEvent.click(screen.getByTestId(`PostDotMenu-Button-${baseProps.post.id}`));
++
++            expect(screen.queryByRole('menuitem', {name: /Quote reply/})).not.toBeInTheDocument();
++        });
++    });
+ });
+diff --git a/webapp/channels/src/components/dot_menu/dot_menu.tsx b/webapp/channels/src/components/dot_menu/dot_menu.tsx
+index 37ae025b19dd..b3a5e5f51ef1 100644
+--- a/webapp/channels/src/components/dot_menu/dot_menu.tsx
++++ b/webapp/channels/src/components/dot_menu/dot_menu.tsx
+@@ -14,6 +14,7 @@ import {
+     ContentCopyIcon,
+     DotsHorizontalIcon,
+     EmoticonPlusOutlineIcon,
++    FormatQuoteOpenIcon,
+     LinkVariantIcon,
+     MarkAsUnreadIcon,
+     MessageArrowRightOutlineIcon,
+@@ -163,6 +164,7 @@ type Props = {
+          */
+         savePreferences: (userId: string, preferences: Array<{category: string; user_id: string; name: string; value: string}>) => void;
+ 
++        quoteReply: (post: Post, rootId: string, permalink: string) => void;
+     }; // TechDebt: Made non-mandatory while converting to typescript
+ 
+     canEdit: boolean;
+@@ -253,6 +255,12 @@ export class DotMenuClass extends React.PureComponent<Props, State> {
+         }
+     };
+ 
++    handleQuoteReply = () => {
++        const {post, location} = this.props;
++        const rootId = location === Locations.CENTER ? '' : post.root_id || post.id;
++        this.props.actions.quoteReply(post, rootId, `${this.props.teamUrl}/pl/${post.id}`);
++    };
++
+     copyLink = () => {
+         Utils.copyToClipboard(`${this.props.teamUrl}/pl/${this.props.post.id}`);
+     };
+@@ -409,6 +417,13 @@ export class DotMenuClass extends React.PureComponent<Props, State> {
+             }
+             break;
+ 
++        case Keyboard.isKeyPressed(event, Constants.KeyCodes.Q):
++            if (this.canQuoteReply()) {
++                forceCloseMenu();
++                this.handleQuoteReply();
++            }
++            break;
++
+             // edit post
+         case Keyboard.isKeyPressed(event, Constants.KeyCodes.E):
+             if (this.state.canEdit) {
+@@ -485,6 +500,12 @@ export class DotMenuClass extends React.PureComponent<Props, State> {
+         }
+     };
+ 
++    canQuoteReply = () => {
++        const {location} = this.props;
++        const isQuotableLocation = location === Locations.CENTER || location === Locations.RHS_ROOT || location === Locations.RHS_COMMENT;
++        return this.props.canCopyText && isQuotableLocation && !this.props.channelIsArchived && !this.props.isReadOnly;
++    };
++
+     handleMenuToggle = (open: boolean) => {
+         this.props.handleDropdownOpened?.(open);
+     };
+@@ -586,6 +607,7 @@ export class DotMenuClass extends React.PureComponent<Props, State> {
+         );
+ 
+         const showReply = !isSystemMessage && !isBurnOnReadPost && this.props.location === Locations.CENTER;
++        const showQuoteReply = this.canQuoteReply();
+         const showForward = this.props.canForward;
+         const showReactions = Boolean(isMobile && !isSystemMessage && !this.props.isReadOnly && this.props.enableEmojiPicker);
+         const showFollowPost = this.props.canFollowThread;
+@@ -605,7 +627,7 @@ export class DotMenuClass extends React.PureComponent<Props, State> {
+         // 2. BoR post meeting above criteria
+         const showDelete = (!isBurnOnReadPost && this.state.canDelete) || shouldShowDeleteForBoR;
+ 
+-        const firstSectionHasItems = showReply || showForward || showReactions || showFollowPost || showMarkAsUnread || showSave || showRemind || showPin || showMove;
++        const firstSectionHasItems = showReply || showQuoteReply || showForward || showReactions || showFollowPost || showMarkAsUnread || showSave || showRemind || showPin || showMove;
+         const secondSectionHasItems = showShowTranslation || showCopyText || showCopyLink;
+         const thirdSectionHasItems = showEdit || showDelete || showFlagContent;
+ 
+@@ -647,6 +669,21 @@ export class DotMenuClass extends React.PureComponent<Props, State> {
+                         onClick={this.handleCommentClick}
+                     />
+                 }
++                {showQuoteReply &&
++                    <Menu.Item
++                        id={`quote_reply_${this.props.post.id}`}
++                        data-testid={`quote_reply_${this.props.post.id}`}
++                        labels={
++                            <FormattedMessage
++                                id='post_info.quote_reply'
++                                defaultMessage='Quote reply'
++                            />
++                        }
++                        leadingElement={<FormatQuoteOpenIcon size={18}/>}
++                        trailingElements={<ShortcutKey shortcutKey='Q'/>}
++                        onClick={this.handleQuoteReply}
++                    />
++                }
+                 {showForward &&
+                     <Menu.Item
+                         id={`forward_post_${this.props.post.id}`}
+diff --git a/webapp/channels/src/components/dot_menu/dot_menu_empty.test.tsx b/webapp/channels/src/components/dot_menu/dot_menu_empty.test.tsx
+index 08676445952c..93e42a385e96 100644
+--- a/webapp/channels/src/components/dot_menu/dot_menu_empty.test.tsx
++++ b/webapp/channels/src/components/dot_menu/dot_menu_empty.test.tsx
+@@ -102,6 +102,7 @@ describe('components/dot_menu/DotMenu returning empty ("")', () => {
+                 setGlobalItem: jest.fn(),
+                 burnPostNow: jest.fn(),
+                 savePreferences: jest.fn(),
++                quoteReply: jest.fn(),
+             },
+             canEdit: false,
+             canDelete: false,
+diff --git a/webapp/channels/src/components/dot_menu/dot_menu_mobile.test.tsx b/webapp/channels/src/components/dot_menu/dot_menu_mobile.test.tsx
+index 3a66405f32d4..f340d9032bc9 100644
+--- a/webapp/channels/src/components/dot_menu/dot_menu_mobile.test.tsx
++++ b/webapp/channels/src/components/dot_menu/dot_menu_mobile.test.tsx
+@@ -102,6 +102,7 @@ describe('components/dot_menu/DotMenu on mobile view', () => {
+                 setGlobalItem: jest.fn(),
+                 burnPostNow: jest.fn(),
+                 savePreferences: jest.fn(),
++                quoteReply: jest.fn(),
+             },
+             canEdit: false,
+             canDelete: false,
+diff --git a/webapp/channels/src/components/dot_menu/index.ts b/webapp/channels/src/components/dot_menu/index.ts
+index b75be2b38ec6..14371af157a2 100644
+--- a/webapp/channels/src/components/dot_menu/index.ts
++++ b/webapp/channels/src/components/dot_menu/index.ts
+@@ -39,6 +39,8 @@ import {isBurnOnReadPost, isThisPostBurnOnReadPost, shouldDisplayConcealedPlaceh
+ import {makeCanWrangler} from 'selectors/posts';
+ import {getIsMobileView} from 'selectors/views/browser';
+ 
++import {quoteReply} from 'components/quote_reply/quote_reply';
++
+ import {isArchivedChannel} from 'utils/channel_utils';
+ import {Locations, Preferences} from 'utils/constants';
+ import * as PostUtils from 'utils/post_utils';
+@@ -160,6 +162,7 @@ function mapDispatchToProps(dispatch: Dispatch) {
+             setThreadFollow,
+             burnPostNow,
+             savePreferences,
++            quoteReply,
+         }, dispatch),
+     };
+ }
+diff --git a/webapp/channels/src/components/quote_reply/quote_reply.test.tsx b/webapp/channels/src/components/quote_reply/quote_reply.test.tsx
+new file mode 100644
+index 000000000000..0cfe6d7d0f98
+--- /dev/null
++++ b/webapp/channels/src/components/quote_reply/quote_reply.test.tsx
+@@ -0,0 +1,170 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++import React from 'react';
++
++import type {Post} from '@mattermost/types/posts';
++
++import Permissions from 'mattermost-redux/constants/permissions';
++
++import AdvancedTextEditor from 'components/advanced_text_editor/advanced_text_editor';
++
++import {act, renderWithContext, screen, userEvent, waitFor} from 'tests/react_testing_utils';
++import {Locations, StoragePrefixes} from 'utils/constants';
++import {TestHelper} from 'utils/test_helper';
++
++import {quoteReply} from './quote_reply';
++
++jest.mock('actions/views/drafts', () => ({
++    ...jest.requireActual('actions/views/drafts'),
++    updateDraft: jest.fn((...args) => ({type: 'MOCK_UPDATE_DRAFT', args})),
++    removeDraft: jest.fn((...args) => ({type: 'MOCK_REMOVE_DRAFT', args})),
++}));
++
++const channelId = 'channel1';
++const permalink = 'http://localhost:8065/team1/pl/post1';
++
++const initialState = {
++    entities: {
++        general: {config: {}, license: {IsLicensed: 'false'}},
++        channels: {
++            channels: {[channelId]: TestHelper.getChannelMock({id: channelId, team_id: 'team1', display_name: 'Town Square'})},
++            stats: {[channelId]: {member_count: 2}},
++            roles: {[channelId]: new Set(['channel_roles'])},
++        },
++        roles: {roles: {user_roles: {permissions: [Permissions.CREATE_POST]}}},
++        teams: {
++            currentTeamId: 'team1',
++            teams: {team1: TestHelper.getTeamMock({id: 'team1', name: 'team1'})},
++            myMembers: {team1: TestHelper.getTeamMembershipMock({roles: 'team_roles'})},
++        },
++        users: {
++            currentUserId: 'me',
++            profiles: {
++                me: TestHelper.getUserMock({id: 'me', roles: 'user_roles'}),
++                alice: TestHelper.getUserMock({id: 'alice', username: 'alice', first_name: '', last_name: ''}),
++            },
++            statuses: {me: 'online'},
++        },
++    },
++    storage: {
++        storage: {
++            [StoragePrefixes.DRAFT + channelId]: {value: TestHelper.getPostDraftMock({channelId, rootId: '', message: 'Agreed.'})},
++        },
++    },
++};
++
++const editorProps = {
++    channelId,
++    rootId: '',
++    location: Locations.CENTER,
++    isThreadView: false,
++};
++
++function makePost(props: Partial<Post> = {}) {
++    return TestHelper.getPostMock({id: 'post1', user_id: 'alice', channel_id: channelId, root_id: '', message: 'Ship it on Friday', ...props});
++}
++
++describe('quote reply', () => {
++    it('inserts an attributed blockquote and a permalink after the existing draft and focuses the composer', async () => {
++        const {store} = renderWithContext(
++            <>
++                <button>{'More'}</button>
++                <AdvancedTextEditor {...editorProps}/>
++            </>,
++            initialState,
++        );
++        const textbox = screen.getByTestId('post_textbox') as HTMLTextAreaElement;
++        await userEvent.click(screen.getByRole('button', {name: 'More'}));
++        expect(textbox).not.toHaveFocus();
++
++        let result;
++        act(() => {
++            result = store.dispatch(quoteReply(makePost(), '', permalink));
++        });
++
++        const expected = `Agreed.\n\n> **alice** [wrote](${permalink}):\n> Ship it on Friday\n\n`;
++        expect(result).toEqual({data: true});
++        expect(textbox).toHaveValue(expected);
++        expect(textbox).toHaveFocus();
++        await waitFor(() => expect(textbox.selectionStart).toBe(expected.length));
++    });
++
++    it('keeps the first five lines and marks the cut with an ellipsis', () => {
++        const {store} = renderWithContext(<AdvancedTextEditor {...editorProps}/>, initialState);
++
++        act(() => {
++            store.dispatch(quoteReply(makePost({message: 'one\ntwo\n\nfour\nfive\nsix\nseven'}), '', permalink));
++        });
++
++        expect(screen.getByTestId('post_textbox')).toHaveValue(`Agreed.\n\n> **alice** [wrote](${permalink}):\n> one\n> two\n>\n> four\n> five…\n\n`);
++    });
++
++    it('quotes only the text of a post with attachments and notes the attachment', () => {
++        const {store} = renderWithContext(<AdvancedTextEditor {...editorProps}/>, initialState);
++
++        act(() => {
++            store.dispatch(quoteReply(makePost({message: 'See the report', file_ids: ['file1']}), '', permalink));
++        });
++
++        expect(screen.getByTestId('post_textbox')).toHaveValue(`Agreed.\n\n> **alice** [wrote](${permalink}):\n> See the report\n> [attachment]\n\n`);
++    });
++
++    it('inserts into the thread composer, not the center composer, when quoting from a thread', () => {
++        const {store} = renderWithContext(
++            <>
++                <AdvancedTextEditor {...editorProps}/>
++                <AdvancedTextEditor
++                    {...editorProps}
++                    rootId='root1'
++                    location={Locations.RHS_COMMENT}
++                />
++            </>,
++            initialState,
++        );
++
++        act(() => {
++            store.dispatch(quoteReply(makePost({id: 'reply1', root_id: 'root1', message: '', file_ids: ['file1']}), 'root1', permalink));
++        });
++
++        expect(screen.getByTestId('reply_textbox')).toHaveValue(`> **alice** [wrote](${permalink}):\n> [attachment]\n\n`);
++        expect(screen.getByTestId('reply_textbox')).toHaveFocus();
++        expect(screen.getByTestId('post_textbox')).toHaveValue('Agreed.');
++    });
++
++    it('escapes markdown in the author name', () => {
++        const state = {
++            ...initialState,
++            entities: {
++                ...initialState.entities,
++                general: {...initialState.entities.general, config: {TeammateNameDisplay: 'nickname_full_name'}},
++                users: {
++                    ...initialState.entities.users,
++                    profiles: {
++                        ...initialState.entities.users.profiles,
++                        mallory: TestHelper.getUserMock({id: 'mallory', username: 'mallory', nickname: '*bold* _it_ [x](http://evil) `code` <b>\n> ~~gone~~ \\'}),
++                    },
++                },
++            },
++        };
++        const {store} = renderWithContext(<AdvancedTextEditor {...editorProps}/>, state);
++
++        act(() => {
++            store.dispatch(quoteReply(makePost({user_id: 'mallory'}), '', permalink));
++        });
++
++        expect(screen.getByTestId('post_textbox')).toHaveValue(`Agreed.\n\n> **\\*bold\\* \\_it\\_ \\[x\\](http://evil) \\\`code\\\` &lt;b\\> \\> \\~\\~gone\\~\\~ \\\\** [wrote](${permalink}):\n> Ship it on Friday\n\n`);
++    });
++
++    it('does nothing when no composer is open for the post', () => {
++        const {store} = renderWithContext(<AdvancedTextEditor {...editorProps}/>, initialState);
++
++        let result;
++        act(() => {
++            result = store.dispatch(quoteReply(makePost({channel_id: 'elsewhere'}), '', permalink));
++        });
++
++        expect(result).toEqual({data: false});
++        expect(screen.getByTestId('post_textbox')).toHaveValue('Agreed.');
++    });
++});
+diff --git a/webapp/channels/src/components/quote_reply/quote_reply.ts b/webapp/channels/src/components/quote_reply/quote_reply.ts
+new file mode 100644
+index 000000000000..8888de37dfa6
+--- /dev/null
++++ b/webapp/channels/src/components/quote_reply/quote_reply.ts
+@@ -0,0 +1,66 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++import type {IntlShape} from 'react-intl';
++
++import type {Post} from '@mattermost/types/posts';
++
++import {getTeammateNameDisplaySetting} from 'mattermost-redux/selectors/entities/preferences';
++import {getUser} from 'mattermost-redux/selectors/entities/users';
++import {displayUsername} from 'mattermost-redux/utils/user_utils';
++
++import {getIntl} from 'utils/i18n';
++
++import type {ActionFunc} from 'types/store';
++
++const MAX_QUOTED_LINES = 5;
++
++type QuoteTarget = {
++    channelId: string;
++    rootId: string;
++    insert: (text: string) => void;
++};
++
++const targets: QuoteTarget[] = [];
++
++export function registerQuoteTarget(target: QuoteTarget) {
++    targets.push(target);
++    return () => {
++        targets.splice(targets.indexOf(target), 1);
++    };
++}
++
++function insertIntoComposer(channelId: string, rootId: string, text: string) {
++    const target = [...targets].reverse().find((t) => t.channelId === channelId && t.rootId === rootId);
++    target?.insert(text);
++    return Boolean(target);
++}
++
++function escapeMarkdown(text: string) {
++    return text.replace(/\s*[\r\n]+\s*/g, ' ').replace(/[\\`*_[\]~>]/g, '\\$&').replace(/</g, '&lt;');
++}
++
++function buildQuote(intl: IntlShape, post: Post, authorName: string, permalink: string) {
++    const message = (post.message_source || post.message).trim();
++    const lines = message ? message.split('\n') : [];
++    const quoted = lines.slice(0, MAX_QUOTED_LINES);
++    if (lines.length > MAX_QUOTED_LINES) {
++        quoted[MAX_QUOTED_LINES - 1] += '…';
++    }
++    if (post.file_ids?.length || post.metadata?.files?.length) {
++        quoted.push(intl.formatMessage({id: 'quote_reply.attachment', defaultMessage: '[attachment]'}));
++    }
++
++    const attribution = intl.formatMessage({id: 'quote_reply.attribution', defaultMessage: '**{name}** [wrote]({permalink}):'}, {name: escapeMarkdown(authorName), permalink});
++
++    return [attribution, ...quoted].map((line) => (line ? `> ${line}` : '>')).join('\n') + '\n\n';
++}
++
++export function quoteReply(post: Post, rootId: string, permalink: string): ActionFunc<boolean> {
++    return (dispatch, getState) => {
++        const state = getState();
++        const authorName = displayUsername(getUser(state, post.user_id), getTeammateNameDisplaySetting(state));
++        const text = buildQuote(getIntl(), post, authorName, permalink);
++        return {data: insertIntoComposer(post.channel_id, rootId, text)};
++    };
++}
+diff --git a/webapp/channels/src/components/quote_reply/use_quote_reply_target.ts b/webapp/channels/src/components/quote_reply/use_quote_reply_target.ts
+new file mode 100644
+index 000000000000..d1f984b1e7b7
+--- /dev/null
++++ b/webapp/channels/src/components/quote_reply/use_quote_reply_target.ts
+@@ -0,0 +1,61 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++import type React from 'react';
++import {useEffect} from 'react';
++
++import type {WysiwygEditorHandle} from 'components/advanced_text_editor/wysiwyg_editor/wysiwyg_editor';
++import type TextboxClass from 'components/textbox/textbox';
++
++import {useLatest} from 'hooks/useLatest';
++import {placeCaretAtEnd} from 'utils/utils';
++
++import type {PostDraft} from 'types/store/draft';
++
++import {registerQuoteTarget} from './quote_reply';
++
++type Options = {
++    channelId: string;
++    rootId: string;
++    enabled: boolean;
++    draft: PostDraft;
++    handleDraftChange: (draft: PostDraft) => void;
++    focusTextbox: (keepFocus?: boolean) => void;
++    textboxRef: React.RefObject<TextboxClass | null>;
++    wysiwygRef: React.RefObject<WysiwygEditorHandle | null>;
++};
++
++export default function useQuoteReplyTarget(options: Options) {
++    const latest = useLatest(options);
++    const {channelId, rootId, enabled} = options;
++
++    useEffect(() => {
++        if (!enabled) {
++            return undefined;
++        }
++
++        return registerQuoteTarget({
++            channelId,
++            rootId,
++            insert: (text) => {
++                const {draft, handleDraftChange, focusTextbox, textboxRef, wysiwygRef} = latest.current;
++
++                const editor = wysiwygRef.current?.getEditor();
++                if (editor) {
++                    editor.chain().focus('end').insertContent(text, {contentType: 'markdown'}).run();
++                    return;
++                }
++
++                const existing = draft.message.trimEnd();
++                handleDraftChange({...draft, message: existing ? `${existing}\n\n${text}` : text});
++                focusTextbox(true);
++                requestAnimationFrame(() => {
++                    const input = textboxRef.current?.getInputBox();
++                    if (input) {
++                        placeCaretAtEnd(input);
++                    }
++                });
++            },
++        });
++    }, [channelId, rootId, enabled, latest]);
++}
+diff --git a/webapp/channels/src/i18n/en.json b/webapp/channels/src/i18n/en.json
+index f4462cf7e20a..b60cb34f082f 100644
+--- a/webapp/channels/src/i18n/en.json
++++ b/webapp/channels/src/i18n/en.json
+@@ -27131,6 +27131,10 @@
+     "defaultMessage": "Quarantine for Review",
+     "description": "Menu item in the message actions menu (content moderation feature) that flags the message for review by moderators; 'Quarantine' is a verb."
+   },
++  "post_info.quote_reply": {
++    "defaultMessage": "Quote reply",
++    "description": "Menu item in the message actions menu that inserts a quote of the message, with a link to it, into the message box; shortcut Q."
++  },
+   "post_info.reply": {
+     "defaultMessage": "Reply",
+     "description": "Menu item in the message actions menu that opens the thread to reply; 'Reply' is a verb."
+@@ -27747,6 +27751,14 @@
+     "defaultMessage": "Type to find a channel. Use <b>UP/DOWN</b> to browse, <b>ENTER</b> to select, <b>ESC</b> to dismiss.",
+     "description": "Help text under the search box in the channel switcher modal (Ctrl+K); <b> tags render the key names in bold; UP/DOWN, ENTER and ESC are keyboard keys."
+   },
++  "quote_reply.attachment": {
++    "defaultMessage": "[attachment]",
++    "description": "Placeholder line added to a quoted message when the original message had file attachments; the files themselves are not quoted. Inserted as message text, keep the square brackets."
++  },
++  "quote_reply.attribution": {
++    "defaultMessage": "**{name}** [wrote]({permalink}):",
++    "description": "First line of a quoted message inserted into the message box by Quote reply; {name} is the author's display name and {permalink} links to the original message. The ** marks are Markdown bold and [text](link) is a Markdown link, keep both."
++  },
+   "reaction_limit_reached_modal.body": {
+     "defaultMessage": "Oops! It looks like we've hit a ceiling on emoji reactions for this message. Please contact your system administrator for any adjustments to this limit.",
+     "description": "Body of the dialog shown when a message has reached the maximum number of unique emoji reactions; addressed to end users."
