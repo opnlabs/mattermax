@@ -1,0 +1,102 @@
+{
+  "status": "passed",
+  "source_workspace_sha": "6e200bf5fd14de2e7c3f910cc5f2301d3a4685c8",
+  "source_tree_sha": "5ac9f8cb7d45888b451655e23e10f0f0c741de9b",
+  "baseline_source_sha": "c9dbbcc480b242f7349cb7f4e9dcb6ea35cf6404",
+  "only_changed_source_paths": [
+    "server/channels/app/link_preview_domain_test.go",
+    "server/channels/app/post_metadata.go"
+  ],
+  "selected_tests": [
+    {
+      "variant": "current",
+      "status": "passed",
+      "command": [
+        "go",
+        "test",
+        "-race",
+        "-p",
+        "2",
+        "./channels/app",
+        "-run",
+        "^(TestLinkPreviewDomainChecks|TestGetFirstLink|TestPreparePostListForClient|TestParseImages)$",
+        "-bench",
+        "^BenchmarkLinkPreviewDomain(Checks|History)$",
+        "-benchtime=1x",
+        "-count=1",
+        "-timeout=10m",
+        "-json"
+      ],
+      "source_workspace_sha": "6e200bf5fd14de2e7c3f910cc5f2301d3a4685c8",
+      "production_file_sha256": "818081886d293cc0b2ae4b2c5e309b434104e8b7b010eb7ba158a6f1a0040fcd",
+      "counts": {
+        "pass": 64,
+        "fail": 0,
+        "skip": 0
+      },
+      "benchmark_execution_cases": 16,
+      "private_log_sha256": "3ea31f2159098e838c78635d9c17573ee8a67e522e7d511d8833eb5d33f65546"
+    },
+    {
+      "variant": "baseline",
+      "status": "passed",
+      "command": [
+        "go",
+        "test",
+        "-race",
+        "./channels/app",
+        "-run",
+        "^(TestLinkPreviewDomainChecks|TestGetFirstLink)$",
+        "-count=1",
+        "-timeout=5m",
+        "-overlay",
+        "/home/rhnvrm/.bb/thread-storage/thr_jynvcygccx/link-preview-domain-baseline-overlay.json",
+        "-json"
+      ],
+      "source_workspace_sha": "6e200bf5fd14de2e7c3f910cc5f2301d3a4685c8",
+      "production_file_sha256": "7c1df926962309717a8bbb013c12f9bd18ca1882da213f4346ae370be66340b7",
+      "counts": {
+        "pass": 47,
+        "fail": 0,
+        "skip": 0
+      },
+      "benchmark_execution_cases": 0,
+      "private_log_sha256": "58aa6ee5dd7026b3efaf8ee89e35a2a70b0011fb785338380de47af5b7e6b387"
+    }
+  ],
+  "patches": {
+    "status": "passed",
+    "baseline_root_sha": "d2b07cc3f7c3200349e32ca167a39bdc85255baf",
+    "original_patch_files_byte_identical": 38,
+    "new_series_count": 39,
+    "private_patch_check_log_sha256": "beab570c027102ef1d8f465f5ae4c7fddbaa4ffc1d552cde44f3454b15df802a"
+  },
+  "backend_build": {
+    "status": "passed",
+    "source_workspace_sha": "6e200bf5fd14de2e7c3f910cc5f2301d3a4685c8",
+    "command": [
+      "go",
+      "build",
+      "-tags",
+      "production",
+      "-ldflags",
+      "-X github.com/mattermost/mattermost/server/public/model.BuildNumber=12.0.2-1.link-preview-domain -X github.com/mattermost/mattermost/server/public/model.BuildHash=6e200bf5fd14de2e7c3f910cc5f2301d3a4685c8 -X github.com/mattermost/mattermost/server/public/model.BuildEnterpriseReady=false",
+      "-o",
+      "/tmp/mattermax-link-preview-domain-server",
+      "./cmd/mattermost"
+    ],
+    "build_tags": "production",
+    "forbidden_build_tags": false,
+    "enterprise_symbols_found": false,
+    "binary_sha256": "14e2fcb1adb8de555770c85a7f6ae082b1b31c0c81f89f712526685120033a40",
+    "private_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "scope": "Public backend only. No branded frontend/package rebuild, deployment or production load test.",
+    "symbol_tool": "Matching standard SDK cmd/nm via temporary GOROOT; same exclusion criteria as scripts/build-release.sh."
+  },
+  "scope_limits": [
+    "Selected app suites are not complete API equivalence or the entire repository test suite.",
+    "Race/1x benchmark timings are execution/output checks, not performance evidence.",
+    "Full branded packaging, browser checks and production load testing were not run for this contribution."
+  ],
+  "authorship": "All 38 inherited patch files are byte-identical, preserving existing authorship including @mr-karan."
+}

@@ -1,0 +1,1708 @@
+{
+  "scope": "Standalone contribution over the original 38-patch baseline. Alternating-order processes with identical fixtures and fixed iterations; output validation is enabled in both variants.",
+  "source_workspace_sha": "6e200bf5fd14de2e7c3f910cc5f2301d3a4685c8",
+  "source_tree_sha": "5ac9f8cb7d45888b451655e23e10f0f0c741de9b",
+  "baseline_source_sha": "c9dbbcc480b242f7349cb7f4e9dcb6ea35cf6404",
+  "production_file": "server/channels/app/post_metadata.go",
+  "production_file_before_sha256": "7c1df926962309717a8bbb013c12f9bd18ca1882da213f4346ae370be66340b7",
+  "production_file_after_sha256": "818081886d293cc0b2ae4b2c5e309b434104e8b7b010eb7ba158a6f1a0040fcd",
+  "go_version": "go version go1.26.10 linux/amd64",
+  "platform": "Linux-6.18.55-cachyos-x86_64-with-glibc2.44",
+  "GOMAXPROCS": "4",
+  "trials": 3,
+  "benchmarks": "all",
+  "commands": [
+    {
+      "trial": 0,
+      "variant": "before",
+      "kind": "Checks",
+      "command": [
+        "go",
+        "test",
+        "./channels/app",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkLinkPreviewDomainChecks$",
+        "-benchtime=100000x",
+        "-count=1",
+        "-timeout=5m",
+        "-overlay",
+        "/tmp/link-preview-baseline-112uthpr/overlay.json"
+      ],
+      "log_sha256": "c844af2b90fe84277d793fee924dc94a1da05ebeb3e3ebd28ceee82bec491409"
+    },
+    {
+      "trial": 0,
+      "variant": "before",
+      "kind": "History",
+      "command": [
+        "go",
+        "test",
+        "./channels/app",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkLinkPreviewDomainHistory$",
+        "-benchtime=1000x",
+        "-count=1",
+        "-timeout=5m",
+        "-overlay",
+        "/tmp/link-preview-baseline-112uthpr/overlay.json"
+      ],
+      "log_sha256": "caadd54567f88d30d5ce0c53c5f1eeb278dac08e5e7a963ac4fce202fbeb2d2b"
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "kind": "Checks",
+      "command": [
+        "go",
+        "test",
+        "./channels/app",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkLinkPreviewDomainChecks$",
+        "-benchtime=100000x",
+        "-count=1",
+        "-timeout=5m"
+      ],
+      "log_sha256": "809c55a11cecd66ff7398cf4920747e33cc34e60d2221cb56231c017e59bb0b1"
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "kind": "History",
+      "command": [
+        "go",
+        "test",
+        "./channels/app",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkLinkPreviewDomainHistory$",
+        "-benchtime=1000x",
+        "-count=1",
+        "-timeout=5m"
+      ],
+      "log_sha256": "3d77869e6023e2900f88bf168034937dc174acca73ddc9f5aeac50ed99de55db"
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "kind": "Checks",
+      "command": [
+        "go",
+        "test",
+        "./channels/app",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkLinkPreviewDomainChecks$",
+        "-benchtime=100000x",
+        "-count=1",
+        "-timeout=5m"
+      ],
+      "log_sha256": "729ea37c3e10649be20ff5ca4adf5fa066a7f752e0e90b287c3acff3f4ba9550"
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "kind": "History",
+      "command": [
+        "go",
+        "test",
+        "./channels/app",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkLinkPreviewDomainHistory$",
+        "-benchtime=1000x",
+        "-count=1",
+        "-timeout=5m"
+      ],
+      "log_sha256": "ae8a7d52b186383a13afb10969d9aee61fb1f46af95f1898b0de317efd08af38"
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "kind": "Checks",
+      "command": [
+        "go",
+        "test",
+        "./channels/app",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkLinkPreviewDomainChecks$",
+        "-benchtime=100000x",
+        "-count=1",
+        "-timeout=5m",
+        "-overlay",
+        "/tmp/link-preview-baseline-112uthpr/overlay.json"
+      ],
+      "log_sha256": "951fa20c0ce0cfd06fedbc0ae4aa4f39bd483a31f1e75473af40ba1b0b0bd82f"
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "kind": "History",
+      "command": [
+        "go",
+        "test",
+        "./channels/app",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkLinkPreviewDomainHistory$",
+        "-benchtime=1000x",
+        "-count=1",
+        "-timeout=5m",
+        "-overlay",
+        "/tmp/link-preview-baseline-112uthpr/overlay.json"
+      ],
+      "log_sha256": "e920ebfa08429a16cd69a38f5d050f610fb63fe2301ae237805869c383a1341b"
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "kind": "Checks",
+      "command": [
+        "go",
+        "test",
+        "./channels/app",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkLinkPreviewDomainChecks$",
+        "-benchtime=100000x",
+        "-count=1",
+        "-timeout=5m",
+        "-overlay",
+        "/tmp/link-preview-baseline-112uthpr/overlay.json"
+      ],
+      "log_sha256": "1b51a9aaca2961c18e2250920a2544f6c5721b8e33eb6b62bb7d75d65918a9f8"
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "kind": "History",
+      "command": [
+        "go",
+        "test",
+        "./channels/app",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkLinkPreviewDomainHistory$",
+        "-benchtime=1000x",
+        "-count=1",
+        "-timeout=5m",
+        "-overlay",
+        "/tmp/link-preview-baseline-112uthpr/overlay.json"
+      ],
+      "log_sha256": "2f1e919ba108297437269d6bc607a61af82200693e23ac68b4942c67ebb670f5"
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "kind": "Checks",
+      "command": [
+        "go",
+        "test",
+        "./channels/app",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkLinkPreviewDomainChecks$",
+        "-benchtime=100000x",
+        "-count=1",
+        "-timeout=5m"
+      ],
+      "log_sha256": "ec671c8f90f62ad56559023f239cd23157ac578264422a3b49f3d18f33a7dc56"
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "kind": "History",
+      "command": [
+        "go",
+        "test",
+        "./channels/app",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkLinkPreviewDomainHistory$",
+        "-benchtime=1000x",
+        "-count=1",
+        "-timeout=5m"
+      ],
+      "log_sha256": "c3917edacb6960dae82f6081f220dccb1b3ebe76f40044c7656d8b5b3558382d"
+    }
+  ],
+  "rows": [
+    {
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=0/allowed",
+      "before": {
+        "ns/op": {
+          "median": 30.71,
+          "min": 27.26,
+          "max": 31.76
+        },
+        "B/op": {
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "allocs/op": {
+          "median": 0,
+          "min": 0,
+          "max": 0
+        }
+      },
+      "after": {
+        "ns/op": {
+          "median": 36.91,
+          "min": 26.07,
+          "max": 38.72
+        },
+        "B/op": {
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "allocs/op": {
+          "median": 0,
+          "min": 0,
+          "max": 0
+        }
+      }
+    },
+    {
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=0/first",
+      "before": {
+        "ns/op": {
+          "median": 30.81,
+          "min": 27.02,
+          "max": 38.87
+        },
+        "B/op": {
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "allocs/op": {
+          "median": 0,
+          "min": 0,
+          "max": 0
+        }
+      },
+      "after": {
+        "ns/op": {
+          "median": 28.11,
+          "min": 25.42,
+          "max": 36.32
+        },
+        "B/op": {
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "allocs/op": {
+          "median": 0,
+          "min": 0,
+          "max": 0
+        }
+      }
+    },
+    {
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=0/last",
+      "before": {
+        "ns/op": {
+          "median": 28.94,
+          "min": 26.65,
+          "max": 34.22
+        },
+        "B/op": {
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "allocs/op": {
+          "median": 0,
+          "min": 0,
+          "max": 0
+        }
+      },
+      "after": {
+        "ns/op": {
+          "median": 36.66,
+          "min": 25.4,
+          "max": 38.14
+        },
+        "B/op": {
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "allocs/op": {
+          "median": 0,
+          "min": 0,
+          "max": 0
+        }
+      }
+    },
+    {
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=0/unicode",
+      "before": {
+        "ns/op": {
+          "median": 39.04,
+          "min": 24.87,
+          "max": 39.28
+        },
+        "B/op": {
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "allocs/op": {
+          "median": 0,
+          "min": 0,
+          "max": 0
+        }
+      },
+      "after": {
+        "ns/op": {
+          "median": 28.8,
+          "min": 24.93,
+          "max": 36.65
+        },
+        "B/op": {
+          "median": 0,
+          "min": 0,
+          "max": 0
+        },
+        "allocs/op": {
+          "median": 0,
+          "min": 0,
+          "max": 0
+        }
+      }
+    },
+    {
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=1/allowed",
+      "before": {
+        "ns/op": {
+          "median": 368.7,
+          "min": 364.9,
+          "max": 369.2
+        },
+        "B/op": {
+          "median": 160,
+          "min": 160,
+          "max": 160
+        },
+        "allocs/op": {
+          "median": 2,
+          "min": 2,
+          "max": 2
+        }
+      },
+      "after": {
+        "ns/op": {
+          "median": 354.0,
+          "min": 352.3,
+          "max": 384.8
+        },
+        "B/op": {
+          "median": 160,
+          "min": 160,
+          "max": 160
+        },
+        "allocs/op": {
+          "median": 2,
+          "min": 2,
+          "max": 2
+        }
+      }
+    },
+    {
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=1/first",
+      "before": {
+        "ns/op": {
+          "median": 401.4,
+          "min": 384.5,
+          "max": 408.3
+        },
+        "B/op": {
+          "median": 160,
+          "min": 160,
+          "max": 160
+        },
+        "allocs/op": {
+          "median": 2,
+          "min": 2,
+          "max": 2
+        }
+      },
+      "after": {
+        "ns/op": {
+          "median": 390.2,
+          "min": 389.7,
+          "max": 408.9
+        },
+        "B/op": {
+          "median": 160,
+          "min": 160,
+          "max": 160
+        },
+        "allocs/op": {
+          "median": 2,
+          "min": 2,
+          "max": 2
+        }
+      }
+    },
+    {
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=1/last",
+      "before": {
+        "ns/op": {
+          "median": 401.4,
+          "min": 392.3,
+          "max": 431.9
+        },
+        "B/op": {
+          "median": 160,
+          "min": 160,
+          "max": 160
+        },
+        "allocs/op": {
+          "median": 2,
+          "min": 2,
+          "max": 2
+        }
+      },
+      "after": {
+        "ns/op": {
+          "median": 379.4,
+          "min": 375.2,
+          "max": 407.4
+        },
+        "B/op": {
+          "median": 160,
+          "min": 160,
+          "max": 160
+        },
+        "allocs/op": {
+          "median": 2,
+          "min": 2,
+          "max": 2
+        }
+      }
+    },
+    {
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=1/unicode",
+      "before": {
+        "ns/op": {
+          "median": 661.8,
+          "min": 656.0,
+          "max": 709.8
+        },
+        "B/op": {
+          "median": 248,
+          "min": 248,
+          "max": 248
+        },
+        "allocs/op": {
+          "median": 6,
+          "min": 6,
+          "max": 6
+        }
+      },
+      "after": {
+        "ns/op": {
+          "median": 673.5,
+          "min": 638.9,
+          "max": 758.5
+        },
+        "B/op": {
+          "median": 248,
+          "min": 248,
+          "max": 248
+        },
+        "allocs/op": {
+          "median": 6,
+          "min": 6,
+          "max": 6
+        }
+      }
+    },
+    {
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=20/allowed",
+      "before": {
+        "ns/op": {
+          "median": 6496.0,
+          "min": 6393.0,
+          "max": 6546.0
+        },
+        "B/op": {
+          "median": 3584,
+          "min": 3584,
+          "max": 3584
+        },
+        "allocs/op": {
+          "median": 22,
+          "min": 22,
+          "max": 22
+        }
+      },
+      "after": {
+        "ns/op": {
+          "median": 1378.0,
+          "min": 1342.0,
+          "max": 1425.0
+        },
+        "B/op": {
+          "median": 848,
+          "min": 848,
+          "max": 848
+        },
+        "allocs/op": {
+          "median": 3,
+          "min": 3,
+          "max": 3
+        }
+      }
+    },
+    {
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=20/first",
+      "before": {
+        "ns/op": {
+          "median": 1404.0,
+          "min": 1396.0,
+          "max": 1433.0
+        },
+        "B/op": {
+          "median": 848,
+          "min": 848,
+          "max": 848
+        },
+        "allocs/op": {
+          "median": 3,
+          "min": 3,
+          "max": 3
+        }
+      },
+      "after": {
+        "ns/op": {
+          "median": 1411.0,
+          "min": 1334.0,
+          "max": 1457.0
+        },
+        "B/op": {
+          "median": 848,
+          "min": 848,
+          "max": 848
+        },
+        "allocs/op": {
+          "median": 3,
+          "min": 3,
+          "max": 3
+        }
+      }
+    },
+    {
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=20/last",
+      "before": {
+        "ns/op": {
+          "median": 7022.0,
+          "min": 6954.0,
+          "max": 7086.0
+        },
+        "B/op": {
+          "median": 3584,
+          "min": 3584,
+          "max": 3584
+        },
+        "allocs/op": {
+          "median": 22,
+          "min": 22,
+          "max": 22
+        }
+      },
+      "after": {
+        "ns/op": {
+          "median": 1410.0,
+          "min": 1409.0,
+          "max": 1521.0
+        },
+        "B/op": {
+          "median": 848,
+          "min": 848,
+          "max": 848
+        },
+        "allocs/op": {
+          "median": 3,
+          "min": 3,
+          "max": 3
+        }
+      }
+    },
+    {
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=20/unicode",
+      "before": {
+        "ns/op": {
+          "median": 11654.0,
+          "min": 11631.0,
+          "max": 12060.0
+        },
+        "B/op": {
+          "median": 5344,
+          "min": 5344,
+          "max": 5344
+        },
+        "allocs/op": {
+          "median": 102,
+          "min": 102,
+          "max": 102
+        }
+      },
+      "after": {
+        "ns/op": {
+          "median": 1772.0,
+          "min": 1732.0,
+          "max": 1854.0
+        },
+        "B/op": {
+          "median": 936,
+          "min": 936,
+          "max": 936
+        },
+        "allocs/op": {
+          "median": 7,
+          "min": 7,
+          "max": 7
+        }
+      }
+    },
+    {
+      "name": "BenchmarkLinkPreviewDomainHistory/domains=0/posts=1",
+      "before": {
+        "ns/op": {
+          "median": 513193.0,
+          "min": 489212.0,
+          "max": 534200.0
+        },
+        "B/op": {
+          "median": 92068,
+          "min": 92067,
+          "max": 92100
+        },
+        "allocs/op": {
+          "median": 1166,
+          "min": 1166,
+          "max": 1167
+        }
+      },
+      "after": {
+        "ns/op": {
+          "median": 520524.0,
+          "min": 374158.0,
+          "max": 525200.0
+        },
+        "B/op": {
+          "median": 92084,
+          "min": 92078,
+          "max": 92124
+        },
+        "allocs/op": {
+          "median": 1166,
+          "min": 1166,
+          "max": 1167
+        }
+      }
+    },
+    {
+      "name": "BenchmarkLinkPreviewDomainHistory/domains=0/posts=60",
+      "before": {
+        "ns/op": {
+          "median": 3855677.0,
+          "min": 3837906.0,
+          "max": 3863903.0
+        },
+        "B/op": {
+          "median": 4677350,
+          "min": 4676631,
+          "max": 4677384
+        },
+        "allocs/op": {
+          "median": 55412,
+          "min": 55412,
+          "max": 55412
+        }
+      },
+      "after": {
+        "ns/op": {
+          "median": 3877077.0,
+          "min": 3839271.0,
+          "max": 3935597.0
+        },
+        "B/op": {
+          "median": 4677020,
+          "min": 4676822,
+          "max": 4677204
+        },
+        "allocs/op": {
+          "median": 55412,
+          "min": 55412,
+          "max": 55412
+        }
+      }
+    },
+    {
+      "name": "BenchmarkLinkPreviewDomainHistory/domains=20/posts=1",
+      "before": {
+        "ns/op": {
+          "median": 430568.0,
+          "min": 387678.0,
+          "max": 538369.0
+        },
+        "B/op": {
+          "median": 95649,
+          "min": 95639,
+          "max": 95649
+        },
+        "allocs/op": {
+          "median": 1188,
+          "min": 1188,
+          "max": 1188
+        }
+      },
+      "after": {
+        "ns/op": {
+          "median": 528549.0,
+          "min": 318998.0,
+          "max": 535786.0
+        },
+        "B/op": {
+          "median": 92914,
+          "min": 92906,
+          "max": 92944
+        },
+        "allocs/op": {
+          "median": 1169,
+          "min": 1169,
+          "max": 1169
+        }
+      }
+    },
+    {
+      "name": "BenchmarkLinkPreviewDomainHistory/domains=20/posts=60",
+      "before": {
+        "ns/op": {
+          "median": 4277466.0,
+          "min": 4182900.0,
+          "max": 4386917.0
+        },
+        "B/op": {
+          "median": 4892370,
+          "min": 4892310,
+          "max": 4892383
+        },
+        "allocs/op": {
+          "median": 56732,
+          "min": 56732,
+          "max": 56732
+        }
+      },
+      "after": {
+        "ns/op": {
+          "median": 4022265.0,
+          "min": 3940321.0,
+          "max": 4084696.0
+        },
+        "B/op": {
+          "median": 4728112,
+          "min": 4727702,
+          "max": 4728151
+        },
+        "allocs/op": {
+          "median": 55592,
+          "min": 55592,
+          "max": 55592
+        }
+      }
+    }
+  ],
+  "samples": [
+    {
+      "trial": 0,
+      "variant": "before",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=0/allowed",
+      "iterations": 100000,
+      "ns/op": 30.71,
+      "B/op": 0,
+      "allocs/op": 0
+    },
+    {
+      "trial": 0,
+      "variant": "before",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=0/first",
+      "iterations": 100000,
+      "ns/op": 27.02,
+      "B/op": 0,
+      "allocs/op": 0
+    },
+    {
+      "trial": 0,
+      "variant": "before",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=0/last",
+      "iterations": 100000,
+      "ns/op": 26.65,
+      "B/op": 0,
+      "allocs/op": 0
+    },
+    {
+      "trial": 0,
+      "variant": "before",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=0/unicode",
+      "iterations": 100000,
+      "ns/op": 24.87,
+      "B/op": 0,
+      "allocs/op": 0
+    },
+    {
+      "trial": 0,
+      "variant": "before",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=1/allowed",
+      "iterations": 100000,
+      "ns/op": 369.2,
+      "B/op": 160,
+      "allocs/op": 2
+    },
+    {
+      "trial": 0,
+      "variant": "before",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=1/first",
+      "iterations": 100000,
+      "ns/op": 408.3,
+      "B/op": 160,
+      "allocs/op": 2
+    },
+    {
+      "trial": 0,
+      "variant": "before",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=1/last",
+      "iterations": 100000,
+      "ns/op": 431.9,
+      "B/op": 160,
+      "allocs/op": 2
+    },
+    {
+      "trial": 0,
+      "variant": "before",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=1/unicode",
+      "iterations": 100000,
+      "ns/op": 661.8,
+      "B/op": 248,
+      "allocs/op": 6
+    },
+    {
+      "trial": 0,
+      "variant": "before",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=20/allowed",
+      "iterations": 100000,
+      "ns/op": 6546.0,
+      "B/op": 3584,
+      "allocs/op": 22
+    },
+    {
+      "trial": 0,
+      "variant": "before",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=20/first",
+      "iterations": 100000,
+      "ns/op": 1404.0,
+      "B/op": 848,
+      "allocs/op": 3
+    },
+    {
+      "trial": 0,
+      "variant": "before",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=20/last",
+      "iterations": 100000,
+      "ns/op": 7086.0,
+      "B/op": 3584,
+      "allocs/op": 22
+    },
+    {
+      "trial": 0,
+      "variant": "before",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=20/unicode",
+      "iterations": 100000,
+      "ns/op": 12060.0,
+      "B/op": 5344,
+      "allocs/op": 102
+    },
+    {
+      "trial": 0,
+      "variant": "before",
+      "name": "BenchmarkLinkPreviewDomainHistory/domains=0/posts=1",
+      "iterations": 1000,
+      "ns/op": 513193.0,
+      "B/op": 92100,
+      "allocs/op": 1167
+    },
+    {
+      "trial": 0,
+      "variant": "before",
+      "name": "BenchmarkLinkPreviewDomainHistory/domains=0/posts=60",
+      "iterations": 1000,
+      "ns/op": 3855677.0,
+      "B/op": 4676631,
+      "allocs/op": 55412
+    },
+    {
+      "trial": 0,
+      "variant": "before",
+      "name": "BenchmarkLinkPreviewDomainHistory/domains=20/posts=1",
+      "iterations": 1000,
+      "ns/op": 387678.0,
+      "B/op": 95649,
+      "allocs/op": 1188
+    },
+    {
+      "trial": 0,
+      "variant": "before",
+      "name": "BenchmarkLinkPreviewDomainHistory/domains=20/posts=60",
+      "iterations": 1000,
+      "ns/op": 4386917.0,
+      "B/op": 4892310,
+      "allocs/op": 56732
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=0/allowed",
+      "iterations": 100000,
+      "ns/op": 36.91,
+      "B/op": 0,
+      "allocs/op": 0
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=0/first",
+      "iterations": 100000,
+      "ns/op": 36.32,
+      "B/op": 0,
+      "allocs/op": 0
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=0/last",
+      "iterations": 100000,
+      "ns/op": 36.66,
+      "B/op": 0,
+      "allocs/op": 0
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=0/unicode",
+      "iterations": 100000,
+      "ns/op": 36.65,
+      "B/op": 0,
+      "allocs/op": 0
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=1/allowed",
+      "iterations": 100000,
+      "ns/op": 384.8,
+      "B/op": 160,
+      "allocs/op": 2
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=1/first",
+      "iterations": 100000,
+      "ns/op": 408.9,
+      "B/op": 160,
+      "allocs/op": 2
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=1/last",
+      "iterations": 100000,
+      "ns/op": 407.4,
+      "B/op": 160,
+      "allocs/op": 2
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=1/unicode",
+      "iterations": 100000,
+      "ns/op": 673.5,
+      "B/op": 248,
+      "allocs/op": 6
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=20/allowed",
+      "iterations": 100000,
+      "ns/op": 1425.0,
+      "B/op": 848,
+      "allocs/op": 3
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=20/first",
+      "iterations": 100000,
+      "ns/op": 1457.0,
+      "B/op": 848,
+      "allocs/op": 3
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=20/last",
+      "iterations": 100000,
+      "ns/op": 1521.0,
+      "B/op": 848,
+      "allocs/op": 3
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=20/unicode",
+      "iterations": 100000,
+      "ns/op": 1854.0,
+      "B/op": 936,
+      "allocs/op": 7
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "name": "BenchmarkLinkPreviewDomainHistory/domains=0/posts=1",
+      "iterations": 1000,
+      "ns/op": 520524.0,
+      "B/op": 92124,
+      "allocs/op": 1167
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "name": "BenchmarkLinkPreviewDomainHistory/domains=0/posts=60",
+      "iterations": 1000,
+      "ns/op": 3877077.0,
+      "B/op": 4677204,
+      "allocs/op": 55412
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "name": "BenchmarkLinkPreviewDomainHistory/domains=20/posts=1",
+      "iterations": 1000,
+      "ns/op": 528549.0,
+      "B/op": 92944,
+      "allocs/op": 1169
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "name": "BenchmarkLinkPreviewDomainHistory/domains=20/posts=60",
+      "iterations": 1000,
+      "ns/op": 4022265.0,
+      "B/op": 4728112,
+      "allocs/op": 55592
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=0/allowed",
+      "iterations": 100000,
+      "ns/op": 38.72,
+      "B/op": 0,
+      "allocs/op": 0
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=0/first",
+      "iterations": 100000,
+      "ns/op": 28.11,
+      "B/op": 0,
+      "allocs/op": 0
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=0/last",
+      "iterations": 100000,
+      "ns/op": 38.14,
+      "B/op": 0,
+      "allocs/op": 0
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=0/unicode",
+      "iterations": 100000,
+      "ns/op": 28.8,
+      "B/op": 0,
+      "allocs/op": 0
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=1/allowed",
+      "iterations": 100000,
+      "ns/op": 354.0,
+      "B/op": 160,
+      "allocs/op": 2
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=1/first",
+      "iterations": 100000,
+      "ns/op": 390.2,
+      "B/op": 160,
+      "allocs/op": 2
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=1/last",
+      "iterations": 100000,
+      "ns/op": 379.4,
+      "B/op": 160,
+      "allocs/op": 2
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=1/unicode",
+      "iterations": 100000,
+      "ns/op": 638.9,
+      "B/op": 248,
+      "allocs/op": 6
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=20/allowed",
+      "iterations": 100000,
+      "ns/op": 1342.0,
+      "B/op": 848,
+      "allocs/op": 3
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=20/first",
+      "iterations": 100000,
+      "ns/op": 1411.0,
+      "B/op": 848,
+      "allocs/op": 3
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=20/last",
+      "iterations": 100000,
+      "ns/op": 1410.0,
+      "B/op": 848,
+      "allocs/op": 3
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=20/unicode",
+      "iterations": 100000,
+      "ns/op": 1772.0,
+      "B/op": 936,
+      "allocs/op": 7
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "name": "BenchmarkLinkPreviewDomainHistory/domains=0/posts=1",
+      "iterations": 1000,
+      "ns/op": 525200.0,
+      "B/op": 92078,
+      "allocs/op": 1166
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "name": "BenchmarkLinkPreviewDomainHistory/domains=0/posts=60",
+      "iterations": 1000,
+      "ns/op": 3935597.0,
+      "B/op": 4677020,
+      "allocs/op": 55412
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "name": "BenchmarkLinkPreviewDomainHistory/domains=20/posts=1",
+      "iterations": 1000,
+      "ns/op": 318998.0,
+      "B/op": 92914,
+      "allocs/op": 1169
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "name": "BenchmarkLinkPreviewDomainHistory/domains=20/posts=60",
+      "iterations": 1000,
+      "ns/op": 3940321.0,
+      "B/op": 4727702,
+      "allocs/op": 55592
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=0/allowed",
+      "iterations": 100000,
+      "ns/op": 27.26,
+      "B/op": 0,
+      "allocs/op": 0
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=0/first",
+      "iterations": 100000,
+      "ns/op": 30.81,
+      "B/op": 0,
+      "allocs/op": 0
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=0/last",
+      "iterations": 100000,
+      "ns/op": 28.94,
+      "B/op": 0,
+      "allocs/op": 0
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=0/unicode",
+      "iterations": 100000,
+      "ns/op": 39.28,
+      "B/op": 0,
+      "allocs/op": 0
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=1/allowed",
+      "iterations": 100000,
+      "ns/op": 364.9,
+      "B/op": 160,
+      "allocs/op": 2
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=1/first",
+      "iterations": 100000,
+      "ns/op": 384.5,
+      "B/op": 160,
+      "allocs/op": 2
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=1/last",
+      "iterations": 100000,
+      "ns/op": 392.3,
+      "B/op": 160,
+      "allocs/op": 2
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=1/unicode",
+      "iterations": 100000,
+      "ns/op": 656.0,
+      "B/op": 248,
+      "allocs/op": 6
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=20/allowed",
+      "iterations": 100000,
+      "ns/op": 6393.0,
+      "B/op": 3584,
+      "allocs/op": 22
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=20/first",
+      "iterations": 100000,
+      "ns/op": 1396.0,
+      "B/op": 848,
+      "allocs/op": 3
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=20/last",
+      "iterations": 100000,
+      "ns/op": 7022.0,
+      "B/op": 3584,
+      "allocs/op": 22
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=20/unicode",
+      "iterations": 100000,
+      "ns/op": 11631.0,
+      "B/op": 5344,
+      "allocs/op": 102
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "name": "BenchmarkLinkPreviewDomainHistory/domains=0/posts=1",
+      "iterations": 1000,
+      "ns/op": 534200.0,
+      "B/op": 92067,
+      "allocs/op": 1166
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "name": "BenchmarkLinkPreviewDomainHistory/domains=0/posts=60",
+      "iterations": 1000,
+      "ns/op": 3837906.0,
+      "B/op": 4677350,
+      "allocs/op": 55412
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "name": "BenchmarkLinkPreviewDomainHistory/domains=20/posts=1",
+      "iterations": 1000,
+      "ns/op": 430568.0,
+      "B/op": 95649,
+      "allocs/op": 1188
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "name": "BenchmarkLinkPreviewDomainHistory/domains=20/posts=60",
+      "iterations": 1000,
+      "ns/op": 4277466.0,
+      "B/op": 4892383,
+      "allocs/op": 56732
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=0/allowed",
+      "iterations": 100000,
+      "ns/op": 31.76,
+      "B/op": 0,
+      "allocs/op": 0
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=0/first",
+      "iterations": 100000,
+      "ns/op": 38.87,
+      "B/op": 0,
+      "allocs/op": 0
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=0/last",
+      "iterations": 100000,
+      "ns/op": 34.22,
+      "B/op": 0,
+      "allocs/op": 0
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=0/unicode",
+      "iterations": 100000,
+      "ns/op": 39.04,
+      "B/op": 0,
+      "allocs/op": 0
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=1/allowed",
+      "iterations": 100000,
+      "ns/op": 368.7,
+      "B/op": 160,
+      "allocs/op": 2
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=1/first",
+      "iterations": 100000,
+      "ns/op": 401.4,
+      "B/op": 160,
+      "allocs/op": 2
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=1/last",
+      "iterations": 100000,
+      "ns/op": 401.4,
+      "B/op": 160,
+      "allocs/op": 2
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=1/unicode",
+      "iterations": 100000,
+      "ns/op": 709.8,
+      "B/op": 248,
+      "allocs/op": 6
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=20/allowed",
+      "iterations": 100000,
+      "ns/op": 6496.0,
+      "B/op": 3584,
+      "allocs/op": 22
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=20/first",
+      "iterations": 100000,
+      "ns/op": 1433.0,
+      "B/op": 848,
+      "allocs/op": 3
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=20/last",
+      "iterations": 100000,
+      "ns/op": 6954.0,
+      "B/op": 3584,
+      "allocs/op": 22
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=20/unicode",
+      "iterations": 100000,
+      "ns/op": 11654.0,
+      "B/op": 5344,
+      "allocs/op": 102
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "name": "BenchmarkLinkPreviewDomainHistory/domains=0/posts=1",
+      "iterations": 1000,
+      "ns/op": 489212.0,
+      "B/op": 92068,
+      "allocs/op": 1166
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "name": "BenchmarkLinkPreviewDomainHistory/domains=0/posts=60",
+      "iterations": 1000,
+      "ns/op": 3863903.0,
+      "B/op": 4677384,
+      "allocs/op": 55412
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "name": "BenchmarkLinkPreviewDomainHistory/domains=20/posts=1",
+      "iterations": 1000,
+      "ns/op": 538369.0,
+      "B/op": 95639,
+      "allocs/op": 1188
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "name": "BenchmarkLinkPreviewDomainHistory/domains=20/posts=60",
+      "iterations": 1000,
+      "ns/op": 4182900.0,
+      "B/op": 4892370,
+      "allocs/op": 56732
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=0/allowed",
+      "iterations": 100000,
+      "ns/op": 26.07,
+      "B/op": 0,
+      "allocs/op": 0
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=0/first",
+      "iterations": 100000,
+      "ns/op": 25.42,
+      "B/op": 0,
+      "allocs/op": 0
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=0/last",
+      "iterations": 100000,
+      "ns/op": 25.4,
+      "B/op": 0,
+      "allocs/op": 0
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=0/unicode",
+      "iterations": 100000,
+      "ns/op": 24.93,
+      "B/op": 0,
+      "allocs/op": 0
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=1/allowed",
+      "iterations": 100000,
+      "ns/op": 352.3,
+      "B/op": 160,
+      "allocs/op": 2
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=1/first",
+      "iterations": 100000,
+      "ns/op": 389.7,
+      "B/op": 160,
+      "allocs/op": 2
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=1/last",
+      "iterations": 100000,
+      "ns/op": 375.2,
+      "B/op": 160,
+      "allocs/op": 2
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=1/unicode",
+      "iterations": 100000,
+      "ns/op": 758.5,
+      "B/op": 248,
+      "allocs/op": 6
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=20/allowed",
+      "iterations": 100000,
+      "ns/op": 1378.0,
+      "B/op": 848,
+      "allocs/op": 3
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=20/first",
+      "iterations": 100000,
+      "ns/op": 1334.0,
+      "B/op": 848,
+      "allocs/op": 3
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=20/last",
+      "iterations": 100000,
+      "ns/op": 1409.0,
+      "B/op": 848,
+      "allocs/op": 3
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "name": "BenchmarkLinkPreviewDomainChecks/domains=20/unicode",
+      "iterations": 100000,
+      "ns/op": 1732.0,
+      "B/op": 936,
+      "allocs/op": 7
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "name": "BenchmarkLinkPreviewDomainHistory/domains=0/posts=1",
+      "iterations": 1000,
+      "ns/op": 374158.0,
+      "B/op": 92084,
+      "allocs/op": 1166
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "name": "BenchmarkLinkPreviewDomainHistory/domains=0/posts=60",
+      "iterations": 1000,
+      "ns/op": 3839271.0,
+      "B/op": 4676822,
+      "allocs/op": 55412
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "name": "BenchmarkLinkPreviewDomainHistory/domains=20/posts=1",
+      "iterations": 1000,
+      "ns/op": 535786.0,
+      "B/op": 92906,
+      "allocs/op": 1169
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "name": "BenchmarkLinkPreviewDomainHistory/domains=20/posts=60",
+      "iterations": 1000,
+      "ns/op": 4084696.0,
+      "B/op": 4728151,
+      "allocs/op": 55592
+    }
+  ],
+  "limits": [
+    "Local PostgreSQL/Redis. Preview fetching is disabled in history fixtures, which measure filtering and post preparation without external HTTP requests. No concurrent-load or production-capacity measurement.",
+    "Standalone allocation and timing results are not combined-stack throughput measurements."
+  ]
+}
