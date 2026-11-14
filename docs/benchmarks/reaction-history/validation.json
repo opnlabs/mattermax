@@ -62,5 +62,11 @@
     "Full branded release workflow not run.",
     "Benchmarks measure local post preparation, not total API throughput."
   ],
-  "total_pass_events": 193
+  "total_pass_events": 193,
+  "benchmark_fixture_revision": {
+    "previous_source_sha": "6aed323b6c6e",
+    "corrected_source_sha": "1b0e20638d72edcd5532efa371e75c7506dfdbad",
+    "production_and_regression_tests_unchanged": true,
+    "note": "Earlier race results remain scoped to their recorded source revision. This revision changes only the benchmark fixture; paired runs compile and validate the corrected ordered pages."
+  }
 }

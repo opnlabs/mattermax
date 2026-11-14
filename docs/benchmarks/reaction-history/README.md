@@ -16,6 +16,8 @@ Deleted posts and hidden burn-on-read metadata retain their filtering.
 
 ## Measurement
 
+Measurement correction: these runs populate and validate PostList.Order, so default priority and acknowledgement reads execute. They supersede the earlier fixtures, which omitted Order.
+
 The paired benchmark uses the real app, PostgreSQL and local cache. Pages have
 one, ten or sixty stored posts, with three standard emoji reactions per post.
 Cold cases purge local store caches outside the timer; warm cases use populated
@@ -34,14 +36,19 @@ these medians:
 
 | Posts | Cache | Before (ms) | After (ms) |
 | --- | --- | ---: | ---: |
-| 1 | cold | 0.168 | 0.173 |
-| 1 | warm | 0.004 | 0.004 |
-| 10 | cold | 1.695 | 0.290 |
-| 10 | warm | 0.042 | 0.041 |
-| 60 | cold | 10.755 | 0.838 |
-| 60 | warm | 0.250 | 0.240 |
+| 1 | cold | 0.484 | 0.657 |
+| 1 | warm | 0.268 | 0.256 |
+| 10 | cold | 1.943 | 0.582 |
+| 10 | warm | 0.342 | 0.323 |
+| 60 | cold | 10.538 | 1.233 |
+| 60 | warm | 0.856 | 0.819 |
 
-Warm and single-post differences are small; no warm-cache speedup is claimed.
+No warm-cache speedup is claimed. The single-post cold case was slower in
+this matrix; see single-post-control.json for longer isolated control runs.
+
+Longer isolated single-post cold controls (three paired trials, three seconds
+per case) measured median 0.500 ms before and 0.447 ms after. The sample
+ranges overlap. These controls do not establish a single-post speedup.
 
 ## Reproduce
 

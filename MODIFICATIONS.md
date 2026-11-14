@@ -544,3 +544,8 @@ store wrappers/mocks and adds storage, cache and app regressions plus paired
 real-app benchmarks. Built on the attachment-metadata preparation patch.
 Existing feature patches and contributor credit remain unchanged.
 [Measured results](docs/benchmarks/reaction-history/README.md).
+
+2026-11-14. Corrects the benchmark fixture to populate and validate history
+order, including priority and acknowledgement reads. The new timings supersede
+the earlier incomplete fixture. Production code and regression tests are
+unchanged.

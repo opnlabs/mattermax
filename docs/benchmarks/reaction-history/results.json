@@ -2,13 +2,13 @@
   "status": "passed",
   "method": "Real App.PreparePostListForClient with SQL/cache setup, three standard emoji reactions per post, one/ten/sixty posts. Baseline restores only post_metadata.go through Go overlay; both variants retain the same store code and benchmark. Cold purges local store caches outside the timer; warm uses populated caches. Timed loops include preparation, SQL/cache fills or reads, and output validation. Excludes HTTP, files, custom emoji and remote links. Alternating-order paired processes.",
   "baseline_workspace_sha": "c6ff5f19fd677d02a66daecc85f235d525846052",
-  "current_workspace_sha": "6aed323b6c6e236558e4e3adba0ff51449693780",
+  "current_workspace_sha": "1b0e20638d72edcd5532efa371e75c7506dfdbad",
   "source_sha256": {
     "before": "09960d04f41ec2f16ba5bbc18c06aa272a0d01c4a15cb51541a215d0c5b76c7a",
     "after": "fc4f12c6b0c367e4d0b83e4ab4b3369ba97248bd7c592499ee6ad8a9e71afb8f",
     "store": "13e9b0791013ae3d860f40ee76229b84f69b4f10484fccb2c38a8d79d0d0598c",
     "cache": "68d7686c9358b59232384a75784270452525ad55e9dd1357c0c174d9715a201c",
-    "benchmark_test": "bde1ca5e054e1be4b4a79b26bc96b335bb10f1149df8a7d6bd1ebbdaf0496405"
+    "benchmark_test": "d81c58dfae1cc493656ad41300f2b41e03e2f6a45e3ca55d75ad4efb96201ab8"
   },
   "environment": {
     "platform": "Linux-6.18.55-cachyos-x86_64-with-glibc2.44",
@@ -28,56 +28,56 @@
         {
           "posts": 1,
           "mode": "cold",
-          "iterations": 6386,
-          "ns_per_op": 168169.0,
-          "bytes_per_op": 14760.0,
-          "allocations_per_op": 249.0,
-          "raw": "BenchmarkReactionHistory/posts=1/cold-12    \t    6386\t    168169 ns/op\t   14760 B/op\t     249 allocs/op"
+          "iterations": 2504,
+          "ns_per_op": 483793.0,
+          "bytes_per_op": 29316.0,
+          "allocations_per_op": 498.0,
+          "raw": "BenchmarkReactionHistory/posts=1/cold-12    \t    2504\t    483793 ns/op\t   29316 B/op\t     498 allocs/op"
         },
         {
           "posts": 1,
           "mode": "warm",
-          "iterations": 268348,
-          "ns_per_op": 4302.0,
-          "bytes_per_op": 2715.0,
-          "allocations_per_op": 63.0,
-          "raw": "BenchmarkReactionHistory/posts=1/warm-12    \t  268348\t      4302 ns/op\t    2715 B/op\t      63 allocs/op"
+          "iterations": 5584,
+          "ns_per_op": 230077.0,
+          "bytes_per_op": 17195.0,
+          "allocations_per_op": 311.0,
+          "raw": "BenchmarkReactionHistory/posts=1/warm-12    \t    5584\t    230077 ns/op\t   17195 B/op\t     311 allocs/op"
         },
         {
           "posts": 10,
           "mode": "cold",
-          "iterations": 801,
-          "ns_per_op": 1690532.0,
-          "bytes_per_op": 143870.0,
-          "allocations_per_op": 2452.0,
-          "raw": "BenchmarkReactionHistory/posts=10/cold-12   \t     801\t   1690532 ns/op\t  143870 B/op\t    2452 allocs/op"
+          "iterations": 614,
+          "ns_per_op": 1943125.0,
+          "bytes_per_op": 162502.0,
+          "allocations_per_op": 2766.0,
+          "raw": "BenchmarkReactionHistory/posts=10/cold-12   \t     614\t   1943125 ns/op\t  162502 B/op\t    2766 allocs/op"
         },
         {
           "posts": 10,
           "mode": "warm",
-          "iterations": 28158,
-          "ns_per_op": 42052.0,
-          "bytes_per_op": 23361.0,
-          "allocations_per_op": 587.0,
-          "raw": "BenchmarkReactionHistory/posts=10/warm-12   \t   28158\t     42052 ns/op\t   23361 B/op\t     587 allocs/op"
+          "iterations": 4642,
+          "ns_per_op": 341721.0,
+          "bytes_per_op": 42094.0,
+          "allocations_per_op": 900.0,
+          "raw": "BenchmarkReactionHistory/posts=10/warm-12   \t    4642\t    341721 ns/op\t   42094 B/op\t     900 allocs/op"
         },
         {
           "posts": 60,
           "mode": "cold",
-          "iterations": 127,
-          "ns_per_op": 10477369.0,
-          "bytes_per_op": 862102.0,
-          "allocations_per_op": 14677.0,
-          "raw": "BenchmarkReactionHistory/posts=60/cold-12   \t     127\t  10477369 ns/op\t  862102 B/op\t   14677 allocs/op"
+          "iterations": 100,
+          "ns_per_op": 11431267.0,
+          "bytes_per_op": 907897.0,
+          "allocations_per_op": 15302.0,
+          "raw": "BenchmarkReactionHistory/posts=60/cold-12   \t     100\t  11431267 ns/op\t  907897 B/op\t   15302 allocs/op"
         },
         {
           "posts": 60,
           "mode": "warm",
-          "iterations": 4479,
-          "ns_per_op": 248871.0,
-          "bytes_per_op": 139697.0,
-          "allocations_per_op": 3487.0,
-          "raw": "BenchmarkReactionHistory/posts=60/warm-12   \t    4479\t    248871 ns/op\t  139697 B/op\t    3487 allocs/op"
+          "iterations": 1534,
+          "ns_per_op": 818193.0,
+          "bytes_per_op": 187135.0,
+          "allocations_per_op": 4112.0,
+          "raw": "BenchmarkReactionHistory/posts=60/warm-12   \t    1534\t    818193 ns/op\t  187135 B/op\t    4112 allocs/op"
         }
       ]
     },
@@ -88,56 +88,56 @@
         {
           "posts": 1,
           "mode": "cold",
-          "iterations": 5949,
-          "ns_per_op": 173350.0,
-          "bytes_per_op": 14762.0,
-          "allocations_per_op": 249.0,
-          "raw": "BenchmarkReactionHistory/posts=1/cold-12    \t    5949\t    173350 ns/op\t   14762 B/op\t     249 allocs/op"
+          "iterations": 1581,
+          "ns_per_op": 657105.0,
+          "bytes_per_op": 29198.0,
+          "allocations_per_op": 498.0,
+          "raw": "BenchmarkReactionHistory/posts=1/cold-12    \t    1581\t    657105 ns/op\t   29198 B/op\t     498 allocs/op"
         },
         {
           "posts": 1,
           "mode": "warm",
-          "iterations": 252813,
-          "ns_per_op": 4396.0,
-          "bytes_per_op": 2715.0,
-          "allocations_per_op": 63.0,
-          "raw": "BenchmarkReactionHistory/posts=1/warm-12    \t  252813\t      4396 ns/op\t    2715 B/op\t      63 allocs/op"
+          "iterations": 4408,
+          "ns_per_op": 265051.0,
+          "bytes_per_op": 17201.0,
+          "allocations_per_op": 311.0,
+          "raw": "BenchmarkReactionHistory/posts=1/warm-12    \t    4408\t    265051 ns/op\t   17201 B/op\t     311 allocs/op"
         },
         {
           "posts": 10,
           "mode": "cold",
-          "iterations": 4454,
-          "ns_per_op": 257386.0,
-          "bytes_per_op": 61363.0,
-          "allocations_per_op": 1056.0,
-          "raw": "BenchmarkReactionHistory/posts=10/cold-12   \t    4454\t    257386 ns/op\t   61363 B/op\t    1056 allocs/op"
+          "iterations": 2586,
+          "ns_per_op": 495645.0,
+          "bytes_per_op": 80028.0,
+          "allocations_per_op": 1370.0,
+          "raw": "BenchmarkReactionHistory/posts=10/cold-12   \t    2586\t    495645 ns/op\t   80028 B/op\t    1370 allocs/op"
         },
         {
           "posts": 10,
           "mode": "warm",
-          "iterations": 28869,
-          "ns_per_op": 40911.0,
-          "bytes_per_op": 24593.0,
-          "allocations_per_op": 588.0,
-          "raw": "BenchmarkReactionHistory/posts=10/warm-12   \t   28869\t     40911 ns/op\t   24593 B/op\t     588 allocs/op"
+          "iterations": 3460,
+          "ns_per_op": 309345.0,
+          "bytes_per_op": 43264.0,
+          "allocations_per_op": 901.0,
+          "raw": "BenchmarkReactionHistory/posts=10/warm-12   \t    3460\t    309345 ns/op\t   43264 B/op\t     901 allocs/op"
         },
         {
           "posts": 60,
           "mode": "cold",
-          "iterations": 1471,
-          "ns_per_op": 830462.0,
-          "bytes_per_op": 326253.0,
-          "allocations_per_op": 5415.0,
-          "raw": "BenchmarkReactionHistory/posts=60/cold-12   \t    1471\t    830462 ns/op\t  326253 B/op\t    5415 allocs/op"
+          "iterations": 942,
+          "ns_per_op": 1179051.0,
+          "bytes_per_op": 373211.0,
+          "allocations_per_op": 6039.0,
+          "raw": "BenchmarkReactionHistory/posts=60/cold-12   \t     942\t   1179051 ns/op\t  373211 B/op\t    6039 allocs/op"
         },
         {
           "posts": 60,
           "mode": "warm",
-          "iterations": 4765,
-          "ns_per_op": 238416.0,
-          "bytes_per_op": 146977.0,
-          "allocations_per_op": 3440.0,
-          "raw": "BenchmarkReactionHistory/posts=60/warm-12   \t    4765\t    238416 ns/op\t  146977 B/op\t    3440 allocs/op"
+          "iterations": 1521,
+          "ns_per_op": 804799.0,
+          "bytes_per_op": 194276.0,
+          "allocations_per_op": 4065.0,
+          "raw": "BenchmarkReactionHistory/posts=60/warm-12   \t    1521\t    804799 ns/op\t  194276 B/op\t    4065 allocs/op"
         }
       ]
     },
@@ -148,56 +148,56 @@
         {
           "posts": 1,
           "mode": "cold",
-          "iterations": 6312,
-          "ns_per_op": 164677.0,
-          "bytes_per_op": 14763.0,
-          "allocations_per_op": 249.0,
-          "raw": "BenchmarkReactionHistory/posts=1/cold-12    \t    6312\t    164677 ns/op\t   14763 B/op\t     249 allocs/op"
+          "iterations": 2572,
+          "ns_per_op": 489102.0,
+          "bytes_per_op": 29175.0,
+          "allocations_per_op": 498.0,
+          "raw": "BenchmarkReactionHistory/posts=1/cold-12    \t    2572\t    489102 ns/op\t   29175 B/op\t     498 allocs/op"
         },
         {
           "posts": 1,
           "mode": "warm",
-          "iterations": 257751,
-          "ns_per_op": 4362.0,
-          "bytes_per_op": 2714.0,
-          "allocations_per_op": 63.0,
-          "raw": "BenchmarkReactionHistory/posts=1/warm-12    \t  257751\t      4362 ns/op\t    2714 B/op\t      63 allocs/op"
+          "iterations": 5635,
+          "ns_per_op": 256247.0,
+          "bytes_per_op": 17192.0,
+          "allocations_per_op": 311.0,
+          "raw": "BenchmarkReactionHistory/posts=1/warm-12    \t    5635\t    256247 ns/op\t   17192 B/op\t     311 allocs/op"
         },
         {
           "posts": 10,
           "mode": "cold",
-          "iterations": 4420,
-          "ns_per_op": 290124.0,
-          "bytes_per_op": 61393.0,
-          "allocations_per_op": 1056.0,
-          "raw": "BenchmarkReactionHistory/posts=10/cold-12   \t    4420\t    290124 ns/op\t   61393 B/op\t    1056 allocs/op"
+          "iterations": 2329,
+          "ns_per_op": 581764.0,
+          "bytes_per_op": 80081.0,
+          "allocations_per_op": 1370.0,
+          "raw": "BenchmarkReactionHistory/posts=10/cold-12   \t    2329\t    581764 ns/op\t   80081 B/op\t    1370 allocs/op"
         },
         {
           "posts": 10,
           "mode": "warm",
-          "iterations": 29191,
-          "ns_per_op": 40409.0,
-          "bytes_per_op": 24595.0,
-          "allocations_per_op": 588.0,
-          "raw": "BenchmarkReactionHistory/posts=10/warm-12   \t   29191\t     40409 ns/op\t   24595 B/op\t     588 allocs/op"
+          "iterations": 3742,
+          "ns_per_op": 363682.0,
+          "bytes_per_op": 43301.0,
+          "allocations_per_op": 901.0,
+          "raw": "BenchmarkReactionHistory/posts=10/warm-12   \t    3742\t    363682 ns/op\t   43301 B/op\t     901 allocs/op"
         },
         {
           "posts": 60,
           "mode": "cold",
-          "iterations": 1311,
-          "ns_per_op": 838283.0,
-          "bytes_per_op": 326286.0,
-          "allocations_per_op": 5415.0,
-          "raw": "BenchmarkReactionHistory/posts=60/cold-12   \t    1311\t    838283 ns/op\t  326286 B/op\t    5415 allocs/op"
+          "iterations": 936,
+          "ns_per_op": 1233418.0,
+          "bytes_per_op": 373228.0,
+          "allocations_per_op": 6040.0,
+          "raw": "BenchmarkReactionHistory/posts=60/cold-12   \t     936\t   1233418 ns/op\t  373228 B/op\t    6040 allocs/op"
         },
         {
           "posts": 60,
           "mode": "warm",
-          "iterations": 4304,
-          "ns_per_op": 240176.0,
-          "bytes_per_op": 146925.0,
-          "allocations_per_op": 3440.0,
-          "raw": "BenchmarkReactionHistory/posts=60/warm-12   \t    4304\t    240176 ns/op\t  146925 B/op\t    3440 allocs/op"
+          "iterations": 1327,
+          "ns_per_op": 819361.0,
+          "bytes_per_op": 194513.0,
+          "allocations_per_op": 4065.0,
+          "raw": "BenchmarkReactionHistory/posts=60/warm-12   \t    1327\t    819361 ns/op\t  194513 B/op\t    4065 allocs/op"
         }
       ]
     },
@@ -208,116 +208,116 @@
         {
           "posts": 1,
           "mode": "cold",
-          "iterations": 7575,
-          "ns_per_op": 155262.0,
-          "bytes_per_op": 14751.0,
-          "allocations_per_op": 249.0,
-          "raw": "BenchmarkReactionHistory/posts=1/cold-12    \t    7575\t    155262 ns/op\t   14751 B/op\t     249 allocs/op"
+          "iterations": 2498,
+          "ns_per_op": 434279.0,
+          "bytes_per_op": 29177.0,
+          "allocations_per_op": 498.0,
+          "raw": "BenchmarkReactionHistory/posts=1/cold-12    \t    2498\t    434279 ns/op\t   29177 B/op\t     498 allocs/op"
         },
         {
           "posts": 1,
           "mode": "warm",
-          "iterations": 268558,
-          "ns_per_op": 4378.0,
-          "bytes_per_op": 2716.0,
-          "allocations_per_op": 63.0,
-          "raw": "BenchmarkReactionHistory/posts=1/warm-12    \t  268558\t      4378 ns/op\t    2716 B/op\t      63 allocs/op"
+          "iterations": 4888,
+          "ns_per_op": 268131.0,
+          "bytes_per_op": 17157.0,
+          "allocations_per_op": 311.0,
+          "raw": "BenchmarkReactionHistory/posts=1/warm-12    \t    4888\t    268131 ns/op\t   17157 B/op\t     311 allocs/op"
         },
         {
           "posts": 10,
           "mode": "cold",
-          "iterations": 741,
-          "ns_per_op": 1694733.0,
-          "bytes_per_op": 143927.0,
-          "allocations_per_op": 2452.0,
-          "raw": "BenchmarkReactionHistory/posts=10/cold-12   \t     741\t   1694733 ns/op\t  143927 B/op\t    2452 allocs/op"
+          "iterations": 740,
+          "ns_per_op": 2054691.0,
+          "bytes_per_op": 162482.0,
+          "allocations_per_op": 2766.0,
+          "raw": "BenchmarkReactionHistory/posts=10/cold-12   \t     740\t   2054691 ns/op\t  162482 B/op\t    2766 allocs/op"
         },
         {
           "posts": 10,
           "mode": "warm",
-          "iterations": 28234,
-          "ns_per_op": 42138.0,
-          "bytes_per_op": 23361.0,
-          "allocations_per_op": 587.0,
-          "raw": "BenchmarkReactionHistory/posts=10/warm-12   \t   28234\t     42138 ns/op\t   23361 B/op\t     587 allocs/op"
-        },
-        {
-          "posts": 60,
-          "mode": "cold",
-          "iterations": 96,
-          "ns_per_op": 11547795.0,
-          "bytes_per_op": 862347.0,
-          "allocations_per_op": 14677.0,
-          "raw": "BenchmarkReactionHistory/posts=60/cold-12   \t      96\t  11547795 ns/op\t  862347 B/op\t   14677 allocs/op"
-        },
-        {
-          "posts": 60,
-          "mode": "warm",
-          "iterations": 4586,
-          "ns_per_op": 250204.0,
-          "bytes_per_op": 139678.0,
-          "allocations_per_op": 3487.0,
-          "raw": "BenchmarkReactionHistory/posts=60/warm-12   \t    4586\t    250204 ns/op\t  139678 B/op\t    3487 allocs/op"
-        }
-      ]
-    },
-    {
-      "trial": 2,
-      "variant": "before",
-      "benchmarks": [
-        {
-          "posts": 1,
-          "mode": "cold",
-          "iterations": 6883,
-          "ns_per_op": 232151.0,
-          "bytes_per_op": 14775.0,
-          "allocations_per_op": 249.0,
-          "raw": "BenchmarkReactionHistory/posts=1/cold-12    \t    6883\t    232151 ns/op\t   14775 B/op\t     249 allocs/op"
-        },
-        {
-          "posts": 1,
-          "mode": "warm",
-          "iterations": 205714,
-          "ns_per_op": 5444.0,
-          "bytes_per_op": 2714.0,
-          "allocations_per_op": 63.0,
-          "raw": "BenchmarkReactionHistory/posts=1/warm-12    \t  205714\t      5444 ns/op\t    2714 B/op\t      63 allocs/op"
-        },
-        {
-          "posts": 10,
-          "mode": "cold",
-          "iterations": 553,
-          "ns_per_op": 1983335.0,
-          "bytes_per_op": 143505.0,
-          "allocations_per_op": 2452.0,
-          "raw": "BenchmarkReactionHistory/posts=10/cold-12   \t     553\t   1983335 ns/op\t  143505 B/op\t    2452 allocs/op"
-        },
-        {
-          "posts": 10,
-          "mode": "warm",
-          "iterations": 21540,
-          "ns_per_op": 51125.0,
-          "bytes_per_op": 23357.0,
-          "allocations_per_op": 587.0,
-          "raw": "BenchmarkReactionHistory/posts=10/warm-12   \t   21540\t     51125 ns/op\t   23357 B/op\t     587 allocs/op"
+          "iterations": 3961,
+          "ns_per_op": 341768.0,
+          "bytes_per_op": 42067.0,
+          "allocations_per_op": 900.0,
+          "raw": "BenchmarkReactionHistory/posts=10/warm-12   \t    3961\t    341768 ns/op\t   42067 B/op\t     900 allocs/op"
         },
         {
           "posts": 60,
           "mode": "cold",
           "iterations": 100,
-          "ns_per_op": 10754836.0,
-          "bytes_per_op": 860757.0,
-          "allocations_per_op": 14677.0,
-          "raw": "BenchmarkReactionHistory/posts=60/cold-12   \t     100\t  10754836 ns/op\t  860757 B/op\t   14677 allocs/op"
+          "ns_per_op": 10537872.0,
+          "bytes_per_op": 909300.0,
+          "allocations_per_op": 15302.0,
+          "raw": "BenchmarkReactionHistory/posts=60/cold-12   \t     100\t  10537872 ns/op\t  909300 B/op\t   15302 allocs/op"
         },
         {
           "posts": 60,
           "mode": "warm",
-          "iterations": 3994,
-          "ns_per_op": 304348.0,
-          "bytes_per_op": 139720.0,
-          "allocations_per_op": 3487.0,
-          "raw": "BenchmarkReactionHistory/posts=60/warm-12   \t    3994\t    304348 ns/op\t  139720 B/op\t    3487 allocs/op"
+          "iterations": 1336,
+          "ns_per_op": 882927.0,
+          "bytes_per_op": 187055.0,
+          "allocations_per_op": 4112.0,
+          "raw": "BenchmarkReactionHistory/posts=60/warm-12   \t    1336\t    882927 ns/op\t  187055 B/op\t    4112 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "benchmarks": [
+        {
+          "posts": 1,
+          "mode": "cold",
+          "iterations": 2091,
+          "ns_per_op": 490278.0,
+          "bytes_per_op": 29202.0,
+          "allocations_per_op": 498.0,
+          "raw": "BenchmarkReactionHistory/posts=1/cold-12    \t    2091\t    490278 ns/op\t   29202 B/op\t     498 allocs/op"
+        },
+        {
+          "posts": 1,
+          "mode": "warm",
+          "iterations": 4321,
+          "ns_per_op": 276925.0,
+          "bytes_per_op": 17157.0,
+          "allocations_per_op": 311.0,
+          "raw": "BenchmarkReactionHistory/posts=1/warm-12    \t    4321\t    276925 ns/op\t   17157 B/op\t     311 allocs/op"
+        },
+        {
+          "posts": 10,
+          "mode": "cold",
+          "iterations": 681,
+          "ns_per_op": 1860432.0,
+          "bytes_per_op": 162345.0,
+          "allocations_per_op": 2766.0,
+          "raw": "BenchmarkReactionHistory/posts=10/cold-12   \t     681\t   1860432 ns/op\t  162345 B/op\t    2766 allocs/op"
+        },
+        {
+          "posts": 10,
+          "mode": "warm",
+          "iterations": 4873,
+          "ns_per_op": 335481.0,
+          "bytes_per_op": 42109.0,
+          "allocations_per_op": 900.0,
+          "raw": "BenchmarkReactionHistory/posts=10/warm-12   \t    4873\t    335481 ns/op\t   42109 B/op\t     900 allocs/op"
+        },
+        {
+          "posts": 60,
+          "mode": "cold",
+          "iterations": 124,
+          "ns_per_op": 9869687.0,
+          "bytes_per_op": 909322.0,
+          "allocations_per_op": 15302.0,
+          "raw": "BenchmarkReactionHistory/posts=60/cold-12   \t     124\t   9869687 ns/op\t  909322 B/op\t   15302 allocs/op"
+        },
+        {
+          "posts": 60,
+          "mode": "warm",
+          "iterations": 1422,
+          "ns_per_op": 856266.0,
+          "bytes_per_op": 187031.0,
+          "allocations_per_op": 4112.0,
+          "raw": "BenchmarkReactionHistory/posts=60/warm-12   \t    1422\t    856266 ns/op\t  187031 B/op\t    4112 allocs/op"
         }
       ]
     },
@@ -328,56 +328,56 @@
         {
           "posts": 1,
           "mode": "cold",
-          "iterations": 6516,
-          "ns_per_op": 190593.0,
-          "bytes_per_op": 14755.0,
-          "allocations_per_op": 249.0,
-          "raw": "BenchmarkReactionHistory/posts=1/cold-12    \t    6516\t    190593 ns/op\t   14755 B/op\t     249 allocs/op"
+          "iterations": 1578,
+          "ns_per_op": 675046.0,
+          "bytes_per_op": 29211.0,
+          "allocations_per_op": 498.0,
+          "raw": "BenchmarkReactionHistory/posts=1/cold-12    \t    1578\t    675046 ns/op\t   29211 B/op\t     498 allocs/op"
         },
         {
           "posts": 1,
           "mode": "warm",
-          "iterations": 212031,
-          "ns_per_op": 5635.0,
-          "bytes_per_op": 2715.0,
-          "allocations_per_op": 63.0,
-          "raw": "BenchmarkReactionHistory/posts=1/warm-12    \t  212031\t      5635 ns/op\t    2715 B/op\t      63 allocs/op"
+          "iterations": 5256,
+          "ns_per_op": 246484.0,
+          "bytes_per_op": 17158.0,
+          "allocations_per_op": 311.0,
+          "raw": "BenchmarkReactionHistory/posts=1/warm-12    \t    5256\t    246484 ns/op\t   17158 B/op\t     311 allocs/op"
         },
         {
           "posts": 10,
           "mode": "cold",
-          "iterations": 3757,
-          "ns_per_op": 328004.0,
-          "bytes_per_op": 61343.0,
-          "allocations_per_op": 1056.0,
-          "raw": "BenchmarkReactionHistory/posts=10/cold-12   \t    3757\t    328004 ns/op\t   61343 B/op\t    1056 allocs/op"
+          "iterations": 1856,
+          "ns_per_op": 589144.0,
+          "bytes_per_op": 80057.0,
+          "allocations_per_op": 1370.0,
+          "raw": "BenchmarkReactionHistory/posts=10/cold-12   \t    1856\t    589144 ns/op\t   80057 B/op\t    1370 allocs/op"
         },
         {
           "posts": 10,
           "mode": "warm",
-          "iterations": 23590,
-          "ns_per_op": 48615.0,
-          "bytes_per_op": 24592.0,
-          "allocations_per_op": 588.0,
-          "raw": "BenchmarkReactionHistory/posts=10/warm-12   \t   23590\t     48615 ns/op\t   24592 B/op\t     588 allocs/op"
+          "iterations": 3646,
+          "ns_per_op": 323110.0,
+          "bytes_per_op": 43307.0,
+          "allocations_per_op": 901.0,
+          "raw": "BenchmarkReactionHistory/posts=10/warm-12   \t    3646\t    323110 ns/op\t   43307 B/op\t     901 allocs/op"
         },
         {
           "posts": 60,
           "mode": "cold",
-          "iterations": 1201,
-          "ns_per_op": 969360.0,
-          "bytes_per_op": 326335.0,
-          "allocations_per_op": 5415.0,
-          "raw": "BenchmarkReactionHistory/posts=60/cold-12   \t    1201\t    969360 ns/op\t  326335 B/op\t    5415 allocs/op"
+          "iterations": 834,
+          "ns_per_op": 1270401.0,
+          "bytes_per_op": 373781.0,
+          "allocations_per_op": 6040.0,
+          "raw": "BenchmarkReactionHistory/posts=60/cold-12   \t     834\t   1270401 ns/op\t  373781 B/op\t    6040 allocs/op"
         },
         {
           "posts": 60,
           "mode": "warm",
-          "iterations": 3957,
-          "ns_per_op": 297023.0,
-          "bytes_per_op": 146944.0,
-          "allocations_per_op": 3440.0,
-          "raw": "BenchmarkReactionHistory/posts=60/warm-12   \t    3957\t    297023 ns/op\t  146944 B/op\t    3440 allocs/op"
+          "iterations": 1278,
+          "ns_per_op": 881360.0,
+          "bytes_per_op": 194342.0,
+          "allocations_per_op": 4065.0,
+          "raw": "BenchmarkReactionHistory/posts=60/warm-12   \t    1278\t    881360 ns/op\t  194342 B/op\t    4065 allocs/op"
         }
       ]
     }
@@ -387,21 +387,21 @@
       "posts": 1,
       "mode": "cold",
       "before": {
-        "ns_per_op": 168169.0,
-        "bytes_per_op": 14760.0,
-        "allocations_per_op": 249.0,
+        "ns_per_op": 483793.0,
+        "bytes_per_op": 29202.0,
+        "allocations_per_op": 498.0,
         "ns_per_op_range": [
-          155262.0,
-          232151.0
+          434279.0,
+          490278.0
         ]
       },
       "after": {
-        "ns_per_op": 173350.0,
-        "bytes_per_op": 14762.0,
-        "allocations_per_op": 249.0,
+        "ns_per_op": 657105.0,
+        "bytes_per_op": 29198.0,
+        "allocations_per_op": 498.0,
         "ns_per_op_range": [
-          164677.0,
-          190593.0
+          489102.0,
+          675046.0
         ]
       }
     },
@@ -409,21 +409,21 @@
       "posts": 1,
       "mode": "warm",
       "before": {
-        "ns_per_op": 4378.0,
-        "bytes_per_op": 2715.0,
-        "allocations_per_op": 63.0,
+        "ns_per_op": 268131.0,
+        "bytes_per_op": 17157.0,
+        "allocations_per_op": 311.0,
         "ns_per_op_range": [
-          4302.0,
-          5444.0
+          230077.0,
+          276925.0
         ]
       },
       "after": {
-        "ns_per_op": 4396.0,
-        "bytes_per_op": 2715.0,
-        "allocations_per_op": 63.0,
+        "ns_per_op": 256247.0,
+        "bytes_per_op": 17192.0,
+        "allocations_per_op": 311.0,
         "ns_per_op_range": [
-          4362.0,
-          5635.0
+          246484.0,
+          265051.0
         ]
       }
     },
@@ -431,21 +431,21 @@
       "posts": 10,
       "mode": "cold",
       "before": {
-        "ns_per_op": 1694733.0,
-        "bytes_per_op": 143870.0,
-        "allocations_per_op": 2452.0,
+        "ns_per_op": 1943125.0,
+        "bytes_per_op": 162482.0,
+        "allocations_per_op": 2766.0,
         "ns_per_op_range": [
-          1690532.0,
-          1983335.0
+          1860432.0,
+          2054691.0
         ]
       },
       "after": {
-        "ns_per_op": 290124.0,
-        "bytes_per_op": 61363.0,
-        "allocations_per_op": 1056.0,
+        "ns_per_op": 581764.0,
+        "bytes_per_op": 80057.0,
+        "allocations_per_op": 1370.0,
         "ns_per_op_range": [
-          257386.0,
-          328004.0
+          495645.0,
+          589144.0
         ]
       }
     },
@@ -453,21 +453,21 @@
       "posts": 10,
       "mode": "warm",
       "before": {
-        "ns_per_op": 42138.0,
-        "bytes_per_op": 23361.0,
-        "allocations_per_op": 587.0,
+        "ns_per_op": 341721.0,
+        "bytes_per_op": 42094.0,
+        "allocations_per_op": 900.0,
         "ns_per_op_range": [
-          42052.0,
-          51125.0
+          335481.0,
+          341768.0
         ]
       },
       "after": {
-        "ns_per_op": 40911.0,
-        "bytes_per_op": 24593.0,
-        "allocations_per_op": 588.0,
+        "ns_per_op": 323110.0,
+        "bytes_per_op": 43301.0,
+        "allocations_per_op": 901.0,
         "ns_per_op_range": [
-          40409.0,
-          48615.0
+          309345.0,
+          363682.0
         ]
       }
     },
@@ -475,21 +475,21 @@
       "posts": 60,
       "mode": "cold",
       "before": {
-        "ns_per_op": 10754836.0,
-        "bytes_per_op": 862102.0,
-        "allocations_per_op": 14677.0,
+        "ns_per_op": 10537872.0,
+        "bytes_per_op": 909300.0,
+        "allocations_per_op": 15302.0,
         "ns_per_op_range": [
-          10477369.0,
-          11547795.0
+          9869687.0,
+          11431267.0
         ]
       },
       "after": {
-        "ns_per_op": 838283.0,
-        "bytes_per_op": 326286.0,
-        "allocations_per_op": 5415.0,
+        "ns_per_op": 1233418.0,
+        "bytes_per_op": 373228.0,
+        "allocations_per_op": 6040.0,
         "ns_per_op_range": [
-          830462.0,
-          969360.0
+          1179051.0,
+          1270401.0
         ]
       }
     },
@@ -497,23 +497,27 @@
       "posts": 60,
       "mode": "warm",
       "before": {
-        "ns_per_op": 250204.0,
-        "bytes_per_op": 139697.0,
-        "allocations_per_op": 3487.0,
+        "ns_per_op": 856266.0,
+        "bytes_per_op": 187055.0,
+        "allocations_per_op": 4112.0,
         "ns_per_op_range": [
-          248871.0,
-          304348.0
+          818193.0,
+          882927.0
         ]
       },
       "after": {
-        "ns_per_op": 240176.0,
-        "bytes_per_op": 146944.0,
-        "allocations_per_op": 3440.0,
+        "ns_per_op": 819361.0,
+        "bytes_per_op": 194342.0,
+        "allocations_per_op": 4065.0,
         "ns_per_op_range": [
-          238416.0,
-          297023.0
+          804799.0,
+          881360.0
         ]
       }
     }
-  ]
+  ],
+  "measurement_revision": {
+    "ordered_history": true,
+    "note": "Measurement correction: these runs populate and validate PostList.Order, so default priority and acknowledgement reads execute. They supersede the earlier fixtures, which omitted Order."
+  }
 }

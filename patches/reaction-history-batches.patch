@@ -13,17 +13,17 @@ store layers and mocks. Existing feature patches and authorship are unchanged.
 
 Mattermax-Patch: reaction-history-batches.patch
 ---
- server/channels/app/post_metadata.go          |  43 +++--
- .../channels/app/post_reaction_batch_test.go  | 168 ++++++++++++++++++
+ server/channels/app/post_metadata.go          |  43 ++++-
+ .../channels/app/post_reaction_batch_test.go  | 172 ++++++++++++++++++
  .../store/localcachelayer/reaction_layer.go   |  32 ++++
  .../localcachelayer/reaction_layer_test.go    |  49 +++++
  .../channels/store/retrylayer/retrylayer.go   |  21 +++
  .../channels/store/sqlstore/reaction_store.go |  28 +++
  .../store/sqlstore/reaction_store_test.go     |  44 +++++
  server/channels/store/store.go                |   3 +
- .../store/storetest/mocks/ReactionStore.go    |  30 ++++
+ .../store/storetest/mocks/ReactionStore.go    |  30 +++
  .../channels/store/timerlayer/timerlayer.go   |  16 ++
- 10 files changed, 424 insertions(+), 10 deletions(-)
+ 10 files changed, 428 insertions(+), 10 deletions(-)
  create mode 100644 server/channels/app/post_reaction_batch_test.go
 
 diff --git a/server/channels/app/post_metadata.go b/server/channels/app/post_metadata.go
@@ -118,10 +118,10 @@ index e709b3c79f6e..d4208e03618b 100644
  
 diff --git a/server/channels/app/post_reaction_batch_test.go b/server/channels/app/post_reaction_batch_test.go
 new file mode 100644
-index 000000000000..85e512329c36
+index 000000000000..06756a62fa3b
 --- /dev/null
 +++ b/server/channels/app/post_reaction_batch_test.go
-@@ -0,0 +1,168 @@
+@@ -0,0 +1,172 @@
 +// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 +// See LICENSE.txt for license information.
 +
@@ -165,8 +165,12 @@ index 000000000000..85e512329c36
 +				}
 +				post.HasReactions = true
 +				list.AddPost(post)
++				list.AddOrder(post.Id)
 +			}
 +			check := func(result *model.PostList) {
++				if len(result.Order) != size {
++					b.Fatal("incorrect history order")
++				}
 +				for id := range list.Posts {
 +					p := result.Posts[id]
 +					if p == nil || p.Metadata == nil || len(p.Metadata.Reactions) != 3 {
