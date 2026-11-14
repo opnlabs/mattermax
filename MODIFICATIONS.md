@@ -519,3 +519,14 @@ and channels keep their names. Gates removed: `createChannel` in
 `PluginAPI.CreateChannel` in `app/plugin_api.go`, the webapp selector
 `isAnonymousURLEnabled` that hides the URL editors, and the System Console
 toggle's Enterprise Advanced check.
+
+### autolink-precheck.patch
+
+2026-11-14. Skips preview-link Markdown inspection for messages without the
+literal markers required by the existing autolink parser. Preserves the size
+limit, link syntax, domain restrictions and existing malformed-input outcomes.
+Potential links retain the ordinary parser and policy path. Adds differential
+syntax/size checks and fuzzing, plus paired microbenchmarks and real ordered
+history-page benchmarks with link-positive controls. No new dependency or
+public API change. Existing feature patches and author credits are unchanged.
+[Measured results](docs/benchmarks/autolink-precheck/README.md).

@@ -1,0 +1,13 @@
+{
+  "candidate_guard": "literal colon or lowercase www present",
+  "false_negatives": null,
+  "guard_would_skip": 983,
+  "scope": "All Go string literals in the public markdown package test files. Existing-parser corpus comparison only; no performance claim or production change.",
+  "status": "passed",
+  "strings_with_autolinks": 258,
+  "test_files": 11,
+  "unique_strings": 1365,
+  "source_workspace_sha": "b194a44d9c3dc3cc8dd22d9c5501dcb13e723cf7",
+  "false_negative_count": 0,
+  "markdown_implementation_unchanged": true
+}
