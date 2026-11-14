@@ -1,0 +1,516 @@
+{
+  "status": "passed",
+  "method": "Real App.PreparePostForClientWithEmbedsAndImages with full test SQL store/cache setup. Original post_metadata.go through Go overlay versus reuse of successful file metadata. Text attachments, zero/one/ten files, warm cached reads and master reads selected by IsNewPost. Timed loops include app/store/driver work but exclude HTTP, upload bytes, image decoding and remote link fetching. Three alternating-order paired processes by default.",
+  "baseline_workspace_sha": "c9dbbcc480b242f7349cb7f4e9dcb6ea35cf6404",
+  "current_workspace_sha": "c6ff5f19fd677d02a66daecc85f235d525846052",
+  "source_sha256": {
+    "before": "7c1df926962309717a8bbb013c12f9bd18ca1882da213f4346ae370be66340b7",
+    "after": "09960d04f41ec2f16ba5bbc18c06aa272a0d01c4a15cb51541a215d0c5b76c7a",
+    "benchmark_test": "d7eb0895e5721ba02c769dc2b7c0f7c46d736e0b81cda01a853c140058815ea2"
+  },
+  "environment": {
+    "platform": "Linux-6.18.55-cachyos-x86_64-with-glibc2.44",
+    "go": "go version go1.26.10 linux/amd64",
+    "cpu": "13th Gen Intel(R) Core(TM) i7-1355U"
+  },
+  "settings": {
+    "trials": 3,
+    "iterations": 1000
+  },
+  "samples": [
+    {
+      "trial": 0,
+      "variant": "before",
+      "benchmarks": [
+        {
+          "files": 0,
+          "mode": "warm",
+          "iterations": 1000,
+          "ns_per_op": 2678.0,
+          "bytes_per_op": 1296.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkPostFileMetadata/files=0/warm-12    \t    1000\t      2678 ns/op\t    1296 B/op\t      29 allocs/op"
+        },
+        {
+          "files": 0,
+          "mode": "master",
+          "iterations": 1000,
+          "ns_per_op": 2402.0,
+          "bytes_per_op": 1296.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkPostFileMetadata/files=0/master-12  \t    1000\t      2402 ns/op\t    1296 B/op\t      29 allocs/op"
+        },
+        {
+          "files": 1,
+          "mode": "warm",
+          "iterations": 1000,
+          "ns_per_op": 9448.0,
+          "bytes_per_op": 2640.0,
+          "allocations_per_op": 63.0,
+          "raw": "BenchmarkPostFileMetadata/files=1/warm-12    \t    1000\t      9448 ns/op\t    2640 B/op\t      63 allocs/op"
+        },
+        {
+          "files": 1,
+          "mode": "master",
+          "iterations": 1000,
+          "ns_per_op": 1070406.0,
+          "bytes_per_op": 72186.0,
+          "allocations_per_op": 921.0,
+          "raw": "BenchmarkPostFileMetadata/files=1/master-12  \t    1000\t   1070406 ns/op\t   72186 B/op\t     921 allocs/op"
+        },
+        {
+          "files": 10,
+          "mode": "warm",
+          "iterations": 1000,
+          "ns_per_op": 50613.0,
+          "bytes_per_op": 15500.0,
+          "allocations_per_op": 325.0,
+          "raw": "BenchmarkPostFileMetadata/files=10/warm-12   \t    1000\t     50613 ns/op\t   15500 B/op\t     325 allocs/op"
+        },
+        {
+          "files": 10,
+          "mode": "master",
+          "iterations": 1000,
+          "ns_per_op": 1281509.0,
+          "bytes_per_op": 118786.0,
+          "allocations_per_op": 1427.0,
+          "raw": "BenchmarkPostFileMetadata/files=10/master-12 \t    1000\t   1281509 ns/op\t  118786 B/op\t    1427 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "benchmarks": [
+        {
+          "files": 0,
+          "mode": "warm",
+          "iterations": 1000,
+          "ns_per_op": 2444.0,
+          "bytes_per_op": 1296.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkPostFileMetadata/files=0/warm-12    \t    1000\t      2444 ns/op\t    1296 B/op\t      29 allocs/op"
+        },
+        {
+          "files": 0,
+          "mode": "master",
+          "iterations": 1000,
+          "ns_per_op": 1561.0,
+          "bytes_per_op": 1296.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkPostFileMetadata/files=0/master-12  \t    1000\t      1561 ns/op\t    1296 B/op\t      29 allocs/op"
+        },
+        {
+          "files": 1,
+          "mode": "warm",
+          "iterations": 1000,
+          "ns_per_op": 6004.0,
+          "bytes_per_op": 1968.0,
+          "allocations_per_op": 46.0,
+          "raw": "BenchmarkPostFileMetadata/files=1/warm-12    \t    1000\t      6004 ns/op\t    1968 B/op\t      46 allocs/op"
+        },
+        {
+          "files": 1,
+          "mode": "master",
+          "iterations": 1000,
+          "ns_per_op": 806707.0,
+          "bytes_per_op": 36781.0,
+          "allocations_per_op": 475.0,
+          "raw": "BenchmarkPostFileMetadata/files=1/master-12  \t    1000\t    806707 ns/op\t   36781 B/op\t     475 allocs/op"
+        },
+        {
+          "files": 10,
+          "mode": "warm",
+          "iterations": 1000,
+          "ns_per_op": 21570.0,
+          "bytes_per_op": 8416.0,
+          "allocations_per_op": 177.0,
+          "raw": "BenchmarkPostFileMetadata/files=10/warm-12   \t    1000\t     21570 ns/op\t    8416 B/op\t     177 allocs/op"
+        },
+        {
+          "files": 10,
+          "mode": "master",
+          "iterations": 1000,
+          "ns_per_op": 752285.0,
+          "bytes_per_op": 60026.0,
+          "allocations_per_op": 728.0,
+          "raw": "BenchmarkPostFileMetadata/files=10/master-12 \t    1000\t    752285 ns/op\t   60026 B/op\t     728 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "benchmarks": [
+        {
+          "files": 0,
+          "mode": "warm",
+          "iterations": 1000,
+          "ns_per_op": 1569.0,
+          "bytes_per_op": 1296.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkPostFileMetadata/files=0/warm-12    \t    1000\t      1569 ns/op\t    1296 B/op\t      29 allocs/op"
+        },
+        {
+          "files": 0,
+          "mode": "master",
+          "iterations": 1000,
+          "ns_per_op": 1639.0,
+          "bytes_per_op": 1296.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkPostFileMetadata/files=0/master-12  \t    1000\t      1639 ns/op\t    1296 B/op\t      29 allocs/op"
+        },
+        {
+          "files": 1,
+          "mode": "warm",
+          "iterations": 1000,
+          "ns_per_op": 8793.0,
+          "bytes_per_op": 1968.0,
+          "allocations_per_op": 46.0,
+          "raw": "BenchmarkPostFileMetadata/files=1/warm-12    \t    1000\t      8793 ns/op\t    1968 B/op\t      46 allocs/op"
+        },
+        {
+          "files": 1,
+          "mode": "master",
+          "iterations": 1000,
+          "ns_per_op": 592511.0,
+          "bytes_per_op": 36759.0,
+          "allocations_per_op": 475.0,
+          "raw": "BenchmarkPostFileMetadata/files=1/master-12  \t    1000\t    592511 ns/op\t   36759 B/op\t     475 allocs/op"
+        },
+        {
+          "files": 10,
+          "mode": "warm",
+          "iterations": 1000,
+          "ns_per_op": 19464.0,
+          "bytes_per_op": 8469.0,
+          "allocations_per_op": 177.0,
+          "raw": "BenchmarkPostFileMetadata/files=10/warm-12   \t    1000\t     19464 ns/op\t    8469 B/op\t     177 allocs/op"
+        },
+        {
+          "files": 10,
+          "mode": "master",
+          "iterations": 1000,
+          "ns_per_op": 592063.0,
+          "bytes_per_op": 60009.0,
+          "allocations_per_op": 728.0,
+          "raw": "BenchmarkPostFileMetadata/files=10/master-12 \t    1000\t    592063 ns/op\t   60009 B/op\t     728 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "benchmarks": [
+        {
+          "files": 0,
+          "mode": "warm",
+          "iterations": 1000,
+          "ns_per_op": 2526.0,
+          "bytes_per_op": 1296.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkPostFileMetadata/files=0/warm-12    \t    1000\t      2526 ns/op\t    1296 B/op\t      29 allocs/op"
+        },
+        {
+          "files": 0,
+          "mode": "master",
+          "iterations": 1000,
+          "ns_per_op": 2583.0,
+          "bytes_per_op": 1296.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkPostFileMetadata/files=0/master-12  \t    1000\t      2583 ns/op\t    1296 B/op\t      29 allocs/op"
+        },
+        {
+          "files": 1,
+          "mode": "warm",
+          "iterations": 1000,
+          "ns_per_op": 8212.0,
+          "bytes_per_op": 2677.0,
+          "allocations_per_op": 63.0,
+          "raw": "BenchmarkPostFileMetadata/files=1/warm-12    \t    1000\t      8212 ns/op\t    2677 B/op\t      63 allocs/op"
+        },
+        {
+          "files": 1,
+          "mode": "master",
+          "iterations": 1000,
+          "ns_per_op": 1009594.0,
+          "bytes_per_op": 72199.0,
+          "allocations_per_op": 921.0,
+          "raw": "BenchmarkPostFileMetadata/files=1/master-12  \t    1000\t   1009594 ns/op\t   72199 B/op\t     921 allocs/op"
+        },
+        {
+          "files": 10,
+          "mode": "warm",
+          "iterations": 1000,
+          "ns_per_op": 43278.0,
+          "bytes_per_op": 15471.0,
+          "allocations_per_op": 325.0,
+          "raw": "BenchmarkPostFileMetadata/files=10/warm-12   \t    1000\t     43278 ns/op\t   15471 B/op\t     325 allocs/op"
+        },
+        {
+          "files": 10,
+          "mode": "master",
+          "iterations": 1000,
+          "ns_per_op": 1181797.0,
+          "bytes_per_op": 118762.0,
+          "allocations_per_op": 1427.0,
+          "raw": "BenchmarkPostFileMetadata/files=10/master-12 \t    1000\t   1181797 ns/op\t  118762 B/op\t    1427 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "benchmarks": [
+        {
+          "files": 0,
+          "mode": "warm",
+          "iterations": 1000,
+          "ns_per_op": 2421.0,
+          "bytes_per_op": 1296.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkPostFileMetadata/files=0/warm-12    \t    1000\t      2421 ns/op\t    1296 B/op\t      29 allocs/op"
+        },
+        {
+          "files": 0,
+          "mode": "master",
+          "iterations": 1000,
+          "ns_per_op": 2004.0,
+          "bytes_per_op": 1296.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkPostFileMetadata/files=0/master-12  \t    1000\t      2004 ns/op\t    1296 B/op\t      29 allocs/op"
+        },
+        {
+          "files": 1,
+          "mode": "warm",
+          "iterations": 1000,
+          "ns_per_op": 11121.0,
+          "bytes_per_op": 2677.0,
+          "allocations_per_op": 63.0,
+          "raw": "BenchmarkPostFileMetadata/files=1/warm-12    \t    1000\t     11121 ns/op\t    2677 B/op\t      63 allocs/op"
+        },
+        {
+          "files": 1,
+          "mode": "master",
+          "iterations": 1000,
+          "ns_per_op": 1125536.0,
+          "bytes_per_op": 72196.0,
+          "allocations_per_op": 921.0,
+          "raw": "BenchmarkPostFileMetadata/files=1/master-12  \t    1000\t   1125536 ns/op\t   72196 B/op\t     921 allocs/op"
+        },
+        {
+          "files": 10,
+          "mode": "warm",
+          "iterations": 1000,
+          "ns_per_op": 45388.0,
+          "bytes_per_op": 15481.0,
+          "allocations_per_op": 325.0,
+          "raw": "BenchmarkPostFileMetadata/files=10/warm-12   \t    1000\t     45388 ns/op\t   15481 B/op\t     325 allocs/op"
+        },
+        {
+          "files": 10,
+          "mode": "master",
+          "iterations": 1000,
+          "ns_per_op": 1127045.0,
+          "bytes_per_op": 118739.0,
+          "allocations_per_op": 1427.0,
+          "raw": "BenchmarkPostFileMetadata/files=10/master-12 \t    1000\t   1127045 ns/op\t  118739 B/op\t    1427 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "benchmarks": [
+        {
+          "files": 0,
+          "mode": "warm",
+          "iterations": 1000,
+          "ns_per_op": 2505.0,
+          "bytes_per_op": 1296.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkPostFileMetadata/files=0/warm-12    \t    1000\t      2505 ns/op\t    1296 B/op\t      29 allocs/op"
+        },
+        {
+          "files": 0,
+          "mode": "master",
+          "iterations": 1000,
+          "ns_per_op": 1573.0,
+          "bytes_per_op": 1296.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkPostFileMetadata/files=0/master-12  \t    1000\t      1573 ns/op\t    1296 B/op\t      29 allocs/op"
+        },
+        {
+          "files": 1,
+          "mode": "warm",
+          "iterations": 1000,
+          "ns_per_op": 5502.0,
+          "bytes_per_op": 1968.0,
+          "allocations_per_op": 46.0,
+          "raw": "BenchmarkPostFileMetadata/files=1/warm-12    \t    1000\t      5502 ns/op\t    1968 B/op\t      46 allocs/op"
+        },
+        {
+          "files": 1,
+          "mode": "master",
+          "iterations": 1000,
+          "ns_per_op": 804735.0,
+          "bytes_per_op": 36807.0,
+          "allocations_per_op": 475.0,
+          "raw": "BenchmarkPostFileMetadata/files=1/master-12  \t    1000\t    804735 ns/op\t   36807 B/op\t     475 allocs/op"
+        },
+        {
+          "files": 10,
+          "mode": "warm",
+          "iterations": 1000,
+          "ns_per_op": 21892.0,
+          "bytes_per_op": 8430.0,
+          "allocations_per_op": 177.0,
+          "raw": "BenchmarkPostFileMetadata/files=10/warm-12   \t    1000\t     21892 ns/op\t    8430 B/op\t     177 allocs/op"
+        },
+        {
+          "files": 10,
+          "mode": "master",
+          "iterations": 1000,
+          "ns_per_op": 605398.0,
+          "bytes_per_op": 60002.0,
+          "allocations_per_op": 728.0,
+          "raw": "BenchmarkPostFileMetadata/files=10/master-12 \t    1000\t    605398 ns/op\t   60002 B/op\t     728 allocs/op"
+        }
+      ]
+    }
+  ],
+  "summary": [
+    {
+      "files": 0,
+      "mode": "warm",
+      "before": {
+        "ns_per_op": 2526.0,
+        "bytes_per_op": 1296.0,
+        "allocations_per_op": 29.0,
+        "ns_per_op_range": [
+          2421.0,
+          2678.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 2444.0,
+        "bytes_per_op": 1296.0,
+        "allocations_per_op": 29.0,
+        "ns_per_op_range": [
+          1569.0,
+          2505.0
+        ]
+      }
+    },
+    {
+      "files": 0,
+      "mode": "master",
+      "before": {
+        "ns_per_op": 2402.0,
+        "bytes_per_op": 1296.0,
+        "allocations_per_op": 29.0,
+        "ns_per_op_range": [
+          2004.0,
+          2583.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 1573.0,
+        "bytes_per_op": 1296.0,
+        "allocations_per_op": 29.0,
+        "ns_per_op_range": [
+          1561.0,
+          1639.0
+        ]
+      }
+    },
+    {
+      "files": 1,
+      "mode": "warm",
+      "before": {
+        "ns_per_op": 9448.0,
+        "bytes_per_op": 2677.0,
+        "allocations_per_op": 63.0,
+        "ns_per_op_range": [
+          8212.0,
+          11121.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 6004.0,
+        "bytes_per_op": 1968.0,
+        "allocations_per_op": 46.0,
+        "ns_per_op_range": [
+          5502.0,
+          8793.0
+        ]
+      }
+    },
+    {
+      "files": 1,
+      "mode": "master",
+      "before": {
+        "ns_per_op": 1070406.0,
+        "bytes_per_op": 72196.0,
+        "allocations_per_op": 921.0,
+        "ns_per_op_range": [
+          1009594.0,
+          1125536.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 804735.0,
+        "bytes_per_op": 36781.0,
+        "allocations_per_op": 475.0,
+        "ns_per_op_range": [
+          592511.0,
+          806707.0
+        ]
+      }
+    },
+    {
+      "files": 10,
+      "mode": "warm",
+      "before": {
+        "ns_per_op": 45388.0,
+        "bytes_per_op": 15481.0,
+        "allocations_per_op": 325.0,
+        "ns_per_op_range": [
+          43278.0,
+          50613.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 21570.0,
+        "bytes_per_op": 8430.0,
+        "allocations_per_op": 177.0,
+        "ns_per_op_range": [
+          19464.0,
+          21892.0
+        ]
+      }
+    },
+    {
+      "files": 10,
+      "mode": "master",
+      "before": {
+        "ns_per_op": 1181797.0,
+        "bytes_per_op": 118762.0,
+        "allocations_per_op": 1427.0,
+        "ns_per_op_range": [
+          1127045.0,
+          1281509.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 605398.0,
+        "bytes_per_op": 60009.0,
+        "allocations_per_op": 728.0,
+        "ns_per_op_range": [
+          592063.0,
+          752285.0
+        ]
+      }
+    }
+  ]
+}

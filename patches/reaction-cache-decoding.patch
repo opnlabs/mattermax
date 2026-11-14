@@ -1,0 +1,324 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: rhnvrm <hello@rohanverma.net>
+Date: Sat, 14 Nov 2026 16:43:05 +0530
+Subject: [PATCH] perf: decode cached reactions without reflection
+
+Use the existing cache unmarshaler fast path for single-post and batched reaction reads. Keep cache writes, shared Redis bytes, SQL fallback and invalidation unchanged. Reject unknown fields rather than discard metadata. Preserve independent values, nil slices/elements, remote IDs and timestamp ranges.
+
+Add legacy-format, Redis/LRU, isolation, truncation, fallback and differential fuzz checks, plus warm-cache read benchmarks.
+
+Mattermax-Patch: reaction-cache-decoding.patch
+---
+ .../store/localcachelayer/reaction_cache.go   |  90 +++++++++
+ .../localcachelayer/reaction_cache_test.go    | 173 ++++++++++++++++++
+ .../store/localcachelayer/reaction_layer.go   |  12 +-
+ 3 files changed, 269 insertions(+), 6 deletions(-)
+ create mode 100644 server/channels/store/localcachelayer/reaction_cache.go
+ create mode 100644 server/channels/store/localcachelayer/reaction_cache_test.go
+
+diff --git a/server/channels/store/localcachelayer/reaction_cache.go b/server/channels/store/localcachelayer/reaction_cache.go
+new file mode 100644
+index 000000000000..ba2ad9953c05
+--- /dev/null
++++ b/server/channels/store/localcachelayer/reaction_cache.go
+@@ -0,0 +1,90 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++package localcachelayer
++
++import (
++	"fmt"
++
++	"github.com/tinylib/msgp/msgp"
++
++	"github.com/mattermost/mattermost/server/public/model"
++)
++
++// cachedReactions decodes the existing msgpack slice-of-maps representation
++// without reflection. Writes retain the ordinary []*model.Reaction encoding.
++// Unrecognized fields cause a cache miss rather than silently losing metadata.
++type cachedReactions []*model.Reaction
++
++func (r *cachedReactions) UnmarshalMsg(data []byte) ([]byte, error) {
++	if msgp.IsNil(data) {
++		rest, err := msgp.ReadNilBytes(data)
++		*r = nil
++		return rest, err
++	}
++
++	count, data, err := msgp.ReadArrayHeaderBytes(data)
++	if err != nil {
++		return nil, err
++	}
++	// Even a nil element needs one byte. Bound allocations for corrupt entries.
++	if uint64(count) > uint64(len(data)) {
++		return nil, msgp.ErrShortBytes
++	}
++	result := make(cachedReactions, count)
++	for i := range result {
++		if msgp.IsNil(data) {
++			data, err = msgp.ReadNilBytes(data)
++			if err != nil {
++				return nil, err
++			}
++			continue
++		}
++		var fields uint32
++		fields, data, err = msgp.ReadMapHeaderBytes(data)
++		if err != nil {
++			return nil, err
++		}
++		postReaction := &model.Reaction{}
++		for range fields {
++			var key []byte
++			key, data, err = msgp.ReadMapKeyZC(data)
++			if err != nil {
++				return nil, err
++			}
++			switch string(key) {
++			case "UserId":
++				postReaction.UserId, data, err = msgp.ReadStringBytes(data)
++			case "PostId":
++				postReaction.PostId, data, err = msgp.ReadStringBytes(data)
++			case "EmojiName":
++				postReaction.EmojiName, data, err = msgp.ReadStringBytes(data)
++			case "CreateAt":
++				postReaction.CreateAt, data, err = msgp.ReadInt64Bytes(data)
++			case "UpdateAt":
++				postReaction.UpdateAt, data, err = msgp.ReadInt64Bytes(data)
++			case "DeleteAt":
++				postReaction.DeleteAt, data, err = msgp.ReadInt64Bytes(data)
++			case "ChannelId":
++				postReaction.ChannelId, data, err = msgp.ReadStringBytes(data)
++			case "RemoteId":
++				if msgp.IsNil(data) {
++					data, err = msgp.ReadNilBytes(data)
++					postReaction.RemoteId = nil
++				} else {
++					var remoteID string
++					remoteID, data, err = msgp.ReadStringBytes(data)
++					postReaction.RemoteId = &remoteID
++				}
++			default:
++				return nil, fmt.Errorf("unrecognized reaction cache field %q", key)
++			}
++			if err != nil {
++				return nil, err
++			}
++		}
++		result[i] = postReaction
++	}
++	*r = result
++	return data, nil
++}
+diff --git a/server/channels/store/localcachelayer/reaction_cache_test.go b/server/channels/store/localcachelayer/reaction_cache_test.go
+new file mode 100644
+index 000000000000..f65de68ee255
+--- /dev/null
++++ b/server/channels/store/localcachelayer/reaction_cache_test.go
+@@ -0,0 +1,173 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++package localcachelayer
++
++import (
++	"fmt"
++	"math"
++	"os"
++	"testing"
++
++	"github.com/stretchr/testify/require"
++	"github.com/tinylib/msgp/msgp"
++	"github.com/vmihailenco/msgpack/v5"
++
++	"github.com/mattermost/mattermost/server/public/model"
++	"github.com/mattermost/mattermost/server/public/shared/mlog"
++	"github.com/mattermost/mattermost/server/v8/channels/store/storetest/mocks"
++	"github.com/mattermost/mattermost/server/v8/platform/services/cache"
++)
++
++func reactionCacheFixture() []*model.Reaction {
++	return []*model.Reaction{
++		{UserId: "user", PostId: "post", ChannelId: "channel", EmojiName: "smile", CreateAt: math.MinInt64, UpdateAt: math.MaxInt64, DeleteAt: -1}, nil,
++		{UserId: "remote-user", PostId: "post", ChannelId: "remote-channel", EmojiName: "custom_+", CreateAt: 1, UpdateAt: 2, DeleteAt: 3, RemoteId: new("remote-世界")},
++		{PostId: "post", RemoteId: new("")},
++	}
++}
++
++func TestReactionCacheDecode(t *testing.T) {
++	for _, fixture := range [][]*model.Reaction{nil, {}, {nil}, {{}}, reactionCacheFixture()} {
++		data, err := msgpack.Marshal(fixture)
++		require.NoError(t, err)
++		var decoded cachedReactions
++		rest, err := decoded.UnmarshalMsg(append(data, 0xc0))
++		require.NoError(t, err)
++		require.Equal(t, []byte{0xc0}, rest)
++		require.Equal(t, fixture, []*model.Reaction(decoded))
++		for end := range len(data) {
++			_, err = decoded.UnmarshalMsg(data[:end])
++			require.Error(t, err)
++		}
++	}
++	// Reject future fields so a database read supplies the complete model.
++	future, err := msgpack.Marshal([]map[string]any{{"PostId": "post", "FutureField": "value"}})
++	require.NoError(t, err)
++	var decoded cachedReactions
++	_, err = decoded.UnmarshalMsg(future)
++	require.Error(t, err)
++	_, err = decoded.UnmarshalMsg(msgp.AppendArrayHeader(nil, math.MaxUint32))
++	require.Error(t, err)
++}
++
++func TestReactionCacheProviders(t *testing.T) {
++	providers := map[string]cache.Provider{"lru": cache.NewProvider()}
++	if address := os.Getenv("TEST_REDIS_ADDR"); address != "" {
++		redis, err := cache.NewRedisProvider(&cache.RedisOptions{RedisAddr: address, RedisCachePrefix: "reaction-codec-test-" + model.NewId()})
++		require.NoError(t, err)
++		t.Cleanup(func() { require.NoError(t, redis.Close()) })
++		providers["redis"] = redis
++	}
++	for name, provider := range providers {
++		t.Run(name, func(t *testing.T) {
++			c, err := provider.NewCache(&cache.CacheOptions{Size: 16, Name: "reactions"})
++			require.NoError(t, err)
++			t.Cleanup(func() { require.NoError(t, c.Purge()) })
++			for _, fixture := range [][]*model.Reaction{nil, {}, {nil}, reactionCacheFixture()} {
++				require.NoError(t, c.SetWithDefaultExpiry("post", fixture))
++				var ordinary []*model.Reaction
++				require.NoError(t, c.Get("post", &ordinary))
++				var decoded cachedReactions
++				require.NoError(t, c.Get("post", &decoded))
++				require.Equal(t, ordinary, []*model.Reaction(decoded))
++				if len(decoded) > 1 {
++					decoded[0].EmojiName = "changed"
++					*decoded[2].RemoteId = "changed"
++					var again cachedReactions
++					require.NoError(t, c.Get("post", &again))
++					require.Equal(t, fixture, []*model.Reaction(again))
++				}
++			}
++		})
++	}
++}
++
++func TestReactionCacheDecodeFallback(t *testing.T) {
++	for _, bulk := range []bool{false, true} {
++		t.Run(fmt.Sprintf("bulk=%t", bulk), func(t *testing.T) {
++			c := cache.NewLRU(&cache.CacheOptions{Size: 8})
++			require.NoError(t, c.SetWithDefaultExpiry("post", []map[string]any{{"FutureField": "value"}}))
++			base := &mocks.ReactionStore{}
++			fixture := reactionCacheFixture()
++			layer := LocalCacheReactionStore{ReactionStore: base, rootStore: &LocalCacheStore{reactionCache: c, logger: mlog.CreateConsoleTestLogger(t)}}
++			if bulk {
++				base.On("GetForPosts", []string{"post"}, false).Return(map[string][]*model.Reaction{"post": fixture}, nil).Once()
++				for range 2 {
++					result, err := layer.GetForPosts([]string{"post"}, true)
++					require.NoError(t, err)
++					require.Equal(t, fixture, result["post"])
++				}
++			} else {
++				base.On("GetForPost", "post", false).Return(fixture, nil).Once()
++				for range 2 {
++					result, err := layer.GetForPost("post", true)
++					require.NoError(t, err)
++					require.Equal(t, fixture, result)
++				}
++			}
++			base.AssertExpectations(t)
++		})
++	}
++}
++
++func FuzzReactionCacheDecode(f *testing.F) {
++	for _, fixture := range [][]*model.Reaction{nil, {}, {nil}, reactionCacheFixture()} {
++		data, err := msgpack.Marshal(fixture)
++		if err != nil {
++			f.Fatal(err)
++		}
++		f.Add(data)
++	}
++	f.Fuzz(func(t *testing.T, data []byte) {
++		var decoded cachedReactions
++		rest, err := decoded.UnmarshalMsg(data)
++		if err != nil {
++			return
++		}
++		var ordinary []*model.Reaction
++		require.NoError(t, msgpack.Unmarshal(data[:len(data)-len(rest)], &ordinary))
++		require.Equal(t, ordinary, []*model.Reaction(decoded))
++	})
++}
++
++func BenchmarkReactionCacheRead(b *testing.B) {
++	for _, posts := range []int{1, 60} {
++		b.Run(fmt.Sprintf("posts=%d", posts), func(b *testing.B) {
++			c := cache.NewLRU(&cache.CacheOptions{Size: 128})
++			layer := LocalCacheReactionStore{rootStore: &LocalCacheStore{reactionCache: c}}
++			ids := make([]string, posts)
++			for i := range ids {
++				ids[i] = fmt.Sprint(i)
++				reactions := []*model.Reaction{
++					{PostId: ids[i], UserId: "user", ChannelId: "channel", EmojiName: "smile", RemoteId: new("")},
++					{PostId: ids[i], UserId: "user", ChannelId: "channel", EmojiName: "heart", RemoteId: new("")},
++					{PostId: ids[i], UserId: "user", ChannelId: "channel", EmojiName: "tada", RemoteId: new("remote")},
++				}
++				if err := c.SetWithDefaultExpiry(ids[i], reactions); err != nil {
++					b.Fatal(err)
++				}
++			}
++			b.ReportAllocs()
++			b.ResetTimer()
++			for range b.N {
++				if posts == 1 {
++					result, err := layer.GetForPost(ids[0], true)
++					if err != nil || len(result) != 3 || *result[2].RemoteId != "remote" {
++						b.Fatal("incorrect cached reactions", err)
++					}
++				} else {
++					result, err := layer.GetForPosts(ids, true)
++					if err != nil || len(result) != posts {
++						b.Fatal("incorrect cached page", err)
++					}
++					for _, id := range ids {
++						if len(result[id]) != 3 || result[id][0].PostId != id || *result[id][2].RemoteId != "remote" {
++							b.Fatal("incorrect cached reactions")
++						}
++					}
++				}
++			}
++		})
++	}
++}
+diff --git a/server/channels/store/localcachelayer/reaction_layer.go b/server/channels/store/localcachelayer/reaction_layer.go
+index f2e371568ef2..742c261c046f 100644
+--- a/server/channels/store/localcachelayer/reaction_layer.go
++++ b/server/channels/store/localcachelayer/reaction_layer.go
+@@ -39,9 +39,9 @@ func (s LocalCacheReactionStore) GetForPost(postId string, allowFromCache bool)
+ 		return s.ReactionStore.GetForPost(postId, false)
+ 	}
+ 
+-	var reaction []*model.Reaction
+-	if err := s.rootStore.doStandardReadCache(s.rootStore.reactionCache, postId, &reaction); err == nil {
+-		return reaction, nil
++	var cached cachedReactions
++	if err := s.rootStore.doStandardReadCache(s.rootStore.reactionCache, postId, &cached); err == nil {
++		return []*model.Reaction(cached), nil
+ 	}
+ 
+ 	reaction, err := s.ReactionStore.GetForPost(postId, false)
+@@ -65,10 +65,10 @@ func (s LocalCacheReactionStore) GetForPosts(postIDs []string, allowFromCache bo
+ 		if _, ok := result[id]; ok {
+ 			continue
+ 		}
+-		var reactions []*model.Reaction
++		var cached cachedReactions
+ 		result[id] = nil
+-		if err := s.rootStore.doStandardReadCache(s.rootStore.reactionCache, id, &reactions); err == nil {
+-			result[id] = reactions
++		if err := s.rootStore.doStandardReadCache(s.rootStore.reactionCache, id, &cached); err == nil {
++			result[id] = []*model.Reaction(cached)
+ 		} else {
+ 			missing = append(missing, id)
+ 		}

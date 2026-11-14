@@ -1,0 +1,205 @@
+{
+  "status": "passed",
+  "suite": "cache",
+  "method": "Alternating-order paired processes. Go overlay restores only reaction_layer.go for baseline; identical cache writes, SQL, fixtures and output validation in both variants. Cache suite reads populated LRU entries with three reactions per post. History suite uses real stored ordered pages, three standard reactions per post, default priority and acknowledgement reads, and output validation. Cold purges outside the timer. Excludes HTTP and frontend execution.",
+  "baseline_workspace_sha": "1b0e20638d72edcd5532efa371e75c7506dfdbad",
+  "current_workspace_sha": "c2d3a747ca94a34d7013c5adea854b25a4182508",
+  "source_sha256": {
+    "server/channels/store/localcachelayer/reaction_layer.go": {
+      "before": "68d7686c9358b59232384a75784270452525ad55e9dd1357c0c174d9715a201c",
+      "after": "48630519bf55908c4da0a9412b5a84dd0166e57316f3680df62a1fc07979d0d4"
+    },
+    "server/channels/store/localcachelayer/reaction_cache.go": "09ef68d093bb15dad902c2130512154ad82dcec222cb812c2082eb2092e7aba1",
+    "server/channels/store/localcachelayer/reaction_cache_test.go": "4f993de9c0f7c8552ff61b8f1e725d6a62912b142846b201bb6cae16b8ceb5de",
+    "server/channels/app/post_reaction_batch_test.go": "d81c58dfae1cc493656ad41300f2b41e03e2f6a45e3ca55d75ad4efb96201ab8"
+  },
+  "environment": {
+    "platform": "Linux-6.18.55-cachyos-x86_64-with-glibc2.44",
+    "go": "go version go1.26.10 linux/amd64",
+    "cpu": "13th Gen Intel(R) Core(TM) i7-1355U"
+  },
+  "settings": {
+    "trials": 3,
+    "duration": "1s",
+    "package": "./channels/store/localcachelayer",
+    "benchmark": "BenchmarkReactionCacheRead"
+  },
+  "samples": [
+    {
+      "trial": 0,
+      "variant": "before",
+      "benchmarks": [
+        {
+          "name": "posts=1",
+          "iterations": 659496,
+          "ns_per_op": 1811.0,
+          "bytes_per_op": 592.0,
+          "allocations_per_op": 23.0,
+          "raw": "BenchmarkReactionCacheRead/posts=1-4         \t  659496\t      1811 ns/op\t     592 B/op\t      23 allocs/op"
+        },
+        {
+          "name": "posts=60",
+          "iterations": 10000,
+          "ns_per_op": 117933.0,
+          "bytes_per_op": 42408.0,
+          "allocations_per_op": 1535.0,
+          "raw": "BenchmarkReactionCacheRead/posts=60-4        \t   10000\t    117933 ns/op\t   42408 B/op\t    1535 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "benchmarks": [
+        {
+          "name": "posts=1",
+          "iterations": 2677064,
+          "ns_per_op": 439.8,
+          "bytes_per_op": 448.0,
+          "allocations_per_op": 18.0,
+          "raw": "BenchmarkReactionCacheRead/posts=1-4         \t 2677064\t       439.8 ns/op\t     448 B/op\t      18 allocs/op"
+        },
+        {
+          "name": "posts=60",
+          "iterations": 34938,
+          "ns_per_op": 34247.0,
+          "bytes_per_op": 33768.0,
+          "allocations_per_op": 1235.0,
+          "raw": "BenchmarkReactionCacheRead/posts=60-4        \t   34938\t     34247 ns/op\t   33768 B/op\t    1235 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "benchmarks": [
+        {
+          "name": "posts=1",
+          "iterations": 2629244,
+          "ns_per_op": 441.2,
+          "bytes_per_op": 448.0,
+          "allocations_per_op": 18.0,
+          "raw": "BenchmarkReactionCacheRead/posts=1-4         \t 2629244\t       441.2 ns/op\t     448 B/op\t      18 allocs/op"
+        },
+        {
+          "name": "posts=60",
+          "iterations": 32701,
+          "ns_per_op": 34996.0,
+          "bytes_per_op": 33768.0,
+          "allocations_per_op": 1235.0,
+          "raw": "BenchmarkReactionCacheRead/posts=60-4        \t   32701\t     34996 ns/op\t   33768 B/op\t    1235 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "benchmarks": [
+        {
+          "name": "posts=1",
+          "iterations": 547165,
+          "ns_per_op": 1863.0,
+          "bytes_per_op": 592.0,
+          "allocations_per_op": 23.0,
+          "raw": "BenchmarkReactionCacheRead/posts=1-4         \t  547165\t      1863 ns/op\t     592 B/op\t      23 allocs/op"
+        },
+        {
+          "name": "posts=60",
+          "iterations": 9925,
+          "ns_per_op": 120080.0,
+          "bytes_per_op": 42408.0,
+          "allocations_per_op": 1535.0,
+          "raw": "BenchmarkReactionCacheRead/posts=60-4        \t    9925\t    120080 ns/op\t   42408 B/op\t    1535 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "benchmarks": [
+        {
+          "name": "posts=1",
+          "iterations": 681387,
+          "ns_per_op": 1848.0,
+          "bytes_per_op": 592.0,
+          "allocations_per_op": 23.0,
+          "raw": "BenchmarkReactionCacheRead/posts=1-4         \t  681387\t      1848 ns/op\t     592 B/op\t      23 allocs/op"
+        },
+        {
+          "name": "posts=60",
+          "iterations": 10000,
+          "ns_per_op": 120568.0,
+          "bytes_per_op": 42408.0,
+          "allocations_per_op": 1535.0,
+          "raw": "BenchmarkReactionCacheRead/posts=60-4        \t   10000\t    120568 ns/op\t   42408 B/op\t    1535 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "benchmarks": [
+        {
+          "name": "posts=1",
+          "iterations": 2583085,
+          "ns_per_op": 459.6,
+          "bytes_per_op": 448.0,
+          "allocations_per_op": 18.0,
+          "raw": "BenchmarkReactionCacheRead/posts=1-4         \t 2583085\t       459.6 ns/op\t     448 B/op\t      18 allocs/op"
+        },
+        {
+          "name": "posts=60",
+          "iterations": 32892,
+          "ns_per_op": 35069.0,
+          "bytes_per_op": 33768.0,
+          "allocations_per_op": 1235.0,
+          "raw": "BenchmarkReactionCacheRead/posts=60-4        \t   32892\t     35069 ns/op\t   33768 B/op\t    1235 allocs/op"
+        }
+      ]
+    }
+  ],
+  "summary": [
+    {
+      "name": "posts=1",
+      "before": {
+        "ns_per_op": 1848.0,
+        "bytes_per_op": 592.0,
+        "allocations_per_op": 23.0,
+        "ns_per_op_range": [
+          1811.0,
+          1863.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 441.2,
+        "bytes_per_op": 448.0,
+        "allocations_per_op": 18.0,
+        "ns_per_op_range": [
+          439.8,
+          459.6
+        ]
+      }
+    },
+    {
+      "name": "posts=60",
+      "before": {
+        "ns_per_op": 120080.0,
+        "bytes_per_op": 42408.0,
+        "allocations_per_op": 1535.0,
+        "ns_per_op_range": [
+          117933.0,
+          120568.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 34996.0,
+        "bytes_per_op": 33768.0,
+        "allocations_per_op": 1235.0,
+        "ns_per_op_range": [
+          34247.0,
+          35069.0
+        ]
+      }
+    }
+  ]
+}

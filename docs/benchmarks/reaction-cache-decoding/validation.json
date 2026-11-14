@@ -1,0 +1,100 @@
+{
+  "status": "passed",
+  "source_workspace_sha": "c2d3a747ca94a34d7013c5adea854b25a4182508",
+  "race_suites": {
+    "localcachelayer": {
+      "pass_events": 37,
+      "fail_events": 0,
+      "skip_events": 0
+    },
+    "api4": {
+      "pass_events": 55,
+      "fail_events": 0,
+      "skip_events": 0
+    },
+    "app": {
+      "pass_events": 62,
+      "fail_events": 0,
+      "skip_events": 0
+    }
+  },
+  "counting": "Go parent/subtest events; excludes package summaries.",
+  "command": "go test -race -p 2 ./channels/store/localcachelayer ./channels/app ./channels/api4 -run '^(TestReactionStore|TestReactionStoreCache|TestReactionBulkCache|TestReactionCacheDecode|TestReactionCacheProviders|TestReactionCacheDecodeFallback|TestPrepareReactionHistory|TestReactionHistoryHiddenAndEmpty|TestPreparePostListForClient|TestPreparePostForClient|TestGetReactions|TestSaveReaction|TestDeleteReaction|TestGetPostsForChannel|TestGetPostThread|TestGetPostsByIds)$' -count=1 -timeout=15m -json",
+  "environment": {
+    "TEST_REDIS_ADDR": "127.0.0.1:6379",
+    "GOMAXPROCS": "4",
+    "GOFLAGS": "-p=2",
+    "database": "Disposable PostgreSQL 17 test service; TEST_DATABASE_POSTGRESQL_DSN set."
+  },
+  "fuzz": {
+    "status": "passed",
+    "command": "go test ./channels/store/localcachelayer -run '^$' -fuzz '^FuzzReactionCacheDecode$' -fuzztime=15s -parallel=2 -timeout=2m -json",
+    "executions": 80637,
+    "comparison": "Every accepted value must equal ordinary msgpack decoding of the consumed prefix. Seeds cover nil, empty, nil elements, remote IDs and timestamp extremes.",
+    "scope": "Short differential fuzz run, not exhaustive input coverage."
+  },
+  "patch_check": {
+    "status": "passed",
+    "command": "just check",
+    "patches": 41,
+    "inherited_patches_byte_identical": 40,
+    "base_root_sha": "267f8f7"
+  },
+  "backend_build": {
+    "status": "passed",
+    "source_workspace_sha": "c2d3a747ca94a34d7013c5adea854b25a4182508",
+    "binary_sha256": "1350adb030d38ebbe4eafea9a356c27b0ae96ee4b423b92edfe914ec0ed84445",
+    "build_tags": "production",
+    "forbidden_build_tags": false,
+    "enterprise_symbols": false,
+    "build_enterprise_ready": "false",
+    "build_number": "12.0.2-1.reaction-codec",
+    "scope": "Public server command build and exclusion gates, not a full frontend/release packaging run.",
+    "command": [
+      "go",
+      "build",
+      "-tags",
+      "production",
+      "-ldflags",
+      "-X github.com/mattermost/mattermost/server/public/model.BuildNumber=12.0.2-1.reaction-codec -X github.com/mattermost/mattermost/server/public/model.BuildEnterpriseReady=false",
+      "-o",
+      "/tmp/mattermax-reaction-codec-server",
+      "./cmd/mattermost"
+    ],
+    "environment": {
+      "GOFLAGS": "-p=2 -buildvcs=false",
+      "GOMAXPROCS": "4",
+      "go_work_modules": [
+        ".",
+        "./public"
+      ],
+      "symbol_check": "Matching SDK standard cmd/nm via temporary GOROOT, same gates as scripts/build-release.sh."
+    }
+  },
+  "private_log_sha256": {
+    "reaction-codec-race.jsonl": "324f72976ecf25003dbc4e2fe179ae609003de0b3345aeec652b7cdc17265e26",
+    "reaction-codec-fuzz.jsonl": "22a5dab331bf4f7839b36b77c6a952eccb3d5ec7cfe650642abcc239a812c655",
+    "reaction-codec-patch-check.log": "e103c562f1b1638e4164535b65b13026325c332358e7adcb7ff5677c02737c38",
+    "reaction-codec-patch-check-final.log": "e103c562f1b1638e4164535b65b13026325c332358e7adcb7ff5677c02737c38"
+  },
+  "source_tree_sha": "277497d2525b412cccab6500a64502bd2e3b7371",
+  "final_patch": {
+    "source_workspace_sha": "0a71564addf6e0633b298aef091186faec80eb7e",
+    "source_tree_sha": "37dda1cfbbac8c69701dbecba78b67b18b75a376",
+    "difference_from_measured_revision": "Only test import grouping. Import set and all non-import text are identical; production files are byte-identical.",
+    "changed_paths": [
+      "server/channels/store/localcachelayer/reaction_cache_test.go"
+    ],
+    "test_import_set_equal": true,
+    "test_non_import_text_byte_identical": true,
+    "fresh_cache_race": {
+      "status": "passed",
+      "pass_events": 37,
+      "fail_events": 0,
+      "skip_events": 0,
+      "command": "go test -race ./channels/store/localcachelayer -run '^TestReaction(Cache|Bulk|Store)' -count=1 -timeout=5m -json",
+      "includes_actual_redis": true,
+      "private_log_sha256": "ba5261432b408ab967a8f1f02f99474e85843bd047b88212787fbf5bd16e7269"
+    }
+  }
+}
