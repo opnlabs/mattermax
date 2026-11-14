@@ -1,0 +1,125 @@
+{
+  "status": "passed",
+  "source_workspace_sha": "a2974e86b27f890ead59f0f5bff4b7c1b900bb78",
+  "source_tree_sha": "bb75985b51a751f278416311cc3c9c1049f8b0ca",
+  "baseline_source_sha": "c9dbbcc480b242f7349cb7f4e9dcb6ea35cf6404",
+  "changed_source_files": [
+    "server/channels/store/sqlstore/team_thread_unreads_test.go",
+    "server/channels/store/sqlstore/thread_store.go"
+  ],
+  "tests": [
+    {
+      "name": "store",
+      "status": "passed",
+      "command": [
+        "go",
+        "test",
+        "-race",
+        "./channels/store/sqlstore",
+        "-run",
+        "^(TestTeamThreadUnreadAggregation|TestThreadStore)$",
+        "-bench",
+        "^BenchmarkTeamThreadUnreadAggregation$",
+        "-benchtime=20x",
+        "-count=1",
+        "-timeout=15m",
+        "-json"
+      ],
+      "source_workspace_sha": "a2974e86b27f890ead59f0f5bff4b7c1b900bb78",
+      "production_file_sha256": "64ee6429696b1dd39f8dc8b3dc696ba5278cffa535c1db4e087c59c3e350299d",
+      "counts": {
+        "pass": 85,
+        "fail": 0,
+        "skip": 0
+      },
+      "benchmark_execution_cases": 12,
+      "private_log_sha256": "0028b6041d2d55a75fbe56803e116b01db4c36342a1ffde7b4a3150901036bc3"
+    },
+    {
+      "name": "api",
+      "status": "passed",
+      "command": [
+        "go",
+        "test",
+        "-race",
+        "./channels/api4",
+        "-run",
+        "^(TestGetTeamUnread|TestGetMyTeamsUnread)$",
+        "-count=1",
+        "-timeout=10m",
+        "-json"
+      ],
+      "source_workspace_sha": "a2974e86b27f890ead59f0f5bff4b7c1b900bb78",
+      "production_file_sha256": "64ee6429696b1dd39f8dc8b3dc696ba5278cffa535c1db4e087c59c3e350299d",
+      "counts": {
+        "pass": 2,
+        "fail": 0,
+        "skip": 0
+      },
+      "benchmark_execution_cases": 0,
+      "private_log_sha256": "9a2a932b22431abbb8d275fac1e1b28dd295e83f89f328a5a1e025148207c3d9"
+    },
+    {
+      "name": "baseline",
+      "status": "passed",
+      "command": [
+        "go",
+        "test",
+        "-race",
+        "./channels/store/sqlstore",
+        "-run",
+        "^TestTeamThreadUnreadAggregation$",
+        "-count=1",
+        "-timeout=5m",
+        "-overlay",
+        "/home/rhnvrm/.bb/thread-storage/thr_jynvcygccx/team-thread-unreads-baseline-overlay.json",
+        "-json"
+      ],
+      "source_workspace_sha": "a2974e86b27f890ead59f0f5bff4b7c1b900bb78",
+      "production_file_sha256": "d0fc1c28f67706250968abd4f221dcefb295b5e2bfbf87e94599e751dade3218",
+      "counts": {
+        "pass": 4,
+        "fail": 0,
+        "skip": 0
+      },
+      "benchmark_execution_cases": 0,
+      "private_log_sha256": "3fe5e68e43c79ebf16a7537c5a159a70860f194e5c9d6dcf5f9541fdddbb8a12"
+    }
+  ],
+  "backend_build": {
+    "status": "passed",
+    "source_workspace_sha": "a2974e86b27f890ead59f0f5bff4b7c1b900bb78",
+    "command": [
+      "go",
+      "build",
+      "-tags",
+      "production",
+      "-ldflags",
+      "-X github.com/mattermost/mattermost/server/public/model.BuildNumber=12.0.2-1.team-thread-unreads -X github.com/mattermost/mattermost/server/public/model.BuildHash=a2974e86b27f890ead59f0f5bff4b7c1b900bb78 -X github.com/mattermost/mattermost/server/public/model.BuildEnterpriseReady=false",
+      "-o",
+      "/tmp/mattermax-team-thread-unreads-server",
+      "./cmd/mattermost"
+    ],
+    "build_tags": "production",
+    "forbidden_build_tags": false,
+    "enterprise_symbols_found": false,
+    "binary_sha256": "594b7a6c838a3c851431234aad288d5a796658729eab656d1ff57cc2b4306faa",
+    "private_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "scope": "Public backend only. No branded frontend/package rebuild, deployment or production load test.",
+    "symbol_tool": "Matching standard SDK cmd/nm via temporary GOROOT; same exclusion criteria as scripts/build-release.sh."
+  },
+  "patches": {
+    "status": "passed",
+    "total": 39,
+    "original_patch_files_byte_identical": 38,
+    "private_log_sha256": "beab570c027102ef1d8f465f5ae4c7fddbaa4ffc1d552cde44f3454b15df802a"
+  },
+  "correctness_scope": "Counts/maps match the old implementation for characterized edge cases. Existing complete thread-store suite and two unread API suites pass. Not complete API equivalence.",
+  "join_cardinality": "Public migration 97 declares PostsPriority.PostId a primary key, so the left join does not multiply thread/membership rows.",
+  "limits": [
+    "Measurements are SQL-store calls on local PostgreSQL with an eight-connection pool, not HTTP endpoint latency or production capacity.",
+    "Parallel ns/op is amortized wall time per completed operation, not per-request latency.",
+    "Full branded packaging, browser flows and production load testing were not run."
+  ],
+  "authorship": "All 38 inherited patches remain byte-identical, preserving existing authorship including @mr-karan."
+}

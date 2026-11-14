@@ -1,0 +1,361 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: rhnvrm <hello@rohanverma.net>
+Date: Sat, 14 Nov 2026 20:28:14 +0530
+Subject: [PATCH] perf: aggregate team thread unread counts in one query
+
+Compute unread threads, mentions and optional urgent mentions together, preserving membership filtering and zero-valued team groups.
+
+Mattermax-Patch: team-thread-unread-aggregation.patch
+---
+ .../sqlstore/team_thread_unreads_test.go      | 191 ++++++++++++++++++
+ .../channels/store/sqlstore/thread_store.go   | 129 ++++--------
+ 2 files changed, 225 insertions(+), 95 deletions(-)
+ create mode 100644 server/channels/store/sqlstore/team_thread_unreads_test.go
+
+diff --git a/server/channels/store/sqlstore/team_thread_unreads_test.go b/server/channels/store/sqlstore/team_thread_unreads_test.go
+new file mode 100644
+index 000000000000..7561cd0d4d97
+--- /dev/null
++++ b/server/channels/store/sqlstore/team_thread_unreads_test.go
+@@ -0,0 +1,191 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++package sqlstore
++
++import (
++	"fmt"
++	"testing"
++
++	"github.com/mattermost/mattermost/server/public/model"
++	"github.com/mattermost/mattermost/server/public/shared/request"
++	"github.com/mattermost/mattermost/server/v8/channels/store"
++	"github.com/mattermost/mattermost/server/v8/channels/store/storetest"
++	"github.com/stretchr/testify/require"
++)
++
++func TestTeamThreadUnreadAggregation(t *testing.T) {
++	StoreTestWithSqlStore(t, func(t *testing.T, rctx request.CTX, ss store.Store, db storetest.SqlStore) {
++		user, otherUser := model.NewId(), model.NewId()
++		teamA, teamB, teamAbsent := model.NewId(), model.NewId(), model.NewId()
++		channelA, channelB, missingChannel, dmChannel := model.NewId(), model.NewId(), model.NewId(), model.NewId()
++		var ids []string
++		t.Cleanup(func() {
++			for _, id := range ids {
++				_, err := db.GetMaster().Exec("DELETE FROM PostsPriority WHERE PostId = ?", id)
++				require.NoError(t, err)
++				_, err = db.GetMaster().Exec("DELETE FROM ThreadMemberships WHERE PostId = ?", id)
++				require.NoError(t, err)
++				_, err = db.GetMaster().Exec("DELETE FROM Threads WHERE PostId = ?", id)
++				require.NoError(t, err)
++			}
++			_, err := db.GetMaster().Exec("DELETE FROM ChannelMembers WHERE UserId IN (?, ?)", user, otherUser)
++			require.NoError(t, err)
++		})
++		for _, channel := range []string{channelA, channelB} {
++			_, err := db.GetMaster().Exec("INSERT INTO ChannelMembers (ChannelId,UserId) VALUES (?, ?)", channel, user)
++			require.NoError(t, err)
++		}
++		add := func(team any, channel string, lastReply, lastViewed, mentions, deleted, following any, urgent bool) string {
++			t.Helper()
++			id := model.NewId()
++			ids = append(ids, id)
++			_, err := db.GetMaster().Exec("INSERT INTO Threads (PostId,ChannelId,ThreadTeamId,LastReplyAt,ThreadDeleteAt) VALUES (?,?,?,?,?)", id, channel, team, lastReply, deleted)
++			require.NoError(t, err)
++			_, err = db.GetMaster().Exec("INSERT INTO ThreadMemberships (PostId,UserId,Following,LastViewed,UnreadMentions) VALUES (?,?,?,?,?)", id, user, following, lastViewed, mentions)
++			require.NoError(t, err)
++			if urgent {
++				_, err = db.GetMaster().Exec("INSERT INTO PostsPriority (PostId,ChannelId,Priority) VALUES (?,?,?)", id, channel, model.PostPriorityUrgent)
++				require.NoError(t, err)
++			}
++			return id
++		}
++		first := add(teamA, channelA, 100, 0, 2, 0, true, true)
++		add(teamA, channelA, 100, 100, 3, 0, true, false)
++		add(teamA, channelA, 100, 0, 7, 0, false, true)
++		add(teamA, channelA, 100, 0, 11, 1, true, true)
++		add(teamA, missingChannel, 100, 0, 13, 0, true, true)
++		add(teamA, channelA, nil, 0, nil, nil, true, false)
++		add(teamA, channelA, 100, nil, 4, 0, true, true)
++		add(teamA, channelA, 100, 0, 17, 0, nil, true)
++		add(teamB, channelB, 100, 100, nil, 0, true, false)
++		add(teamB, channelB, 100, 0, -3, 0, true, true)
++		add("", dmChannel, 100, 0, 1, 0, true, true)
++		add(nil, channelA, 100, 0, 19, 0, true, true)
++		_, err := db.GetMaster().Exec("INSERT INTO ThreadMemberships (PostId,UserId,Following,LastViewed,UnreadMentions) VALUES (?,?,true,0,100)", first, otherUser)
++		require.NoError(t, err)
++		orphan := model.NewId()
++		ids = append(ids, orphan)
++		_, err = db.GetMaster().Exec("INSERT INTO ThreadMemberships (PostId,UserId,Following,LastViewed,UnreadMentions) VALUES (?,?,true,0,100)", orphan, user)
++		require.NoError(t, err)
++		for _, urgent := range []bool{false, true} {
++			t.Run(fmt.Sprintf("urgent=%t", urgent), func(t *testing.T) {
++				expected := map[string]*model.TeamUnread{
++					teamA: {ThreadCount: 1, ThreadMentionCount: 9},
++					teamB: {ThreadCount: 1, ThreadMentionCount: -3},
++					"":    {ThreadCount: 1, ThreadMentionCount: 1},
++				}
++				if urgent {
++					expected[teamA].ThreadUrgentMentionCount = 6
++					expected[teamB].ThreadUrgentMentionCount = -3
++					expected[""].ThreadUrgentMentionCount = 1
++				}
++				for _, teams := range [][]string{nil, {}, {teamAbsent}, {teamA}, {teamA, teamB, "", teamA, teamAbsent}} {
++					want := make(map[string]*model.TeamUnread)
++					for _, id := range teams {
++						if value, ok := expected[id]; ok {
++							want[id] = value
++						}
++					}
++					got, err := ss.Thread().GetTeamsUnreadForUser(user, teams, urgent)
++					require.NoError(t, err)
++					require.Equal(t, want, got)
++				}
++			})
++		}
++		// A matching membership still produces a zero-valued group after all rows are read.
++		_, err = db.GetMaster().Exec("UPDATE ThreadMemberships SET LastViewed=200, UnreadMentions=0 WHERE UserId=?", user)
++		require.NoError(t, err)
++		got, err := ss.Thread().GetTeamsUnreadForUser(user, []string{teamA, teamB}, true)
++		require.NoError(t, err)
++		require.Equal(t, map[string]*model.TeamUnread{teamA: {}, teamB: {}}, got)
++	})
++}
++
++func BenchmarkTeamThreadUnreadAggregation(b *testing.B) {
++	for _, st := range storeTypes {
++		b.Run(st.Name, func(b *testing.B) {
++			pool := st.SqlStore.GetReplica().DB()
++			if pool != st.SqlStore.GetMaster().DB() {
++				b.Fatal("benchmark requires one database pool")
++			}
++			oldOpen, oldIdle := pool.Stats().MaxOpenConnections, *st.SqlSettings.MaxIdleConns
++			pool.SetMaxOpenConns(8)
++			pool.SetMaxIdleConns(8)
++			b.Cleanup(func() { pool.SetMaxOpenConns(oldOpen); pool.SetMaxIdleConns(oldIdle) })
++			for _, n := range []int{0, 10, 1000} {
++				b.Run(fmt.Sprintf("threads=%d", n), func(b *testing.B) {
++					user, channel, team, prefix := model.NewId(), model.NewId(), model.NewId(), model.NewId()[:20]
++					exec := func(query string, args ...any) {
++						b.Helper()
++						_, err := st.SqlStore.GetMaster().Exec(query, args...)
++						if err != nil {
++							b.Fatal(err)
++						}
++					}
++					exec("INSERT INTO ChannelMembers (ChannelId,UserId) VALUES (?,?)", channel, user)
++					exec("INSERT INTO Threads (PostId,ChannelId,ThreadTeamId,LastReplyAt,ThreadDeleteAt) SELECT ? || lpad(i::text,6,'0'),?,?,100,0 FROM generate_series(1,?) i", prefix, channel, team, n)
++					exec("INSERT INTO ThreadMemberships (PostId,UserId,Following,LastViewed,UnreadMentions) SELECT PostId,?,true,CASE WHEN right(PostId,6)::int % 2=0 THEN 100 ELSE 0 END,right(PostId,6)::int % 3 FROM Threads WHERE ChannelId=?", user, channel)
++					exec("INSERT INTO PostsPriority (PostId,ChannelId,Priority) SELECT PostId,ChannelId,? FROM Threads WHERE ChannelId=? AND right(PostId,6)::int % 4=0", model.PostPriorityUrgent, channel)
++					b.Cleanup(func() {
++						exec("DELETE FROM PostsPriority WHERE ChannelId=?", channel)
++						exec("DELETE FROM ThreadMemberships WHERE UserId=?", user)
++						exec("DELETE FROM Threads WHERE ChannelId=?", channel)
++						exec("DELETE FROM ChannelMembers WHERE UserId=?", user)
++					})
++					var count, mentions, urgentMentions int64
++					for i := 1; i <= n; i++ {
++						if i%2 != 0 {
++							count++
++						}
++						mentions += int64(i % 3)
++						if i%4 == 0 {
++							urgentMentions += int64(i % 3)
++						}
++					}
++					for _, urgent := range []bool{false, true} {
++						b.Run(fmt.Sprintf("urgent=%t", urgent), func(b *testing.B) {
++							for _, mode := range []string{"serial", "parallel"} {
++								b.Run(mode, func(b *testing.B) {
++									check := func(got map[string]*model.TeamUnread, err error) {
++										if err != nil {
++											b.Fatal(err)
++										}
++										if n == 0 {
++											if got == nil || len(got) != 0 {
++												b.Fatal("incorrect empty map")
++											}
++											return
++										}
++										value := got[team]
++										wantUrgent := int64(0)
++										if urgent {
++											wantUrgent = urgentMentions
++										}
++										if len(got) != 1 || value == nil || value.TeamId != "" || value.ThreadCount != count || value.ThreadMentionCount != mentions || value.ThreadUrgentMentionCount != wantUrgent {
++											b.Fatalf("incorrect counts: %#v", got)
++										}
++									}
++									check(st.Store.Thread().GetTeamsUnreadForUser(user, []string{team}, urgent))
++									b.ReportAllocs()
++									b.ResetTimer()
++									if mode == "serial" {
++										for range b.N {
++											check(st.Store.Thread().GetTeamsUnreadForUser(user, []string{team}, urgent))
++										}
++									} else {
++										b.RunParallel(func(pb *testing.PB) {
++											for pb.Next() {
++												check(st.Store.Thread().GetTeamsUnreadForUser(user, []string{team}, urgent))
++											}
++										})
++									}
++								})
++							}
++						})
++					}
++				})
++			}
++		})
++	}
++}
+diff --git a/server/channels/store/sqlstore/thread_store.go b/server/channels/store/sqlstore/thread_store.go
+index a18afe7e6be1..012d84cd6255 100644
+--- a/server/channels/store/sqlstore/thread_store.go
++++ b/server/channels/store/sqlstore/thread_store.go
+@@ -9,7 +9,6 @@ import (
+ 
+ 	sq "github.com/mattermost/squirrel"
+ 	"github.com/pkg/errors"
+-	"golang.org/x/sync/errgroup"
+ 
+ 	"github.com/mattermost/mattermost/server/public/model"
+ 	"github.com/mattermost/mattermost/server/public/shared/request"
+@@ -411,103 +410,43 @@ func (s *SqlThreadStore) GetThreadsForUser(rctx request.CTX, userId, teamId stri
+ // GetTeamsUnreadForUser returns the total unread threads and unread mentions
+ // for a user from all teams.
+ func (s *SqlThreadStore) GetTeamsUnreadForUser(userID string, teamIDs []string, includeUrgentMentionCount bool) (map[string]*model.TeamUnread, error) {
+-	fetchConditions := sq.And{
+-		sq.Eq{"ThreadMemberships.UserId": userID},
+-		sq.Eq{"ThreadMemberships.Following": true},
+-		sq.Eq{"Threads.ThreadTeamId": teamIDs},
+-		sq.Eq{"COALESCE(Threads.ThreadDeleteAt, 0)": 0},
+-		channelMembershipPredicate(),
+-	}
+-
+-	var eg errgroup.Group
+-
+-	unreadThreads := []struct {
+-		Count  int64
+-		TeamId string
+-	}{}
+-	unreadMentions := []struct {
+-		Count  int64
+-		TeamId string
+-	}{}
+-	unreadUrgentMentions := []struct {
+-		Count  int64
+-		TeamId string
+-	}{}
+-
+-	// Running these concurrently hasn't shown any major downside
+-	// than running them serially. So using a bit of perf boost.
+-	// In any case, they will be replaced by computed columns later.
+-	eg.Go(func() error {
+-		repliesQuery := s.getQueryBuilder().
+-			Select("COUNT(Threads.PostId) AS Count, ThreadTeamId AS TeamId").
+-			From("Threads").
+-			LeftJoin("ThreadMemberships ON Threads.PostId = ThreadMemberships.PostId").
+-			Where(fetchConditions).
+-			Where("Threads.LastReplyAt > ThreadMemberships.LastViewed").
+-			GroupBy("Threads.ThreadTeamId")
+-
+-		return errors.Wrap(s.GetReplica().SelectBuilder(&unreadThreads, repliesQuery), "failed to get total unread threads")
+-	})
+-
+-	eg.Go(func() error {
+-		mentionsQuery := s.getQueryBuilder().
+-			Select("COALESCE(SUM(ThreadMemberships.UnreadMentions),0) AS Count, ThreadTeamId AS TeamId").
+-			From("ThreadMemberships").
+-			LeftJoin("Threads ON Threads.PostId = ThreadMemberships.PostId").
+-			Where(fetchConditions).
+-			GroupBy("Threads.ThreadTeamId")
+-
+-		return errors.Wrap(s.GetReplica().SelectBuilder(&unreadMentions, mentionsQuery), "failed to get total unread mentions")
+-	})
+-
++	query := s.getQueryBuilder().Select(
++		"COUNT(Threads.PostId) FILTER (WHERE Threads.LastReplyAt > ThreadMemberships.LastViewed) AS ThreadCount",
++		"COALESCE(SUM(ThreadMemberships.UnreadMentions), 0) AS ThreadMentionCount",
++		"Threads.ThreadTeamId AS TeamId",
++	).From("ThreadMemberships").
++		Join("Threads ON Threads.PostId = ThreadMemberships.PostId").
++		Where(sq.And{
++			sq.Eq{"ThreadMemberships.UserId": userID},
++			sq.Eq{"ThreadMemberships.Following": true},
++			sq.Eq{"Threads.ThreadTeamId": teamIDs},
++			sq.Eq{"COALESCE(Threads.ThreadDeleteAt, 0)": 0},
++			channelMembershipPredicate(),
++		}).GroupBy("Threads.ThreadTeamId")
+ 	if includeUrgentMentionCount {
+-		eg.Go(func() error {
+-			urgentMentionsQuery := s.getQueryBuilder().
+-				Select("COALESCE(SUM(ThreadMemberships.UnreadMentions),0) AS Count, ThreadTeamId AS TeamId").
+-				From("ThreadMemberships").
+-				LeftJoin("Threads ON Threads.PostId = ThreadMemberships.PostId").
+-				Join("PostsPriority ON PostsPriority.PostId = ThreadMemberships.PostId").
+-				Where(sq.Eq{"PostsPriority.Priority": model.PostPriorityUrgent}).
+-				Where(fetchConditions).
+-				GroupBy("Threads.ThreadTeamId")
+-
+-			return errors.Wrap(s.GetReplica().SelectBuilder(&unreadUrgentMentions, urgentMentionsQuery), "failed to get total unread urgent mentions")
+-		})
+-	}
+-
+-	// Wait for them to be over
+-	if err := eg.Wait(); err != nil {
+-		return nil, err
+-	}
+-
+-	res := make(map[string]*model.TeamUnread)
+-	// A bit of linear complexity here to create and return the map.
+-	// This makes it easy to consume the output in the app layer.
+-	for _, item := range unreadThreads {
+-		res[item.TeamId] = &model.TeamUnread{
+-			ThreadCount: item.Count,
+-		}
+-	}
+-	for _, item := range unreadMentions {
+-		if _, ok := res[item.TeamId]; ok {
+-			res[item.TeamId].ThreadMentionCount = item.Count
+-		} else {
+-			res[item.TeamId] = &model.TeamUnread{
+-				ThreadMentionCount: item.Count,
+-			}
+-		}
+-	}
+-	for _, item := range unreadUrgentMentions {
+-		if _, ok := res[item.TeamId]; ok {
+-			res[item.TeamId].ThreadUrgentMentionCount = item.Count
+-		} else {
+-			res[item.TeamId] = &model.TeamUnread{
+-				ThreadUrgentMentionCount: item.Count,
+-			}
++		query = query.LeftJoin("PostsPriority ON PostsPriority.PostId = ThreadMemberships.PostId").
++			Column("COALESCE(SUM(CASE WHEN PostsPriority.Priority = ? THEN ThreadMemberships.UnreadMentions ELSE 0 END), 0) AS ThreadUrgentMentionCount", model.PostPriorityUrgent)
++	} else {
++		query = query.Column("0 AS ThreadUrgentMentionCount")
++	}
++	var rows []struct {
++		TeamId                   string
++		ThreadCount              int64
++		ThreadMentionCount       int64
++		ThreadUrgentMentionCount int64
++	}
++	if err := s.GetReplica().SelectBuilder(&rows, query); err != nil {
++		return nil, errors.Wrap(err, "failed to get total unread threads")
++	}
++	result := make(map[string]*model.TeamUnread, len(rows))
++	for _, row := range rows {
++		result[row.TeamId] = &model.TeamUnread{
++			ThreadCount:              row.ThreadCount,
++			ThreadMentionCount:       row.ThreadMentionCount,
++			ThreadUrgentMentionCount: row.ThreadUrgentMentionCount,
+ 		}
+ 	}
+-
+-	return res, nil
++	return result, nil
+ }
+ 
+ func (s *SqlThreadStore) GetThreadFollowers(threadID string, fetchOnlyActive bool) ([]string, error) {
