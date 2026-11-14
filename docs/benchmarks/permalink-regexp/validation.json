@@ -1,0 +1,44 @@
+{
+  "status": "passed",
+  "source_sha": "e06a7cef78e9973ece9b8834b32f4e9452956d40",
+  "tests": [
+    {
+      "command": "go test -race ./channels/app -run '^(TestPermalinkPathBoundaries|TestLooksLikeAPermalink|TestContainsPermalink|TestGetImagesForPost|TestPreparePostForClientWithImageProxy)$' -count=1 -timeout=10m -json",
+      "status": "passed",
+      "counts": {
+        "pass": 47
+      },
+      "private_log_sha256": "3b8a17289c9d2790fd2bd1e90ec7115a37f7d723d27b5b05d53c05ad6fe39b03"
+    },
+    {
+      "command": "go test -race ./channels/app -run '^(TestPreparePostForClient|TestSanitizePostMetadataForUser)$/.*permalink' -count=1 -timeout=10m -json",
+      "status": "passed",
+      "counts": {
+        "pass": 15
+      },
+      "private_log_sha256": "76d561cdd09cabe6fcd7be743a6a3022096984a2b6a9c513c3b30556a0871455"
+    }
+  ],
+  "counting": "Go parent and subtest pass events, excluding package summaries.",
+  "total_pass_events": 62,
+  "patch_check": {
+    "command": "just check",
+    "status": "passed",
+    "patches": 39,
+    "original_patches_byte_identical": 38
+  },
+  "limits": [
+    "Selected app race suites, not the full repository test suite.",
+    "Full branded release build not run.",
+    "Benchmark results describe local post preparation, not total server throughput."
+  ],
+  "baseline_boundary_check": {
+    "status": "passed",
+    "counts": {
+      "pass": 17
+    },
+    "baseline_sha": "c9dbbcc480b242f7349cb7f4e9dcb6ea35cf6404",
+    "method": "Same new boundary cases with only post_metadata.go restored to baseline through Go overlay.",
+    "private_log_sha256": "d3a6e083c0507f3fa109d3f0bca553d647bbf3802508433ca124b4d18bdab223"
+  }
+}

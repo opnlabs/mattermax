@@ -1,0 +1,474 @@
+{
+  "status": "passed",
+  "method": "Real App.PreparePostListForClient over 60 stored posts with default priority/acknowledgement reads and explicitly configured SiteURL. Identical benchmark/store code; baseline restores only post_metadata.go through Go overlay. Cases cover plain text, cached images on an external host or the configured site (including a subpath), a same-site non-permalink URL and an actual cached permalink. Link previews are disabled while permalink previews stay enabled. Setup/cache warming are outside timing. Timed loops validate images and permalink targets; image cases reject network fetches during timing. Alternating paired processes.",
+  "baseline_workspace_sha": "c9dbbcc480b242f7349cb7f4e9dcb6ea35cf6404",
+  "current_workspace_sha": "e06a7cef78e9973ece9b8834b32f4e9452956d40",
+  "source_sha256": {
+    "before": "7c1df926962309717a8bbb013c12f9bd18ca1882da213f4346ae370be66340b7",
+    "after": "29d7bc2eec3313f928017592099a61f348b47fa78b374b0f66e6b6bc940a2143",
+    "benchmark_test": "e73b6e69ce16bd5fe4fe977a3635aa0f0739cab16ed3f352324b1b6c2a28b984"
+  },
+  "environment": {
+    "platform": "Linux-6.18.55-cachyos-x86_64-with-glibc2.44",
+    "go": "go version go1.26.10 linux/amd64",
+    "cpu": "13th Gen Intel(R) Core(TM) i7-1355U"
+  },
+  "settings": {
+    "trials": 3,
+    "duration": "1s"
+  },
+  "samples": [
+    {
+      "trial": 0,
+      "variant": "before",
+      "benchmarks": [
+        {
+          "case": "plain",
+          "iterations": 10000,
+          "ns_per_op": 128410.0,
+          "bytes_per_op": 116162.0,
+          "allocations_per_op": 2707.0,
+          "raw": "BenchmarkPermalinkHistory/plain-12         \t   10000\t    128410 ns/op\t  116162 B/op\t    2707 allocs/op"
+        },
+        {
+          "case": "external_image",
+          "iterations": 3669,
+          "ns_per_op": 292579.0,
+          "bytes_per_op": 214268.0,
+          "allocations_per_op": 4087.0,
+          "raw": "BenchmarkPermalinkHistory/external_image-12         \t    3669\t    292579 ns/op\t  214268 B/op\t    4087 allocs/op"
+        },
+        {
+          "case": "same_site_image",
+          "iterations": 558,
+          "ns_per_op": 2075800.0,
+          "bytes_per_op": 4742750.0,
+          "allocations_per_op": 56348.0,
+          "raw": "BenchmarkPermalinkHistory/same_site_image-12        \t     558\t   2075800 ns/op\t 4742750 B/op\t   56348 allocs/op"
+        },
+        {
+          "case": "subpath_image",
+          "iterations": 511,
+          "ns_per_op": 2381186.0,
+          "bytes_per_op": 4747142.0,
+          "allocations_per_op": 56408.0,
+          "raw": "BenchmarkPermalinkHistory/subpath_image-12          \t     511\t   2381186 ns/op\t 4747142 B/op\t   56408 allocs/op"
+        },
+        {
+          "case": "same_site_link",
+          "iterations": 550,
+          "ns_per_op": 2014306.0,
+          "bytes_per_op": 4664338.0,
+          "allocations_per_op": 55087.0,
+          "raw": "BenchmarkPermalinkHistory/same_site_link-12         \t     550\t   2014306 ns/op\t 4664338 B/op\t   55087 allocs/op"
+        },
+        {
+          "case": "permalink",
+          "iterations": 472,
+          "ns_per_op": 2371588.0,
+          "bytes_per_op": 4816932.0,
+          "allocations_per_op": 56948.0,
+          "raw": "BenchmarkPermalinkHistory/permalink-12              \t     472\t   2371588 ns/op\t 4816932 B/op\t   56948 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "benchmarks": [
+        {
+          "case": "plain",
+          "iterations": 8604,
+          "ns_per_op": 130922.0,
+          "bytes_per_op": 116192.0,
+          "allocations_per_op": 2707.0,
+          "raw": "BenchmarkPermalinkHistory/plain-12         \t    8604\t    130922 ns/op\t  116192 B/op\t    2707 allocs/op"
+        },
+        {
+          "case": "external_image",
+          "iterations": 3976,
+          "ns_per_op": 285176.0,
+          "bytes_per_op": 214273.0,
+          "allocations_per_op": 4087.0,
+          "raw": "BenchmarkPermalinkHistory/external_image-12         \t    3976\t    285176 ns/op\t  214273 B/op\t    4087 allocs/op"
+        },
+        {
+          "case": "same_site_image",
+          "iterations": 3452,
+          "ns_per_op": 303523.0,
+          "bytes_per_op": 214178.0,
+          "allocations_per_op": 4087.0,
+          "raw": "BenchmarkPermalinkHistory/same_site_image-12        \t    3452\t    303523 ns/op\t  214178 B/op\t    4087 allocs/op"
+        },
+        {
+          "case": "subpath_image",
+          "iterations": 3794,
+          "ns_per_op": 304516.0,
+          "bytes_per_op": 219420.0,
+          "allocations_per_op": 4147.0,
+          "raw": "BenchmarkPermalinkHistory/subpath_image-12          \t    3794\t    304516 ns/op\t  219420 B/op\t    4147 allocs/op"
+        },
+        {
+          "case": "same_site_link",
+          "iterations": 5984,
+          "ns_per_op": 191080.0,
+          "bytes_per_op": 136816.0,
+          "allocations_per_op": 2827.0,
+          "raw": "BenchmarkPermalinkHistory/same_site_link-12         \t    5984\t    191080 ns/op\t  136816 B/op\t    2827 allocs/op"
+        },
+        {
+          "case": "permalink",
+          "iterations": 2229,
+          "ns_per_op": 541398.0,
+          "bytes_per_op": 289072.0,
+          "allocations_per_op": 4687.0,
+          "raw": "BenchmarkPermalinkHistory/permalink-12              \t    2229\t    541398 ns/op\t  289072 B/op\t    4687 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "benchmarks": [
+        {
+          "case": "plain",
+          "iterations": 8968,
+          "ns_per_op": 127702.0,
+          "bytes_per_op": 116182.0,
+          "allocations_per_op": 2707.0,
+          "raw": "BenchmarkPermalinkHistory/plain-12         \t    8968\t    127702 ns/op\t  116182 B/op\t    2707 allocs/op"
+        },
+        {
+          "case": "external_image",
+          "iterations": 4086,
+          "ns_per_op": 289212.0,
+          "bytes_per_op": 214138.0,
+          "allocations_per_op": 4087.0,
+          "raw": "BenchmarkPermalinkHistory/external_image-12         \t    4086\t    289212 ns/op\t  214138 B/op\t    4087 allocs/op"
+        },
+        {
+          "case": "same_site_image",
+          "iterations": 3516,
+          "ns_per_op": 286887.0,
+          "bytes_per_op": 214142.0,
+          "allocations_per_op": 4087.0,
+          "raw": "BenchmarkPermalinkHistory/same_site_image-12        \t    3516\t    286887 ns/op\t  214142 B/op\t    4087 allocs/op"
+        },
+        {
+          "case": "subpath_image",
+          "iterations": 4202,
+          "ns_per_op": 302774.0,
+          "bytes_per_op": 219467.0,
+          "allocations_per_op": 4147.0,
+          "raw": "BenchmarkPermalinkHistory/subpath_image-12          \t    4202\t    302774 ns/op\t  219467 B/op\t    4147 allocs/op"
+        },
+        {
+          "case": "same_site_link",
+          "iterations": 5889,
+          "ns_per_op": 194959.0,
+          "bytes_per_op": 136855.0,
+          "allocations_per_op": 2827.0,
+          "raw": "BenchmarkPermalinkHistory/same_site_link-12         \t    5889\t    194959 ns/op\t  136855 B/op\t    2827 allocs/op"
+        },
+        {
+          "case": "permalink",
+          "iterations": 2047,
+          "ns_per_op": 541460.0,
+          "bytes_per_op": 289164.0,
+          "allocations_per_op": 4687.0,
+          "raw": "BenchmarkPermalinkHistory/permalink-12              \t    2047\t    541460 ns/op\t  289164 B/op\t    4687 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "benchmarks": [
+        {
+          "case": "plain",
+          "iterations": 10000,
+          "ns_per_op": 126504.0,
+          "bytes_per_op": 116165.0,
+          "allocations_per_op": 2707.0,
+          "raw": "BenchmarkPermalinkHistory/plain-12         \t   10000\t    126504 ns/op\t  116165 B/op\t    2707 allocs/op"
+        },
+        {
+          "case": "external_image",
+          "iterations": 4177,
+          "ns_per_op": 306525.0,
+          "bytes_per_op": 214260.0,
+          "allocations_per_op": 4087.0,
+          "raw": "BenchmarkPermalinkHistory/external_image-12         \t    4177\t    306525 ns/op\t  214260 B/op\t    4087 allocs/op"
+        },
+        {
+          "case": "same_site_image",
+          "iterations": 540,
+          "ns_per_op": 2154158.0,
+          "bytes_per_op": 4742710.0,
+          "allocations_per_op": 56348.0,
+          "raw": "BenchmarkPermalinkHistory/same_site_image-12        \t     540\t   2154158 ns/op\t 4742710 B/op\t   56348 allocs/op"
+        },
+        {
+          "case": "subpath_image",
+          "iterations": 470,
+          "ns_per_op": 2161445.0,
+          "bytes_per_op": 4747867.0,
+          "allocations_per_op": 56408.0,
+          "raw": "BenchmarkPermalinkHistory/subpath_image-12          \t     470\t   2161445 ns/op\t 4747867 B/op\t   56408 allocs/op"
+        },
+        {
+          "case": "same_site_link",
+          "iterations": 534,
+          "ns_per_op": 1955802.0,
+          "bytes_per_op": 4665097.0,
+          "allocations_per_op": 55087.0,
+          "raw": "BenchmarkPermalinkHistory/same_site_link-12         \t     534\t   1955802 ns/op\t 4665097 B/op\t   55087 allocs/op"
+        },
+        {
+          "case": "permalink",
+          "iterations": 457,
+          "ns_per_op": 2432324.0,
+          "bytes_per_op": 4817323.0,
+          "allocations_per_op": 56948.0,
+          "raw": "BenchmarkPermalinkHistory/permalink-12              \t     457\t   2432324 ns/op\t 4817323 B/op\t   56948 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "benchmarks": [
+        {
+          "case": "plain",
+          "iterations": 8569,
+          "ns_per_op": 127816.0,
+          "bytes_per_op": 116218.0,
+          "allocations_per_op": 2707.0,
+          "raw": "BenchmarkPermalinkHistory/plain-12         \t    8569\t    127816 ns/op\t  116218 B/op\t    2707 allocs/op"
+        },
+        {
+          "case": "external_image",
+          "iterations": 3754,
+          "ns_per_op": 289139.0,
+          "bytes_per_op": 214212.0,
+          "allocations_per_op": 4087.0,
+          "raw": "BenchmarkPermalinkHistory/external_image-12         \t    3754\t    289139 ns/op\t  214212 B/op\t    4087 allocs/op"
+        },
+        {
+          "case": "same_site_image",
+          "iterations": 534,
+          "ns_per_op": 2154524.0,
+          "bytes_per_op": 4743187.0,
+          "allocations_per_op": 56348.0,
+          "raw": "BenchmarkPermalinkHistory/same_site_image-12        \t     534\t   2154524 ns/op\t 4743187 B/op\t   56348 allocs/op"
+        },
+        {
+          "case": "subpath_image",
+          "iterations": 555,
+          "ns_per_op": 2183294.0,
+          "bytes_per_op": 4747308.0,
+          "allocations_per_op": 56408.0,
+          "raw": "BenchmarkPermalinkHistory/subpath_image-12          \t     555\t   2183294 ns/op\t 4747308 B/op\t   56408 allocs/op"
+        },
+        {
+          "case": "same_site_link",
+          "iterations": 566,
+          "ns_per_op": 1978562.0,
+          "bytes_per_op": 4664079.0,
+          "allocations_per_op": 55087.0,
+          "raw": "BenchmarkPermalinkHistory/same_site_link-12         \t     566\t   1978562 ns/op\t 4664079 B/op\t   55087 allocs/op"
+        },
+        {
+          "case": "permalink",
+          "iterations": 421,
+          "ns_per_op": 2610634.0,
+          "bytes_per_op": 4816523.0,
+          "allocations_per_op": 56948.0,
+          "raw": "BenchmarkPermalinkHistory/permalink-12              \t     421\t   2610634 ns/op\t 4816523 B/op\t   56948 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "benchmarks": [
+        {
+          "case": "plain",
+          "iterations": 10000,
+          "ns_per_op": 129619.0,
+          "bytes_per_op": 116180.0,
+          "allocations_per_op": 2707.0,
+          "raw": "BenchmarkPermalinkHistory/plain-12         \t   10000\t    129619 ns/op\t  116180 B/op\t    2707 allocs/op"
+        },
+        {
+          "case": "external_image",
+          "iterations": 3681,
+          "ns_per_op": 365485.0,
+          "bytes_per_op": 214196.0,
+          "allocations_per_op": 4087.0,
+          "raw": "BenchmarkPermalinkHistory/external_image-12         \t    3681\t    365485 ns/op\t  214196 B/op\t    4087 allocs/op"
+        },
+        {
+          "case": "same_site_image",
+          "iterations": 3550,
+          "ns_per_op": 296199.0,
+          "bytes_per_op": 214161.0,
+          "allocations_per_op": 4087.0,
+          "raw": "BenchmarkPermalinkHistory/same_site_image-12        \t    3550\t    296199 ns/op\t  214161 B/op\t    4087 allocs/op"
+        },
+        {
+          "case": "subpath_image",
+          "iterations": 3524,
+          "ns_per_op": 317152.0,
+          "bytes_per_op": 219432.0,
+          "allocations_per_op": 4147.0,
+          "raw": "BenchmarkPermalinkHistory/subpath_image-12          \t    3524\t    317152 ns/op\t  219432 B/op\t    4147 allocs/op"
+        },
+        {
+          "case": "same_site_link",
+          "iterations": 6841,
+          "ns_per_op": 201617.0,
+          "bytes_per_op": 136855.0,
+          "allocations_per_op": 2827.0,
+          "raw": "BenchmarkPermalinkHistory/same_site_link-12         \t    6841\t    201617 ns/op\t  136855 B/op\t    2827 allocs/op"
+        },
+        {
+          "case": "permalink",
+          "iterations": 2110,
+          "ns_per_op": 551286.0,
+          "bytes_per_op": 289225.0,
+          "allocations_per_op": 4687.0,
+          "raw": "BenchmarkPermalinkHistory/permalink-12              \t    2110\t    551286 ns/op\t  289225 B/op\t    4687 allocs/op"
+        }
+      ]
+    }
+  ],
+  "summary": [
+    {
+      "case": "plain",
+      "before": {
+        "ns_per_op": 127816.0,
+        "bytes_per_op": 116165.0,
+        "allocations_per_op": 2707.0,
+        "ns_per_op_range": [
+          126504.0,
+          128410.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 129619.0,
+        "bytes_per_op": 116182.0,
+        "allocations_per_op": 2707.0,
+        "ns_per_op_range": [
+          127702.0,
+          130922.0
+        ]
+      }
+    },
+    {
+      "case": "external_image",
+      "before": {
+        "ns_per_op": 292579.0,
+        "bytes_per_op": 214260.0,
+        "allocations_per_op": 4087.0,
+        "ns_per_op_range": [
+          289139.0,
+          306525.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 289212.0,
+        "bytes_per_op": 214196.0,
+        "allocations_per_op": 4087.0,
+        "ns_per_op_range": [
+          285176.0,
+          365485.0
+        ]
+      }
+    },
+    {
+      "case": "same_site_image",
+      "before": {
+        "ns_per_op": 2154158.0,
+        "bytes_per_op": 4742750.0,
+        "allocations_per_op": 56348.0,
+        "ns_per_op_range": [
+          2075800.0,
+          2154524.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 296199.0,
+        "bytes_per_op": 214161.0,
+        "allocations_per_op": 4087.0,
+        "ns_per_op_range": [
+          286887.0,
+          303523.0
+        ]
+      }
+    },
+    {
+      "case": "subpath_image",
+      "before": {
+        "ns_per_op": 2183294.0,
+        "bytes_per_op": 4747308.0,
+        "allocations_per_op": 56408.0,
+        "ns_per_op_range": [
+          2161445.0,
+          2381186.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 304516.0,
+        "bytes_per_op": 219432.0,
+        "allocations_per_op": 4147.0,
+        "ns_per_op_range": [
+          302774.0,
+          317152.0
+        ]
+      }
+    },
+    {
+      "case": "same_site_link",
+      "before": {
+        "ns_per_op": 1978562.0,
+        "bytes_per_op": 4664338.0,
+        "allocations_per_op": 55087.0,
+        "ns_per_op_range": [
+          1955802.0,
+          2014306.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 194959.0,
+        "bytes_per_op": 136855.0,
+        "allocations_per_op": 2827.0,
+        "ns_per_op_range": [
+          191080.0,
+          201617.0
+        ]
+      }
+    },
+    {
+      "case": "permalink",
+      "before": {
+        "ns_per_op": 2432324.0,
+        "bytes_per_op": 4816932.0,
+        "allocations_per_op": 56948.0,
+        "ns_per_op_range": [
+          2371588.0,
+          2610634.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 541460.0,
+        "bytes_per_op": 289164.0,
+        "allocations_per_op": 4687.0,
+        "ns_per_op_range": [
+          541398.0,
+          551286.0
+        ]
+      }
+    }
+  ]
+}
