@@ -1,0 +1,825 @@
+{
+  "status": "passed",
+  "method": "Real App.PreparePostForClientWithEmbedsAndImages with full test SQL store/cache setup. Original file.go through Go overlay versus dispatch only for files needing a mini-preview. Text files and PNG FileInfo rows with an existing JPEG mini-preview; zero/one/ten files, warm cached reads and master reads selected by IsNewPost. Both baseline post-metadata passes remain unchanged. Timed loops include app/store/driver work but exclude HTTP, upload bytes, image decoding and remote link fetching. Three alternating-order paired processes by default.",
+  "baseline_workspace_sha": "c9dbbcc480b242f7349cb7f4e9dcb6ea35cf6404",
+  "current_workspace_sha": "92497fe1ccf91a7a3dc43a27aa0284244e0f9e06",
+  "source_sha256": {
+    "before": "ea8956a7546b0b1dd4713732341b3091124c3c101a965430c03ebdf983f96da3",
+    "after": "f3144ac0cf07be69dc466c1c5e63254e73fe41eddd297e0cd5c74ff4898218ac",
+    "benchmark_test": "7df31c1fe14b440855481b9c7ea84f0632b2edde7920a3e2ba209c1cd18a0302"
+  },
+  "environment": {
+    "platform": "Linux-6.18.55-cachyos-x86_64-with-glibc2.44",
+    "go": "go version go1.26.10 linux/amd64",
+    "cpu": "13th Gen Intel(R) Core(TM) i7-1355U"
+  },
+  "settings": {
+    "trials": 5,
+    "iterations": null,
+    "benchtime": "1s",
+    "mode": "warm"
+  },
+  "unchanged_post_metadata_sha256": "7c1df926962309717a8bbb013c12f9bd18ca1882da213f4346ae370be66340b7",
+  "samples": [
+    {
+      "trial": 0,
+      "variant": "before",
+      "benchmarks": [
+        {
+          "kind": "text",
+          "files": 0,
+          "mode": "warm",
+          "iterations": 838057,
+          "ns_per_op": 1492.0,
+          "bytes_per_op": 1297.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=0/warm-12         \t  838057\t      1492 ns/op\t    1297 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 1,
+          "mode": "warm",
+          "iterations": 168450,
+          "ns_per_op": 7113.0,
+          "bytes_per_op": 2643.0,
+          "allocations_per_op": 63.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=1/warm-12         \t  168450\t      7113 ns/op\t    2643 B/op\t      63 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 10,
+          "mode": "warm",
+          "iterations": 28984,
+          "ns_per_op": 36867.0,
+          "bytes_per_op": 15339.0,
+          "allocations_per_op": 325.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=10/warm-12        \t   28984\t     36867 ns/op\t   15339 B/op\t     325 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 0,
+          "mode": "warm",
+          "iterations": 825100,
+          "ns_per_op": 1569.0,
+          "bytes_per_op": 1297.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=0/warm-12  \t  825100\t      1569 ns/op\t    1297 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 1,
+          "mode": "warm",
+          "iterations": 150990,
+          "ns_per_op": 7521.0,
+          "bytes_per_op": 3973.0,
+          "allocations_per_op": 67.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=1/warm-12  \t  150990\t      7521 ns/op\t    3973 B/op\t      67 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 10,
+          "mode": "warm",
+          "iterations": 27915,
+          "ns_per_op": 40093.0,
+          "bytes_per_op": 28644.0,
+          "allocations_per_op": 365.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=10/warm-12 \t   27915\t     40093 ns/op\t   28644 B/op\t     365 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "benchmarks": [
+        {
+          "kind": "text",
+          "files": 0,
+          "mode": "warm",
+          "iterations": 830889,
+          "ns_per_op": 1531.0,
+          "bytes_per_op": 1297.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=0/warm-12         \t  830889\t      1531 ns/op\t    1297 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 1,
+          "mode": "warm",
+          "iterations": 247264,
+          "ns_per_op": 4663.0,
+          "bytes_per_op": 2465.0,
+          "allocations_per_op": 57.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=1/warm-12         \t  247264\t      4663 ns/op\t    2465 B/op\t      57 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 10,
+          "mode": "warm",
+          "iterations": 39127,
+          "ns_per_op": 30348.0,
+          "bytes_per_op": 13854.0,
+          "allocations_per_op": 283.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=10/warm-12        \t   39127\t     30348 ns/op\t   13854 B/op\t     283 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 0,
+          "mode": "warm",
+          "iterations": 762952,
+          "ns_per_op": 1594.0,
+          "bytes_per_op": 1297.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=0/warm-12  \t  762952\t      1594 ns/op\t    1297 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 1,
+          "mode": "warm",
+          "iterations": 230893,
+          "ns_per_op": 5021.0,
+          "bytes_per_op": 3796.0,
+          "allocations_per_op": 61.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=1/warm-12  \t  230893\t      5021 ns/op\t    3796 B/op\t      61 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 10,
+          "mode": "warm",
+          "iterations": 35638,
+          "ns_per_op": 32991.0,
+          "bytes_per_op": 27151.0,
+          "allocations_per_op": 323.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=10/warm-12 \t   35638\t     32991 ns/op\t   27151 B/op\t     323 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "benchmarks": [
+        {
+          "kind": "text",
+          "files": 0,
+          "mode": "warm",
+          "iterations": 740103,
+          "ns_per_op": 1584.0,
+          "bytes_per_op": 1297.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=0/warm-12         \t  740103\t      1584 ns/op\t    1297 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 1,
+          "mode": "warm",
+          "iterations": 246025,
+          "ns_per_op": 4713.0,
+          "bytes_per_op": 2466.0,
+          "allocations_per_op": 57.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=1/warm-12         \t  246025\t      4713 ns/op\t    2466 B/op\t      57 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 10,
+          "mode": "warm",
+          "iterations": 38496,
+          "ns_per_op": 29626.0,
+          "bytes_per_op": 13859.0,
+          "allocations_per_op": 283.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=10/warm-12        \t   38496\t     29626 ns/op\t   13859 B/op\t     283 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 0,
+          "mode": "warm",
+          "iterations": 657135,
+          "ns_per_op": 1582.0,
+          "bytes_per_op": 1297.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=0/warm-12  \t  657135\t      1582 ns/op\t    1297 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 1,
+          "mode": "warm",
+          "iterations": 230042,
+          "ns_per_op": 5088.0,
+          "bytes_per_op": 3796.0,
+          "allocations_per_op": 61.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=1/warm-12  \t  230042\t      5088 ns/op\t    3796 B/op\t      61 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 10,
+          "mode": "warm",
+          "iterations": 33427,
+          "ns_per_op": 32692.0,
+          "bytes_per_op": 27151.0,
+          "allocations_per_op": 323.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=10/warm-12 \t   33427\t     32692 ns/op\t   27151 B/op\t     323 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "benchmarks": [
+        {
+          "kind": "text",
+          "files": 0,
+          "mode": "warm",
+          "iterations": 819681,
+          "ns_per_op": 1550.0,
+          "bytes_per_op": 1297.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=0/warm-12         \t  819681\t      1550 ns/op\t    1297 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 1,
+          "mode": "warm",
+          "iterations": 141153,
+          "ns_per_op": 7142.0,
+          "bytes_per_op": 2644.0,
+          "allocations_per_op": 63.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=1/warm-12         \t  141153\t      7142 ns/op\t    2644 B/op\t      63 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 10,
+          "mode": "warm",
+          "iterations": 29707,
+          "ns_per_op": 38168.0,
+          "bytes_per_op": 15344.0,
+          "allocations_per_op": 325.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=10/warm-12        \t   29707\t     38168 ns/op\t   15344 B/op\t     325 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 0,
+          "mode": "warm",
+          "iterations": 745285,
+          "ns_per_op": 1597.0,
+          "bytes_per_op": 1297.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=0/warm-12  \t  745285\t      1597 ns/op\t    1297 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 1,
+          "mode": "warm",
+          "iterations": 146454,
+          "ns_per_op": 7504.0,
+          "bytes_per_op": 3974.0,
+          "allocations_per_op": 67.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=1/warm-12  \t  146454\t      7504 ns/op\t    3974 B/op\t      67 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 10,
+          "mode": "warm",
+          "iterations": 27152,
+          "ns_per_op": 41476.0,
+          "bytes_per_op": 28639.0,
+          "allocations_per_op": 365.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=10/warm-12 \t   27152\t     41476 ns/op\t   28639 B/op\t     365 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "benchmarks": [
+        {
+          "kind": "text",
+          "files": 0,
+          "mode": "warm",
+          "iterations": 819613,
+          "ns_per_op": 1561.0,
+          "bytes_per_op": 1297.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=0/warm-12         \t  819613\t      1561 ns/op\t    1297 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 1,
+          "mode": "warm",
+          "iterations": 170233,
+          "ns_per_op": 7406.0,
+          "bytes_per_op": 2643.0,
+          "allocations_per_op": 63.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=1/warm-12         \t  170233\t      7406 ns/op\t    2643 B/op\t      63 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 10,
+          "mode": "warm",
+          "iterations": 29304,
+          "ns_per_op": 38710.0,
+          "bytes_per_op": 15355.0,
+          "allocations_per_op": 325.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=10/warm-12        \t   29304\t     38710 ns/op\t   15355 B/op\t     325 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 0,
+          "mode": "warm",
+          "iterations": 637692,
+          "ns_per_op": 1622.0,
+          "bytes_per_op": 1297.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=0/warm-12  \t  637692\t      1622 ns/op\t    1297 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 1,
+          "mode": "warm",
+          "iterations": 147363,
+          "ns_per_op": 7756.0,
+          "bytes_per_op": 3972.0,
+          "allocations_per_op": 67.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=1/warm-12  \t  147363\t      7756 ns/op\t    3972 B/op\t      67 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 10,
+          "mode": "warm",
+          "iterations": 25598,
+          "ns_per_op": 42569.0,
+          "bytes_per_op": 28641.0,
+          "allocations_per_op": 365.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=10/warm-12 \t   25598\t     42569 ns/op\t   28641 B/op\t     365 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "benchmarks": [
+        {
+          "kind": "text",
+          "files": 0,
+          "mode": "warm",
+          "iterations": 747762,
+          "ns_per_op": 1601.0,
+          "bytes_per_op": 1297.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=0/warm-12         \t  747762\t      1601 ns/op\t    1297 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 1,
+          "mode": "warm",
+          "iterations": 233130,
+          "ns_per_op": 4774.0,
+          "bytes_per_op": 2465.0,
+          "allocations_per_op": 57.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=1/warm-12         \t  233130\t      4774 ns/op\t    2465 B/op\t      57 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 10,
+          "mode": "warm",
+          "iterations": 36333,
+          "ns_per_op": 30404.0,
+          "bytes_per_op": 13851.0,
+          "allocations_per_op": 283.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=10/warm-12        \t   36333\t     30404 ns/op\t   13851 B/op\t     283 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 0,
+          "mode": "warm",
+          "iterations": 632422,
+          "ns_per_op": 1609.0,
+          "bytes_per_op": 1297.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=0/warm-12  \t  632422\t      1609 ns/op\t    1297 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 1,
+          "mode": "warm",
+          "iterations": 211040,
+          "ns_per_op": 5095.0,
+          "bytes_per_op": 3795.0,
+          "allocations_per_op": 61.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=1/warm-12  \t  211040\t      5095 ns/op\t    3795 B/op\t      61 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 10,
+          "mode": "warm",
+          "iterations": 33082,
+          "ns_per_op": 35589.0,
+          "bytes_per_op": 27144.0,
+          "allocations_per_op": 323.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=10/warm-12 \t   33082\t     35589 ns/op\t   27144 B/op\t     323 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 3,
+      "variant": "after",
+      "benchmarks": [
+        {
+          "kind": "text",
+          "files": 0,
+          "mode": "warm",
+          "iterations": 649191,
+          "ns_per_op": 1571.0,
+          "bytes_per_op": 1297.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=0/warm-12         \t  649191\t      1571 ns/op\t    1297 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 1,
+          "mode": "warm",
+          "iterations": 254262,
+          "ns_per_op": 4697.0,
+          "bytes_per_op": 2466.0,
+          "allocations_per_op": 57.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=1/warm-12         \t  254262\t      4697 ns/op\t    2466 B/op\t      57 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 10,
+          "mode": "warm",
+          "iterations": 38137,
+          "ns_per_op": 29637.0,
+          "bytes_per_op": 13852.0,
+          "allocations_per_op": 283.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=10/warm-12        \t   38137\t     29637 ns/op\t   13852 B/op\t     283 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 0,
+          "mode": "warm",
+          "iterations": 791803,
+          "ns_per_op": 1590.0,
+          "bytes_per_op": 1297.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=0/warm-12  \t  791803\t      1590 ns/op\t    1297 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 1,
+          "mode": "warm",
+          "iterations": 218433,
+          "ns_per_op": 5081.0,
+          "bytes_per_op": 3797.0,
+          "allocations_per_op": 61.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=1/warm-12  \t  218433\t      5081 ns/op\t    3797 B/op\t      61 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 10,
+          "mode": "warm",
+          "iterations": 33925,
+          "ns_per_op": 33825.0,
+          "bytes_per_op": 27147.0,
+          "allocations_per_op": 323.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=10/warm-12 \t   33925\t     33825 ns/op\t   27147 B/op\t     323 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 3,
+      "variant": "before",
+      "benchmarks": [
+        {
+          "kind": "text",
+          "files": 0,
+          "mode": "warm",
+          "iterations": 738586,
+          "ns_per_op": 1582.0,
+          "bytes_per_op": 1297.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=0/warm-12         \t  738586\t      1582 ns/op\t    1297 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 1,
+          "mode": "warm",
+          "iterations": 141157,
+          "ns_per_op": 7239.0,
+          "bytes_per_op": 2643.0,
+          "allocations_per_op": 63.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=1/warm-12         \t  141157\t      7239 ns/op\t    2643 B/op\t      63 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 10,
+          "mode": "warm",
+          "iterations": 29570,
+          "ns_per_op": 38692.0,
+          "bytes_per_op": 15335.0,
+          "allocations_per_op": 325.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=10/warm-12        \t   29570\t     38692 ns/op\t   15335 B/op\t     325 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 0,
+          "mode": "warm",
+          "iterations": 643074,
+          "ns_per_op": 1630.0,
+          "bytes_per_op": 1297.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=0/warm-12  \t  643074\t      1630 ns/op\t    1297 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 1,
+          "mode": "warm",
+          "iterations": 160572,
+          "ns_per_op": 8232.0,
+          "bytes_per_op": 3974.0,
+          "allocations_per_op": 67.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=1/warm-12  \t  160572\t      8232 ns/op\t    3974 B/op\t      67 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 10,
+          "mode": "warm",
+          "iterations": 26274,
+          "ns_per_op": 43402.0,
+          "bytes_per_op": 28642.0,
+          "allocations_per_op": 365.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=10/warm-12 \t   26274\t     43402 ns/op\t   28642 B/op\t     365 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 4,
+      "variant": "before",
+      "benchmarks": [
+        {
+          "kind": "text",
+          "files": 0,
+          "mode": "warm",
+          "iterations": 797068,
+          "ns_per_op": 1592.0,
+          "bytes_per_op": 1297.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=0/warm-12         \t  797068\t      1592 ns/op\t    1297 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 1,
+          "mode": "warm",
+          "iterations": 158758,
+          "ns_per_op": 7395.0,
+          "bytes_per_op": 2642.0,
+          "allocations_per_op": 63.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=1/warm-12         \t  158758\t      7395 ns/op\t    2642 B/op\t      63 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 10,
+          "mode": "warm",
+          "iterations": 22401,
+          "ns_per_op": 52765.0,
+          "bytes_per_op": 15339.0,
+          "allocations_per_op": 325.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=10/warm-12        \t   22401\t     52765 ns/op\t   15339 B/op\t     325 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 0,
+          "mode": "warm",
+          "iterations": 493838,
+          "ns_per_op": 2078.0,
+          "bytes_per_op": 1297.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=0/warm-12  \t  493838\t      2078 ns/op\t    1297 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 1,
+          "mode": "warm",
+          "iterations": 104800,
+          "ns_per_op": 10609.0,
+          "bytes_per_op": 3973.0,
+          "allocations_per_op": 67.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=1/warm-12  \t  104800\t     10609 ns/op\t    3973 B/op\t      67 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 10,
+          "mode": "warm",
+          "iterations": 20216,
+          "ns_per_op": 55824.0,
+          "bytes_per_op": 28638.0,
+          "allocations_per_op": 365.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=10/warm-12 \t   20216\t     55824 ns/op\t   28638 B/op\t     365 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 4,
+      "variant": "after",
+      "benchmarks": [
+        {
+          "kind": "text",
+          "files": 0,
+          "mode": "warm",
+          "iterations": 717787,
+          "ns_per_op": 1563.0,
+          "bytes_per_op": 1297.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=0/warm-12         \t  717787\t      1563 ns/op\t    1297 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 1,
+          "mode": "warm",
+          "iterations": 231363,
+          "ns_per_op": 6140.0,
+          "bytes_per_op": 2466.0,
+          "allocations_per_op": 57.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=1/warm-12         \t  231363\t      6140 ns/op\t    2466 B/op\t      57 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 10,
+          "mode": "warm",
+          "iterations": 30669,
+          "ns_per_op": 38450.0,
+          "bytes_per_op": 13851.0,
+          "allocations_per_op": 283.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=10/warm-12        \t   30669\t     38450 ns/op\t   13851 B/op\t     283 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 0,
+          "mode": "warm",
+          "iterations": 576094,
+          "ns_per_op": 2005.0,
+          "bytes_per_op": 1297.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=0/warm-12  \t  576094\t      2005 ns/op\t    1297 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 1,
+          "mode": "warm",
+          "iterations": 157406,
+          "ns_per_op": 6354.0,
+          "bytes_per_op": 3796.0,
+          "allocations_per_op": 61.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=1/warm-12  \t  157406\t      6354 ns/op\t    3796 B/op\t      61 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 10,
+          "mode": "warm",
+          "iterations": 25579,
+          "ns_per_op": 40239.0,
+          "bytes_per_op": 27143.0,
+          "allocations_per_op": 323.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=10/warm-12 \t   25579\t     40239 ns/op\t   27143 B/op\t     323 allocs/op"
+        }
+      ]
+    }
+  ],
+  "summary": [
+    {
+      "kind": "text",
+      "files": 0,
+      "mode": "warm",
+      "before": {
+        "ns_per_op": 1561.0,
+        "bytes_per_op": 1297.0,
+        "allocations_per_op": 29.0,
+        "ns_per_op_range": [
+          1492.0,
+          1592.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 1571.0,
+        "bytes_per_op": 1297.0,
+        "allocations_per_op": 29.0,
+        "ns_per_op_range": [
+          1531.0,
+          1601.0
+        ]
+      }
+    },
+    {
+      "kind": "text",
+      "files": 1,
+      "mode": "warm",
+      "before": {
+        "ns_per_op": 7239.0,
+        "bytes_per_op": 2643.0,
+        "allocations_per_op": 63.0,
+        "ns_per_op_range": [
+          7113.0,
+          7406.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 4713.0,
+        "bytes_per_op": 2466.0,
+        "allocations_per_op": 57.0,
+        "ns_per_op_range": [
+          4663.0,
+          6140.0
+        ]
+      }
+    },
+    {
+      "kind": "text",
+      "files": 10,
+      "mode": "warm",
+      "before": {
+        "ns_per_op": 38692.0,
+        "bytes_per_op": 15339.0,
+        "allocations_per_op": 325.0,
+        "ns_per_op_range": [
+          36867.0,
+          52765.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 30348.0,
+        "bytes_per_op": 13852.0,
+        "allocations_per_op": 283.0,
+        "ns_per_op_range": [
+          29626.0,
+          38450.0
+        ]
+      }
+    },
+    {
+      "kind": "ready_image",
+      "files": 0,
+      "mode": "warm",
+      "before": {
+        "ns_per_op": 1622.0,
+        "bytes_per_op": 1297.0,
+        "allocations_per_op": 29.0,
+        "ns_per_op_range": [
+          1569.0,
+          2078.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 1594.0,
+        "bytes_per_op": 1297.0,
+        "allocations_per_op": 29.0,
+        "ns_per_op_range": [
+          1582.0,
+          2005.0
+        ]
+      }
+    },
+    {
+      "kind": "ready_image",
+      "files": 1,
+      "mode": "warm",
+      "before": {
+        "ns_per_op": 7756.0,
+        "bytes_per_op": 3973.0,
+        "allocations_per_op": 67.0,
+        "ns_per_op_range": [
+          7504.0,
+          10609.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 5088.0,
+        "bytes_per_op": 3796.0,
+        "allocations_per_op": 61.0,
+        "ns_per_op_range": [
+          5021.0,
+          6354.0
+        ]
+      }
+    },
+    {
+      "kind": "ready_image",
+      "files": 10,
+      "mode": "warm",
+      "before": {
+        "ns_per_op": 42569.0,
+        "bytes_per_op": 28641.0,
+        "allocations_per_op": 365.0,
+        "ns_per_op_range": [
+          40093.0,
+          55824.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 33825.0,
+        "bytes_per_op": 27147.0,
+        "allocations_per_op": 323.0,
+        "ns_per_op_range": [
+          32692.0,
+          40239.0
+        ]
+      }
+    }
+  ]
+}
