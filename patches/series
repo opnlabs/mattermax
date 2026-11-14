@@ -40,3 +40,4 @@ unlock-email-notification-contents.patch
 unlock-anonymous-urls.patch
 post-file-metadata.patch
 reaction-history-batches.patch
+history-file-metadata.patch

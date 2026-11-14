@@ -1,0 +1,732 @@
+{
+  "status": "passed",
+  "method": "Real ordered App.PreparePostListForClient with default priority/acknowledgement reads, stored text attachments, and attachment order/output validation. Cases cover one/ten/sixty posts with two files each, plus sixty posts without files. Cold purges only file caches outside the timer; warm uses populated caches. PostgreSQL buffers are not reset. Baseline restores parent post.go and post_metadata.go through Go overlay; the new helper file and all tests are compiled identically but the baseline preparation path does not use that helper. Excludes HTTP, file bytes, image processing and remote links. Alternating paired processes.",
+  "baseline_workspace_sha": "1b0e20638d72edcd5532efa371e75c7506dfdbad",
+  "current_workspace_sha": "e558fb239119775029d328ad48cc28dd56818bde",
+  "source_sha256": {
+    "server/channels/app/post_metadata.go": {
+      "before": "fc4f12c6b0c367e4d0b83e4ab4b3369ba97248bd7c592499ee6ad8a9e71afb8f",
+      "after": "52c65f868a7d76a6b671e164e1fa2494286e8f6bbe2a0010f5a914f5d20fd517"
+    },
+    "server/channels/app/post.go": {
+      "before": "3ad539757a070b3f7d05afdbca3bc73dbe869d7deeb723a824850111bfa9058a",
+      "after": "34c0e53a02e8eb86fe3aa8e7f2027dc271d4584cafedc8b59126855d802c08cf"
+    }
+  },
+  "helper_sha256": "abfe4304f91024cdeb10048f516362fee9915d48dd1cef6b17f9e9fcdcfe1184",
+  "benchmark_test_sha256": "3d781b9bb27fd3a70797e35e0d7a92578977cb3a4b423495fdf1789cae02af57",
+  "environment": {
+    "platform": "Linux-6.18.55-cachyos-x86_64-with-glibc2.44",
+    "go": "go version go1.26.10 linux/amd64",
+    "cpu": "13th Gen Intel(R) Core(TM) i7-1355U"
+  },
+  "settings": {
+    "trials": 3,
+    "duration": "1s",
+    "ordered_history": true
+  },
+  "samples": [
+    {
+      "trial": 0,
+      "variant": "before",
+      "benchmarks": [
+        {
+          "posts": 1,
+          "files_per_post": 2,
+          "mode": "cold",
+          "iterations": 1330,
+          "ns_per_op": 860621.0,
+          "bytes_per_op": 40484.0,
+          "allocations_per_op": 579.0,
+          "raw": "BenchmarkAttachmentHistory/posts=1/files=2/cold-12    \t    1330\t    860621 ns/op\t   40484 B/op\t     579 allocs/op"
+        },
+        {
+          "posts": 1,
+          "files_per_post": 2,
+          "mode": "warm",
+          "iterations": 4215,
+          "ns_per_op": 263001.0,
+          "bytes_per_op": 17538.0,
+          "allocations_per_op": 314.0,
+          "raw": "BenchmarkAttachmentHistory/posts=1/files=2/warm-12    \t    4215\t    263001 ns/op\t   17538 B/op\t     314 allocs/op"
+        },
+        {
+          "posts": 10,
+          "files_per_post": 2,
+          "mode": "cold",
+          "iterations": 463,
+          "ns_per_op": 3017952.0,
+          "bytes_per_op": 274366.0,
+          "allocations_per_op": 3576.0,
+          "raw": "BenchmarkAttachmentHistory/posts=10/files=2/cold-12   \t     463\t   3017952 ns/op\t  274366 B/op\t    3576 allocs/op"
+        },
+        {
+          "posts": 10,
+          "files_per_post": 2,
+          "mode": "warm",
+          "iterations": 2962,
+          "ns_per_op": 405068.0,
+          "bytes_per_op": 45627.0,
+          "allocations_per_op": 930.0,
+          "raw": "BenchmarkAttachmentHistory/posts=10/files=2/warm-12   \t    2962\t    405068 ns/op\t   45627 B/op\t     930 allocs/op"
+        },
+        {
+          "posts": 60,
+          "files_per_post": 2,
+          "mode": "cold",
+          "iterations": 80,
+          "ns_per_op": 14429033.0,
+          "bytes_per_op": 1580323.0,
+          "allocations_per_op": 20162.0,
+          "raw": "BenchmarkAttachmentHistory/posts=60/files=2/cold-12   \t      80\t  14429033 ns/op\t 1580323 B/op\t   20162 allocs/op"
+        },
+        {
+          "posts": 60,
+          "files_per_post": 2,
+          "mode": "warm",
+          "iterations": 1170,
+          "ns_per_op": 1074951.0,
+          "bytes_per_op": 208166.0,
+          "allocations_per_op": 4292.0,
+          "raw": "BenchmarkAttachmentHistory/posts=60/files=2/warm-12   \t    1170\t   1074951 ns/op\t  208166 B/op\t    4292 allocs/op"
+        },
+        {
+          "posts": 60,
+          "files_per_post": 0,
+          "mode": "cold",
+          "iterations": 2029,
+          "ns_per_op": 557685.0,
+          "bytes_per_op": 128892.0,
+          "allocations_per_op": 2371.0,
+          "raw": "BenchmarkAttachmentHistory/posts=60/files=0/cold-12   \t    2029\t    557685 ns/op\t  128892 B/op\t    2371 allocs/op"
+        },
+        {
+          "posts": 60,
+          "files_per_post": 0,
+          "mode": "warm",
+          "iterations": 2456,
+          "ns_per_op": 535397.0,
+          "bytes_per_op": 128876.0,
+          "allocations_per_op": 2371.0,
+          "raw": "BenchmarkAttachmentHistory/posts=60/files=0/warm-12   \t    2456\t    535397 ns/op\t  128876 B/op\t    2371 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "benchmarks": [
+        {
+          "posts": 1,
+          "files_per_post": 2,
+          "mode": "cold",
+          "iterations": 2169,
+          "ns_per_op": 527680.0,
+          "bytes_per_op": 40356.0,
+          "allocations_per_op": 579.0,
+          "raw": "BenchmarkAttachmentHistory/posts=1/files=2/cold-12    \t    2169\t    527680 ns/op\t   40356 B/op\t     579 allocs/op"
+        },
+        {
+          "posts": 1,
+          "files_per_post": 2,
+          "mode": "warm",
+          "iterations": 4669,
+          "ns_per_op": 262685.0,
+          "bytes_per_op": 17542.0,
+          "allocations_per_op": 314.0,
+          "raw": "BenchmarkAttachmentHistory/posts=1/files=2/warm-12    \t    4669\t    262685 ns/op\t   17542 B/op\t     314 allocs/op"
+        },
+        {
+          "posts": 10,
+          "files_per_post": 2,
+          "mode": "cold",
+          "iterations": 1827,
+          "ns_per_op": 787241.0,
+          "bytes_per_op": 122571.0,
+          "allocations_per_op": 1613.0,
+          "raw": "BenchmarkAttachmentHistory/posts=10/files=2/cold-12   \t    1827\t    787241 ns/op\t  122571 B/op\t    1613 allocs/op"
+        },
+        {
+          "posts": 10,
+          "files_per_post": 2,
+          "mode": "warm",
+          "iterations": 2868,
+          "ns_per_op": 395539.0,
+          "bytes_per_op": 47207.0,
+          "allocations_per_op": 919.0,
+          "raw": "BenchmarkAttachmentHistory/posts=10/files=2/warm-12   \t    2868\t    395539 ns/op\t   47207 B/op\t     919 allocs/op"
+        },
+        {
+          "posts": 60,
+          "files_per_post": 2,
+          "mode": "cold",
+          "iterations": 670,
+          "ns_per_op": 1875529.0,
+          "bytes_per_op": 544433.0,
+          "allocations_per_op": 7186.0,
+          "raw": "BenchmarkAttachmentHistory/posts=60/files=2/cold-12   \t     670\t   1875529 ns/op\t  544433 B/op\t    7186 allocs/op"
+        },
+        {
+          "posts": 60,
+          "files_per_post": 2,
+          "mode": "warm",
+          "iterations": 900,
+          "ns_per_op": 1117508.0,
+          "bytes_per_op": 219824.0,
+          "allocations_per_op": 4183.0,
+          "raw": "BenchmarkAttachmentHistory/posts=60/files=2/warm-12   \t     900\t   1117508 ns/op\t  219824 B/op\t    4183 allocs/op"
+        },
+        {
+          "posts": 60,
+          "files_per_post": 0,
+          "mode": "cold",
+          "iterations": 2046,
+          "ns_per_op": 541734.0,
+          "bytes_per_op": 128892.0,
+          "allocations_per_op": 2371.0,
+          "raw": "BenchmarkAttachmentHistory/posts=60/files=0/cold-12   \t    2046\t    541734 ns/op\t  128892 B/op\t    2371 allocs/op"
+        },
+        {
+          "posts": 60,
+          "files_per_post": 0,
+          "mode": "warm",
+          "iterations": 2392,
+          "ns_per_op": 529890.0,
+          "bytes_per_op": 128851.0,
+          "allocations_per_op": 2371.0,
+          "raw": "BenchmarkAttachmentHistory/posts=60/files=0/warm-12   \t    2392\t    529890 ns/op\t  128851 B/op\t    2371 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "benchmarks": [
+        {
+          "posts": 1,
+          "files_per_post": 2,
+          "mode": "cold",
+          "iterations": 1384,
+          "ns_per_op": 723620.0,
+          "bytes_per_op": 40366.0,
+          "allocations_per_op": 579.0,
+          "raw": "BenchmarkAttachmentHistory/posts=1/files=2/cold-12    \t    1384\t    723620 ns/op\t   40366 B/op\t     579 allocs/op"
+        },
+        {
+          "posts": 1,
+          "files_per_post": 2,
+          "mode": "warm",
+          "iterations": 4147,
+          "ns_per_op": 300401.0,
+          "bytes_per_op": 17510.0,
+          "allocations_per_op": 314.0,
+          "raw": "BenchmarkAttachmentHistory/posts=1/files=2/warm-12    \t    4147\t    300401 ns/op\t   17510 B/op\t     314 allocs/op"
+        },
+        {
+          "posts": 10,
+          "files_per_post": 2,
+          "mode": "cold",
+          "iterations": 1714,
+          "ns_per_op": 729632.0,
+          "bytes_per_op": 122324.0,
+          "allocations_per_op": 1613.0,
+          "raw": "BenchmarkAttachmentHistory/posts=10/files=2/cold-12   \t    1714\t    729632 ns/op\t  122324 B/op\t    1613 allocs/op"
+        },
+        {
+          "posts": 10,
+          "files_per_post": 2,
+          "mode": "warm",
+          "iterations": 3061,
+          "ns_per_op": 390469.0,
+          "bytes_per_op": 47270.0,
+          "allocations_per_op": 919.0,
+          "raw": "BenchmarkAttachmentHistory/posts=10/files=2/warm-12   \t    3061\t    390469 ns/op\t   47270 B/op\t     919 allocs/op"
+        },
+        {
+          "posts": 60,
+          "files_per_post": 2,
+          "mode": "cold",
+          "iterations": 564,
+          "ns_per_op": 1881636.0,
+          "bytes_per_op": 544486.0,
+          "allocations_per_op": 7186.0,
+          "raw": "BenchmarkAttachmentHistory/posts=60/files=2/cold-12   \t     564\t   1881636 ns/op\t  544486 B/op\t    7186 allocs/op"
+        },
+        {
+          "posts": 60,
+          "files_per_post": 2,
+          "mode": "warm",
+          "iterations": 985,
+          "ns_per_op": 1139728.0,
+          "bytes_per_op": 219462.0,
+          "allocations_per_op": 4182.0,
+          "raw": "BenchmarkAttachmentHistory/posts=60/files=2/warm-12   \t     985\t   1139728 ns/op\t  219462 B/op\t    4182 allocs/op"
+        },
+        {
+          "posts": 60,
+          "files_per_post": 0,
+          "mode": "cold",
+          "iterations": 1554,
+          "ns_per_op": 701081.0,
+          "bytes_per_op": 128922.0,
+          "allocations_per_op": 2371.0,
+          "raw": "BenchmarkAttachmentHistory/posts=60/files=0/cold-12   \t    1554\t    701081 ns/op\t  128922 B/op\t    2371 allocs/op"
+        },
+        {
+          "posts": 60,
+          "files_per_post": 0,
+          "mode": "warm",
+          "iterations": 2029,
+          "ns_per_op": 579905.0,
+          "bytes_per_op": 128887.0,
+          "allocations_per_op": 2371.0,
+          "raw": "BenchmarkAttachmentHistory/posts=60/files=0/warm-12   \t    2029\t    579905 ns/op\t  128887 B/op\t    2371 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "benchmarks": [
+        {
+          "posts": 1,
+          "files_per_post": 2,
+          "mode": "cold",
+          "iterations": 1274,
+          "ns_per_op": 855665.0,
+          "bytes_per_op": 40376.0,
+          "allocations_per_op": 579.0,
+          "raw": "BenchmarkAttachmentHistory/posts=1/files=2/cold-12    \t    1274\t    855665 ns/op\t   40376 B/op\t     579 allocs/op"
+        },
+        {
+          "posts": 1,
+          "files_per_post": 2,
+          "mode": "warm",
+          "iterations": 4674,
+          "ns_per_op": 284710.0,
+          "bytes_per_op": 17511.0,
+          "allocations_per_op": 314.0,
+          "raw": "BenchmarkAttachmentHistory/posts=1/files=2/warm-12    \t    4674\t    284710 ns/op\t   17511 B/op\t     314 allocs/op"
+        },
+        {
+          "posts": 10,
+          "files_per_post": 2,
+          "mode": "cold",
+          "iterations": 457,
+          "ns_per_op": 2684104.0,
+          "bytes_per_op": 273948.0,
+          "allocations_per_op": 3575.0,
+          "raw": "BenchmarkAttachmentHistory/posts=10/files=2/cold-12   \t     457\t   2684104 ns/op\t  273948 B/op\t    3575 allocs/op"
+        },
+        {
+          "posts": 10,
+          "files_per_post": 2,
+          "mode": "warm",
+          "iterations": 3115,
+          "ns_per_op": 398364.0,
+          "bytes_per_op": 45591.0,
+          "allocations_per_op": 930.0,
+          "raw": "BenchmarkAttachmentHistory/posts=10/files=2/warm-12   \t    3115\t    398364 ns/op\t   45591 B/op\t     930 allocs/op"
+        },
+        {
+          "posts": 60,
+          "files_per_post": 2,
+          "mode": "cold",
+          "iterations": 54,
+          "ns_per_op": 19827866.0,
+          "bytes_per_op": 1578477.0,
+          "allocations_per_op": 20163.0,
+          "raw": "BenchmarkAttachmentHistory/posts=60/files=2/cold-12   \t      54\t  19827866 ns/op\t 1578477 B/op\t   20163 allocs/op"
+        },
+        {
+          "posts": 60,
+          "files_per_post": 2,
+          "mode": "warm",
+          "iterations": 1197,
+          "ns_per_op": 1110754.0,
+          "bytes_per_op": 207988.0,
+          "allocations_per_op": 4291.0,
+          "raw": "BenchmarkAttachmentHistory/posts=60/files=2/warm-12   \t    1197\t   1110754 ns/op\t  207988 B/op\t    4291 allocs/op"
+        },
+        {
+          "posts": 60,
+          "files_per_post": 0,
+          "mode": "cold",
+          "iterations": 2242,
+          "ns_per_op": 609965.0,
+          "bytes_per_op": 128959.0,
+          "allocations_per_op": 2371.0,
+          "raw": "BenchmarkAttachmentHistory/posts=60/files=0/cold-12   \t    2242\t    609965 ns/op\t  128959 B/op\t    2371 allocs/op"
+        },
+        {
+          "posts": 60,
+          "files_per_post": 0,
+          "mode": "warm",
+          "iterations": 2373,
+          "ns_per_op": 565801.0,
+          "bytes_per_op": 128942.0,
+          "allocations_per_op": 2371.0,
+          "raw": "BenchmarkAttachmentHistory/posts=60/files=0/warm-12   \t    2373\t    565801 ns/op\t  128942 B/op\t    2371 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "benchmarks": [
+        {
+          "posts": 1,
+          "files_per_post": 2,
+          "mode": "cold",
+          "iterations": 2068,
+          "ns_per_op": 530296.0,
+          "bytes_per_op": 40499.0,
+          "allocations_per_op": 579.0,
+          "raw": "BenchmarkAttachmentHistory/posts=1/files=2/cold-12    \t    2068\t    530296 ns/op\t   40499 B/op\t     579 allocs/op"
+        },
+        {
+          "posts": 1,
+          "files_per_post": 2,
+          "mode": "warm",
+          "iterations": 4284,
+          "ns_per_op": 278216.0,
+          "bytes_per_op": 17534.0,
+          "allocations_per_op": 314.0,
+          "raw": "BenchmarkAttachmentHistory/posts=1/files=2/warm-12    \t    4284\t    278216 ns/op\t   17534 B/op\t     314 allocs/op"
+        },
+        {
+          "posts": 10,
+          "files_per_post": 2,
+          "mode": "cold",
+          "iterations": 481,
+          "ns_per_op": 2580201.0,
+          "bytes_per_op": 274430.0,
+          "allocations_per_op": 3576.0,
+          "raw": "BenchmarkAttachmentHistory/posts=10/files=2/cold-12   \t     481\t   2580201 ns/op\t  274430 B/op\t    3576 allocs/op"
+        },
+        {
+          "posts": 10,
+          "files_per_post": 2,
+          "mode": "warm",
+          "iterations": 3391,
+          "ns_per_op": 368953.0,
+          "bytes_per_op": 45599.0,
+          "allocations_per_op": 930.0,
+          "raw": "BenchmarkAttachmentHistory/posts=10/files=2/warm-12   \t    3391\t    368953 ns/op\t   45599 B/op\t     930 allocs/op"
+        },
+        {
+          "posts": 60,
+          "files_per_post": 2,
+          "mode": "cold",
+          "iterations": 78,
+          "ns_per_op": 15705083.0,
+          "bytes_per_op": 1581814.0,
+          "allocations_per_op": 20162.0,
+          "raw": "BenchmarkAttachmentHistory/posts=60/files=2/cold-12   \t      78\t  15705083 ns/op\t 1581814 B/op\t   20162 allocs/op"
+        },
+        {
+          "posts": 60,
+          "files_per_post": 2,
+          "mode": "warm",
+          "iterations": 1148,
+          "ns_per_op": 1117998.0,
+          "bytes_per_op": 208255.0,
+          "allocations_per_op": 4291.0,
+          "raw": "BenchmarkAttachmentHistory/posts=60/files=2/warm-12   \t    1148\t   1117998 ns/op\t  208255 B/op\t    4291 allocs/op"
+        },
+        {
+          "posts": 60,
+          "files_per_post": 0,
+          "mode": "cold",
+          "iterations": 1986,
+          "ns_per_op": 569043.0,
+          "bytes_per_op": 128911.0,
+          "allocations_per_op": 2371.0,
+          "raw": "BenchmarkAttachmentHistory/posts=60/files=0/cold-12   \t    1986\t    569043 ns/op\t  128911 B/op\t    2371 allocs/op"
+        },
+        {
+          "posts": 60,
+          "files_per_post": 0,
+          "mode": "warm",
+          "iterations": 2383,
+          "ns_per_op": 510122.0,
+          "bytes_per_op": 128944.0,
+          "allocations_per_op": 2371.0,
+          "raw": "BenchmarkAttachmentHistory/posts=60/files=0/warm-12   \t    2383\t    510122 ns/op\t  128944 B/op\t    2371 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "benchmarks": [
+        {
+          "posts": 1,
+          "files_per_post": 2,
+          "mode": "cold",
+          "iterations": 1320,
+          "ns_per_op": 801852.0,
+          "bytes_per_op": 40400.0,
+          "allocations_per_op": 579.0,
+          "raw": "BenchmarkAttachmentHistory/posts=1/files=2/cold-12    \t    1320\t    801852 ns/op\t   40400 B/op\t     579 allocs/op"
+        },
+        {
+          "posts": 1,
+          "files_per_post": 2,
+          "mode": "warm",
+          "iterations": 4440,
+          "ns_per_op": 278046.0,
+          "bytes_per_op": 17512.0,
+          "allocations_per_op": 314.0,
+          "raw": "BenchmarkAttachmentHistory/posts=1/files=2/warm-12    \t    4440\t    278046 ns/op\t   17512 B/op\t     314 allocs/op"
+        },
+        {
+          "posts": 10,
+          "files_per_post": 2,
+          "mode": "cold",
+          "iterations": 1642,
+          "ns_per_op": 803383.0,
+          "bytes_per_op": 122332.0,
+          "allocations_per_op": 1613.0,
+          "raw": "BenchmarkAttachmentHistory/posts=10/files=2/cold-12   \t    1642\t    803383 ns/op\t  122332 B/op\t    1613 allocs/op"
+        },
+        {
+          "posts": 10,
+          "files_per_post": 2,
+          "mode": "warm",
+          "iterations": 3314,
+          "ns_per_op": 358826.0,
+          "bytes_per_op": 47212.0,
+          "allocations_per_op": 919.0,
+          "raw": "BenchmarkAttachmentHistory/posts=10/files=2/warm-12   \t    3314\t    358826 ns/op\t   47212 B/op\t     919 allocs/op"
+        },
+        {
+          "posts": 60,
+          "files_per_post": 2,
+          "mode": "cold",
+          "iterations": 522,
+          "ns_per_op": 1917375.0,
+          "bytes_per_op": 543958.0,
+          "allocations_per_op": 7185.0,
+          "raw": "BenchmarkAttachmentHistory/posts=60/files=2/cold-12   \t     522\t   1917375 ns/op\t  543958 B/op\t    7185 allocs/op"
+        },
+        {
+          "posts": 60,
+          "files_per_post": 2,
+          "mode": "warm",
+          "iterations": 1135,
+          "ns_per_op": 1131474.0,
+          "bytes_per_op": 219509.0,
+          "allocations_per_op": 4182.0,
+          "raw": "BenchmarkAttachmentHistory/posts=60/files=2/warm-12   \t    1135\t   1131474 ns/op\t  219509 B/op\t    4182 allocs/op"
+        },
+        {
+          "posts": 60,
+          "files_per_post": 0,
+          "mode": "cold",
+          "iterations": 2005,
+          "ns_per_op": 581007.0,
+          "bytes_per_op": 128895.0,
+          "allocations_per_op": 2371.0,
+          "raw": "BenchmarkAttachmentHistory/posts=60/files=0/cold-12   \t    2005\t    581007 ns/op\t  128895 B/op\t    2371 allocs/op"
+        },
+        {
+          "posts": 60,
+          "files_per_post": 0,
+          "mode": "warm",
+          "iterations": 2424,
+          "ns_per_op": 572853.0,
+          "bytes_per_op": 128962.0,
+          "allocations_per_op": 2371.0,
+          "raw": "BenchmarkAttachmentHistory/posts=60/files=0/warm-12   \t    2424\t    572853 ns/op\t  128962 B/op\t    2371 allocs/op"
+        }
+      ]
+    }
+  ],
+  "summary": [
+    {
+      "posts": 1,
+      "files_per_post": 2,
+      "mode": "cold",
+      "before": {
+        "ns_per_op": 855665.0,
+        "bytes_per_op": 40484.0,
+        "allocations_per_op": 579.0,
+        "ns_per_op_range": [
+          530296.0,
+          860621.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 723620.0,
+        "bytes_per_op": 40366.0,
+        "allocations_per_op": 579.0,
+        "ns_per_op_range": [
+          527680.0,
+          801852.0
+        ]
+      }
+    },
+    {
+      "posts": 1,
+      "files_per_post": 2,
+      "mode": "warm",
+      "before": {
+        "ns_per_op": 278216.0,
+        "bytes_per_op": 17534.0,
+        "allocations_per_op": 314.0,
+        "ns_per_op_range": [
+          263001.0,
+          284710.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 278046.0,
+        "bytes_per_op": 17512.0,
+        "allocations_per_op": 314.0,
+        "ns_per_op_range": [
+          262685.0,
+          300401.0
+        ]
+      }
+    },
+    {
+      "posts": 10,
+      "files_per_post": 2,
+      "mode": "cold",
+      "before": {
+        "ns_per_op": 2684104.0,
+        "bytes_per_op": 274366.0,
+        "allocations_per_op": 3576.0,
+        "ns_per_op_range": [
+          2580201.0,
+          3017952.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 787241.0,
+        "bytes_per_op": 122332.0,
+        "allocations_per_op": 1613.0,
+        "ns_per_op_range": [
+          729632.0,
+          803383.0
+        ]
+      }
+    },
+    {
+      "posts": 10,
+      "files_per_post": 2,
+      "mode": "warm",
+      "before": {
+        "ns_per_op": 398364.0,
+        "bytes_per_op": 45599.0,
+        "allocations_per_op": 930.0,
+        "ns_per_op_range": [
+          368953.0,
+          405068.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 390469.0,
+        "bytes_per_op": 47212.0,
+        "allocations_per_op": 919.0,
+        "ns_per_op_range": [
+          358826.0,
+          395539.0
+        ]
+      }
+    },
+    {
+      "posts": 60,
+      "files_per_post": 2,
+      "mode": "cold",
+      "before": {
+        "ns_per_op": 15705083.0,
+        "bytes_per_op": 1580323.0,
+        "allocations_per_op": 20162.0,
+        "ns_per_op_range": [
+          14429033.0,
+          19827866.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 1881636.0,
+        "bytes_per_op": 544433.0,
+        "allocations_per_op": 7186.0,
+        "ns_per_op_range": [
+          1875529.0,
+          1917375.0
+        ]
+      }
+    },
+    {
+      "posts": 60,
+      "files_per_post": 2,
+      "mode": "warm",
+      "before": {
+        "ns_per_op": 1110754.0,
+        "bytes_per_op": 208166.0,
+        "allocations_per_op": 4291.0,
+        "ns_per_op_range": [
+          1074951.0,
+          1117998.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 1131474.0,
+        "bytes_per_op": 219509.0,
+        "allocations_per_op": 4182.0,
+        "ns_per_op_range": [
+          1117508.0,
+          1139728.0
+        ]
+      }
+    },
+    {
+      "posts": 60,
+      "files_per_post": 0,
+      "mode": "cold",
+      "before": {
+        "ns_per_op": 569043.0,
+        "bytes_per_op": 128911.0,
+        "allocations_per_op": 2371.0,
+        "ns_per_op_range": [
+          557685.0,
+          609965.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 581007.0,
+        "bytes_per_op": 128895.0,
+        "allocations_per_op": 2371.0,
+        "ns_per_op_range": [
+          541734.0,
+          701081.0
+        ]
+      }
+    },
+    {
+      "posts": 60,
+      "files_per_post": 0,
+      "mode": "warm",
+      "before": {
+        "ns_per_op": 535397.0,
+        "bytes_per_op": 128942.0,
+        "allocations_per_op": 2371.0,
+        "ns_per_op_range": [
+          510122.0,
+          565801.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 572853.0,
+        "bytes_per_op": 128887.0,
+        "allocations_per_op": 2371.0,
+        "ns_per_op_range": [
+          529890.0,
+          579905.0
+        ]
+      }
+    }
+  ]
+}

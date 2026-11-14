@@ -549,3 +549,17 @@ Existing feature patches and contributor credit remain unchanged.
 order, including priority and acknowledgement reads. The new timings supersede
 the earlier incomplete fixture. Production code and regression tests are
 unchanged.
+
+### history-file-metadata.patch
+
+2026-11-14. Batches attachment metadata reads across history pages through the
+existing file cache, with at most 1,000 distinct IDs per call. Keeps filtering,
+preview processing and stored attachment order per post. Missing and repeated
+IDs retain their existing behavior; shared file metadata is copied before
+mutation. Batch failures fall back to per-post reads, and failed previews or
+metadata resets retain their second attempts. Single-post, master-read and
+deleted-file paths remain unchanged. Adds regressions for bounds, failures,
+shared metadata, content limits, hidden posts and preview retries, plus ordered
+cold/warm benchmarks. Builds on the post preparation helpers from PRs #43/#45.
+Existing patches and contributor credits remain unchanged.
+[Measured results](docs/benchmarks/attachment-history/README.md).

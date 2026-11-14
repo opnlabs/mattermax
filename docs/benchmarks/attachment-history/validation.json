@@ -1,0 +1,39 @@
+{
+  "status": "passed",
+  "source_sha": "e558fb239119775029d328ad48cc28dd56818bde",
+  "command": "go test -race -p 2 ./channels/app ./channels/api4 -run '^(TestAttachmentHistoryBatch|TestAttachmentHistorySharedFileIsolation|TestAttachmentHistoryRetries|TestAttachmentHistoryBoundedReads|TestAttachmentHistoryContentLimit|TestPreparePostFilesReusesSuccessfulRead|TestPrepareReactionHistory|TestReactionHistoryHiddenAndEmpty|TestGetPostsForChannel|TestGetPostsByIdsFileMetadataABAC|TestGetEditHistoryForPostDoesNotLeakFilesDeniedByPolicy|TestFileMetadataServedWhenPolicyAllows|TestGetDraftsWithholdsThumbnailWhenPolicyDenies|TestGetScheduledPostsWithholdsThumbnailWhenPolicyDenies|TestGetFileInfosForPost|TestGetFileInfo)$' -count=1 -timeout=20m -json",
+  "packages": [
+    {
+      "package": "app",
+      "counts": {
+        "pass": 28,
+        "fail": 0,
+        "skip": 0
+      },
+      "status": "passed"
+    },
+    {
+      "package": "api4",
+      "counts": {
+        "pass": 26,
+        "fail": 0,
+        "skip": 0
+      },
+      "status": "passed"
+    }
+  ],
+  "total_pass_events": 54,
+  "counting": "Go parent/subtest pass events, excluding package summaries.",
+  "private_log_sha256": "715ce727a5eb343cafb4f98ec0ae00690aec74fbdfc623f28e6e1e432e8c108d",
+  "patch_check": {
+    "command": "just check",
+    "status": "passed",
+    "patches": 41,
+    "original_38_patch_files_byte_identical": true
+  },
+  "limits": [
+    "Selected race suites, not the entire repository suite.",
+    "Full branded release packaging not run.",
+    "Benchmarks cover local metadata preparation, not total server throughput."
+  ]
+}
