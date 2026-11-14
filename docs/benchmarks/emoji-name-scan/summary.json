@@ -386,6 +386,7 @@
       "median_ns_change_percent": -19.34357048652714
     }
   },
-  "readiness": "draft",
-  "unresolved": "Ordered matrix latency regressions remain unexplained despite helper allocation savings and improvements in isolated heavy cases. Do not claim a general history latency or throughput improvement."
+  "readiness": "ready-for-review",
+  "unresolved": "Earlier app-only ordered matrix latency regressions remain unexplained and published. New authenticated HTTP pairs support review of the allocation optimization for the tested 60-post synthetic workload; no general throughput or production latency claim.",
+  "http_evidence": "http-summary.json"
 }

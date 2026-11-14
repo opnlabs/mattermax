@@ -1,0 +1,90 @@
+{
+  "status": "passed",
+  "source_sha": "e04cefb93153592d153dbe030d23346cef83a7e7",
+  "baseline_source_sha": "c9dbbcc480b242f7349cb7f4e9dcb6ea35cf6404",
+  "trials": 5,
+  "requests_per_process": 1000,
+  "scope": "Regular team/channel member, one persistent HTTP/1.1 client, uncompressed GET /api/v4/channels/{id}/posts?page=0&per_page=60&collapsedThreads=false. Five equally weighted page types in fixed shuffled order. Fresh database/server and all-API fixtures for each process. Timing spans request send through complete response read, excluding JSON decode/assertions; wall loop includes them. Localhost without TLS, no concurrent clients or production throughput/tail claim.",
+  "cases": [
+    {
+      "name": "mixed",
+      "before_ns": 8132564.188,
+      "after_ns": 7629429.71,
+      "median_mean_latency_change_percent": -6.186664702166134,
+      "paired_mean_latency_changes_percent": [
+        -5.8783696944676445,
+        -6.478610642599447,
+        -6.345405819139538,
+        -6.279844757136366,
+        -5.547189625013072
+      ]
+    },
+    {
+      "name": "plain",
+      "before_ns": 3427811.125,
+      "after_ns": 3423259.28,
+      "median_mean_latency_change_percent": -0.13279159306072152,
+      "paired_mean_latency_changes_percent": [
+        -1.3371995354562682,
+        1.4590019162739054,
+        -1.5373779491588135,
+        0.5497929992831496,
+        1.7361892276545055
+      ]
+    },
+    {
+      "name": "system",
+      "before_ns": 3686898.515,
+      "after_ns": 3628914.28,
+      "median_mean_latency_change_percent": -1.5727103624928573,
+      "paired_mean_latency_changes_percent": [
+        -1.160345497876658,
+        -0.9250727071226983,
+        -2.424015598985352,
+        -2.5730374626273145,
+        0.17645578882909962
+      ]
+    },
+    {
+      "name": "custom",
+      "before_ns": 3787093.395,
+      "after_ns": 3730987.065,
+      "median_mean_latency_change_percent": -1.4815142946850934,
+      "paired_mean_latency_changes_percent": [
+        -2.1641659433262017,
+        -2.776317101172998,
+        -0.9269821559285907,
+        0.23913140478803996,
+        -0.44461408865288377
+      ]
+    },
+    {
+      "name": "dense",
+      "before_ns": 16719862.75,
+      "after_ns": 14692662.545,
+      "median_mean_latency_change_percent": -12.124502666745872,
+      "paired_mean_latency_changes_percent": [
+        -11.219784974788316,
+        -9.868733288600263,
+        -12.163581788796451,
+        -9.13293899496872,
+        -12.246801896654457
+      ]
+    },
+    {
+      "name": "invalid",
+      "before_ns": 13056553.75,
+      "after_ns": 12483215.385,
+      "median_mean_latency_change_percent": -4.39119216278645,
+      "paired_mean_latency_changes_percent": [
+        -2.67799622489604,
+        -6.925806297952819,
+        -2.86987406611795,
+        -7.32179537983283,
+        -1.8721224219715116
+      ]
+    }
+  ],
+  "all_normalized_responses_match": true,
+  "all_resources_removed": true
+}

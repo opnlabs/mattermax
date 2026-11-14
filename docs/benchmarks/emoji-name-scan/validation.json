@@ -114,8 +114,8 @@
     "GOMAXPROCS": 4
   },
   "performance_readiness": {
-    "status": "draft",
-    "reason": "Ordered matrix latency regressions remain unexplained despite helper allocation savings and improvements in isolated heavy cases. Do not claim a general history latency or throughput improvement."
+    "status": "ready-for-review",
+    "reason": "Earlier app-only ordered matrix latency regressions remain unexplained and published. New authenticated HTTP pairs support review of the allocation optimization for the tested 60-post synthetic workload; no general throughput or production latency claim."
   },
   "incremental_mixed_benchmark": {
     "status": "passed",
@@ -142,5 +142,23 @@
       "original_patch_files_verified_byte_identical": 38,
       "log_sha256": "beab570c027102ef1d8f465f5ae4c7fddbaa4ffc1d552cde44f3454b15df802a"
     }
+  },
+  "http_history_comparison": {
+    "status": "passed",
+    "source_sha": "e04cefb93153592d153dbe030d23346cef83a7e7",
+    "baseline_source_sha": "c9dbbcc480b242f7349cb7f4e9dcb6ea35cf6404",
+    "builds": "http-build.json",
+    "results": "http-results.json",
+    "summary": "http-summary.json",
+    "process_pairs": 5,
+    "timed_requests": 10000,
+    "warmup_requests_per_process": 100,
+    "fixture_posts_per_process": 300,
+    "normal_member": true,
+    "persistent_connection_verified": true,
+    "all_normalized_responses_match": true,
+    "identical_response_lengths": true,
+    "all_owned_servers_databases_and_runtime_directories_removed": true,
+    "scope": "Regular team/channel member, one persistent HTTP/1.1 client, uncompressed GET /api/v4/channels/{id}/posts?page=0&per_page=60&collapsedThreads=false. Five equally weighted page types in fixed shuffled order. Fresh database/server and all-API fixtures for each process. Timing spans request send through complete response read, excluding JSON decode/assertions; wall loop includes them. Localhost without TLS, no concurrent clients or production throughput/tail claim."
   }
 }

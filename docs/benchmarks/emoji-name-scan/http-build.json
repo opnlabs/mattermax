@@ -1,0 +1,57 @@
+{
+  "status": "passed",
+  "source_sha": "e04cefb93153592d153dbe030d23346cef83a7e7",
+  "baseline_source_sha": "c9dbbcc480b242f7349cb7f4e9dcb6ea35cf6404",
+  "source_tree_sha": "c6ebb370eff36de40272c30b4dc7a84d3b02a0fd",
+  "production_sha256": "9c6ce6156e841dbf2e2f24e308772f2c231902a8c54632150d806d5c7b6f568a",
+  "baseline_sha256": "7c1df926962309717a8bbb013c12f9bd18ca1882da213f4346ae370be66340b7",
+  "go_version": "go version go1.26.10 linux/amd64",
+  "variants": {
+    "before": {
+      "binary": "/home/rhnvrm/.bb/thread-storage/thr_jynvcygccx/emoji-name-scan-http-build/server-before",
+      "binary_sha256": "1d8ef225d1efa127ed8a0bf022afdb385259d242391e2bd3b39d8094d434d9d9",
+      "build_hash": "c9dbbcc480b242f7349cb7f4e9dcb6ea35cf6404",
+      "build_number": "12.0.2-1.emoji-http-before",
+      "build_enterprise_ready": false,
+      "command": [
+        "go",
+        "build",
+        "-tags",
+        "production",
+        "-ldflags",
+        "-X github.com/mattermost/mattermost/server/public/model.BuildNumber=12.0.2-1.emoji-http-before -X github.com/mattermost/mattermost/server/public/model.BuildHash=c9dbbcc480b242f7349cb7f4e9dcb6ea35cf6404 -X github.com/mattermost/mattermost/server/public/model.BuildEnterpriseReady=false",
+        "-o",
+        "/home/rhnvrm/.bb/thread-storage/thr_jynvcygccx/emoji-name-scan-http-build/server-before",
+        "-overlay",
+        "/tmp/mattermax-emoji-http-build-5sbr5j8j/overlay.json",
+        "./cmd/mattermost"
+      ],
+      "forbidden_tags": false,
+      "enterprise_symbols": false,
+      "buildinfo_sha256": "6fd917782443ff57e26fbb95c66fa8dd4de0eff9fdb4dab1f885dc52b4e09d9e",
+      "build_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "after": {
+      "binary": "/home/rhnvrm/.bb/thread-storage/thr_jynvcygccx/emoji-name-scan-http-build/server-after",
+      "binary_sha256": "664b13eaca38a4458525072020e6016238de978f9fee46456845935954611f3a",
+      "build_hash": "e04cefb93153592d153dbe030d23346cef83a7e7",
+      "build_number": "12.0.2-1.emoji-http-after",
+      "build_enterprise_ready": false,
+      "command": [
+        "go",
+        "build",
+        "-tags",
+        "production",
+        "-ldflags",
+        "-X github.com/mattermost/mattermost/server/public/model.BuildNumber=12.0.2-1.emoji-http-after -X github.com/mattermost/mattermost/server/public/model.BuildHash=e04cefb93153592d153dbe030d23346cef83a7e7 -X github.com/mattermost/mattermost/server/public/model.BuildEnterpriseReady=false",
+        "-o",
+        "/home/rhnvrm/.bb/thread-storage/thr_jynvcygccx/emoji-name-scan-http-build/server-after",
+        "./cmd/mattermost"
+      ],
+      "forbidden_tags": false,
+      "enterprise_symbols": false,
+      "buildinfo_sha256": "673db69f41da089312175a3800062174d15834249f4260fd581cc5aa7e623fcc",
+      "build_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  }
+}

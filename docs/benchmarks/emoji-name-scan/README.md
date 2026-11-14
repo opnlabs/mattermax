@@ -1,8 +1,9 @@
 # Emoji-name extraction
 
-This candidate remains a draft because the ordered history matrix includes
-unresolved latency regressions. The helper and allocation improvements alone
-do not establish that it is ready to merge.
+This allocation optimization is ready for review after the authenticated HTTP
+comparison below. Earlier app-only matrix regressions remain unexplained and
+are retained in full. Claims are limited to the measured workloads; this is not
+a general server-throughput or production-latency claim.
 
 Preparing emoji text currently allocates a regular-expression match for each
 name, although the metadata path only needs the name's bytes. This patch scans
@@ -70,8 +71,8 @@ for both cases. Their medians are:
 [isolated-dense.json](isolated-dense.json) and
 [isolated-invalid.json](isolated-invalid.json) preserve every sample. These
 results disagree with parts of the ordered matrix. They do not explain its
-regressions or establish that those regressions are harmless. Mixed-workload
-latency and GC behavior need further investigation before marking this ready.
+regressions or establish that those regressions are harmless. Later mixed-loop and HTTP studies below add evidence at different boundaries;
+they do not establish the cause of those earlier regressions.
 
 ## Controls and initial study
 
@@ -133,8 +134,63 @@ function, before that function creates and warms its fixtures. The original
 cases can therefore still enter timing with fixture/warming garbage present.
 This mixed loop collects again after warming, a separate measurement condition.
 Its favorable results do not establish that fixture garbage caused the earlier
-ordered-matrix regressions, which remain unresolved. The PR stays draft; actual
-HTTP request behavior is the next measurement gap.
+ordered-matrix regressions, which remain unresolved. The subsequent HTTP study
+below measures the actual authenticated history route.
+
+## Authenticated HTTP history
+
+Public baseline/candidate binaries use the production build tag, explicit
+non-dev build numbers/hashes and BuildEnterpriseReady=false. The baseline
+substitutes only the original production file through a Go overlay. Both pass
+the release script's enterprise tag/symbol exclusion criteria.
+
+Each process starts a new loopback-only server and database. Fixtures are made
+through public APIs: an owner, a regular reader, a team, five member channels,
+a valid PNG custom emoji named scan_custom and 60 posts per channel. Emails,
+jobs, plugins, diagnostics and API rate limiting are disabled. Link previews
+are off; custom emoji and normal priority reads are on. GOMAXPROCS=4 and
+GOGC=100 are fixed. The reader logs in and uses one verified persistent HTTP/1.1
+connection, with no conditional requests and Accept-Encoding: identity.
+
+Five alternating before/after pairs each warm 100 requests and then run 1,000
+timed GETs to `/api/v4/channels/{id}/posts?page=0&per_page=60&collapsedThreads=false`.
+The five page types are equally represented in a fixed shuffled sequence.
+Timing spans request send through complete response read, excluding JSON decode
+and assertions; whole-loop elapsed time including those checks is also saved.
+This is a single local client without TLS or concurrent clients, not a
+saturation-throughput or production tail-latency test.
+
+All 10,000 timed requests return HTTP 200 and the expected 60 posts in exact
+order, with unchanged messages and correct custom-emoji identity. Full normalized
+response hashes match across every process after abstracting fixture IDs and
+timestamps. Uncompressed response byte counts also match. The pilot separately
+checks the same fixture/output/connection/cleanup path and supplies no timing
+claim. Every owned server, database and runtime directory is removed.
+
+The table shows medians of per-process mean completed-response latency, in ms.
+Paired ranges compare each corresponding before/after process pair.
+
+| Page type | Before ms | After ms | Change | Paired change range |
+| --- | ---: | ---: | ---: | ---: |
+| mixed | 8.133 | 7.629 | -6.2% | -6.5% to -5.5% |
+| plain | 3.428 | 3.423 | -0.1% | -1.5% to +1.7% |
+| system | 3.687 | 3.629 | -1.6% | -2.6% to +0.2% |
+| custom | 3.787 | 3.731 | -1.5% | -2.8% to +0.2% |
+| dense | 16.720 | 14.693 | -12.1% | -12.2% to -9.1% |
+| invalid | 13.057 | 12.483 | -4.4% | -7.3% to -1.9% |
+
+The mixed, dense and malformed-page means improve in every HTTP pair. Ordinary
+text is essentially unchanged; individual plain/system/custom pairs include
+slower observations. This supports review of the allocation optimization at the
+actual API boundary without explaining away the earlier app-only regressions.
+It does not establish behavior at other page sizes, traffic mixes, compression
+settings, database sizes or concurrency levels.
+
+[http-build.json](http-build.json) records measured binary hashes and commands.
+[http-results.json](http-results.json) preserves all request timings, output
+fingerprints, response sizes and cleanup results. [http-summary.json](http-summary.json)
+retains every paired per-type change, including slower observations. The
+baseline and candidate each use a fresh database with the same fixture shapes.
 
 ## Behavior and validation
 
@@ -173,11 +229,17 @@ python3 docs/benchmarks/emoji-name-scan/control.py --output /tmp/emoji-scan-cont
 python3 docs/benchmarks/emoji-name-scan/isolated.py --case dense --output /tmp/emoji-scan-dense
 python3 docs/benchmarks/emoji-name-scan/isolated.py --case invalid --output /tmp/emoji-scan-invalid
 python3 docs/benchmarks/emoji-name-scan/mixed.py --output /tmp/emoji-scan-mixed
+python3 docs/benchmarks/emoji-name-scan/http_build.py --output /tmp/emoji-scan-http-build
+python3 docs/benchmarks/emoji-name-scan/http_requests.py --build-report /tmp/emoji-scan-http-build/build.json --output /tmp/emoji-scan-http
 ```
 
 Earlier result files retain their original runner hashes and source revision.
 For their exact historical workspace, use root commit `0ee5ad4c7d07`. The current
 runner also accepts the added mixed benchmark file.
+
+The HTTP builder accepts --nm-goroot for an SDK with a matching nm tool. On
+this host it used /tmp/mattermax-release-goroot, which is selected when present;
+otherwise it uses the active Go SDK. Both tag and symbol guards remain required.
 
 The runners check the baseline tree, use a temporary overlay and save all
 commands, raw log hashes and measurements. No source files are rewritten.
