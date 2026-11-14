@@ -12,6 +12,8 @@ SiteURL and prefix behavior. There is no URL-normalization change. The original
 
 ## Measurement
 
+Measurement correction: these runs populate and validate PostList.Order, so default priority and acknowledgement reads execute. They supersede the earlier fixtures, which omitted Order.
+
 The benchmark prepares real stored 60-post pages with explicitly configured
 SiteURL and default priority/acknowledgement reads. It covers plain text,
 external images, same-site images, a site subpath, same-site non-permalink links
@@ -37,12 +39,12 @@ these medians:
 
 | Case | Before (ms) | After (ms) |
 | --- | ---: | ---: |
-| plain | 0.128 | 0.130 |
-| external_image | 0.293 | 0.289 |
-| same_site_image | 2.154 | 0.296 |
-| subpath_image | 2.183 | 0.305 |
-| same_site_link | 1.979 | 0.195 |
-| permalink | 2.432 | 0.541 |
+| plain | 0.755 | 0.790 |
+| external_image | 1.119 | 1.164 |
+| same_site_image | 3.673 | 1.158 |
+| subpath_image | 3.777 | 1.183 |
+| same_site_link | 3.441 | 0.928 |
+| permalink | 4.086 | 1.654 |
 
 No speedup is claimed for plain text or external-image controls.
 
