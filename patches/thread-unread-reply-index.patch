@@ -1,0 +1,419 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: rhnvrm <hello@rohanverma.net>
+Date: Sat, 14 Nov 2026 22:50:14 +0530
+Subject: [PATCH] perf: cover unread reply timestamps with the root index
+
+Mattermax-Patch: thread-unread-reply-index.patch
+---
+ ...00244_posts_root_delete_create_at.down.sql |   2 +
+ .../000244_posts_root_delete_create_at.up.sql |   3 +
+ ...5_replace_posts_root_delete_index.down.sql |   3 +
+ ...245_replace_posts_root_delete_index.up.sql |   2 +
+ .../channels/store/sqlstore/thread_store.go   |   6 +-
+ .../thread_unread_reply_benchmark_test.go     | 177 ++++++++++++++++++
+ .../thread_unread_reply_index_test.go         | 143 ++++++++++++++
+ 7 files changed, 333 insertions(+), 3 deletions(-)
+ create mode 100644 server/channels/db/migrations/postgres/000244_posts_root_delete_create_at.down.sql
+ create mode 100644 server/channels/db/migrations/postgres/000244_posts_root_delete_create_at.up.sql
+ create mode 100644 server/channels/db/migrations/postgres/000245_replace_posts_root_delete_index.down.sql
+ create mode 100644 server/channels/db/migrations/postgres/000245_replace_posts_root_delete_index.up.sql
+ create mode 100644 server/channels/store/sqlstore/thread_unread_reply_benchmark_test.go
+ create mode 100644 server/channels/store/sqlstore/thread_unread_reply_index_test.go
+
+diff --git a/server/channels/db/migrations/postgres/000244_posts_root_delete_create_at.down.sql b/server/channels/db/migrations/postgres/000244_posts_root_delete_create_at.down.sql
+new file mode 100644
+index 000000000000..4325ba08e187
+--- /dev/null
++++ b/server/channels/db/migrations/postgres/000244_posts_root_delete_create_at.down.sql
+@@ -0,0 +1,2 @@
++-- morph:nontransactional
++DROP INDEX CONCURRENTLY IF EXISTS idx_posts_root_id_delete_at_create_at;
+diff --git a/server/channels/db/migrations/postgres/000244_posts_root_delete_create_at.up.sql b/server/channels/db/migrations/postgres/000244_posts_root_delete_create_at.up.sql
+new file mode 100644
+index 000000000000..3c7e007e9d12
+--- /dev/null
++++ b/server/channels/db/migrations/postgres/000244_posts_root_delete_create_at.up.sql
+@@ -0,0 +1,3 @@
++-- morph:nontransactional
++CREATE INDEX CONCURRENTLY idx_posts_root_id_delete_at_create_at
++    ON posts (rootid, deleteat, createat);
+diff --git a/server/channels/db/migrations/postgres/000245_replace_posts_root_delete_index.down.sql b/server/channels/db/migrations/postgres/000245_replace_posts_root_delete_index.down.sql
+new file mode 100644
+index 000000000000..c34b2a80deed
+--- /dev/null
++++ b/server/channels/db/migrations/postgres/000245_replace_posts_root_delete_index.down.sql
+@@ -0,0 +1,3 @@
++-- morph:nontransactional
++CREATE INDEX CONCURRENTLY idx_posts_root_id_delete_at
++    ON posts (rootid, deleteat);
+diff --git a/server/channels/db/migrations/postgres/000245_replace_posts_root_delete_index.up.sql b/server/channels/db/migrations/postgres/000245_replace_posts_root_delete_index.up.sql
+new file mode 100644
+index 000000000000..0d48813f7349
+--- /dev/null
++++ b/server/channels/db/migrations/postgres/000245_replace_posts_root_delete_index.up.sql
+@@ -0,0 +1,2 @@
++-- morph:nontransactional
++DROP INDEX CONCURRENTLY idx_posts_root_id_delete_at;
+diff --git a/server/channels/store/sqlstore/thread_store.go b/server/channels/store/sqlstore/thread_store.go
+index a18afe7e6be1..5b87f7c924fa 100644
+--- a/server/channels/store/sqlstore/thread_store.go
++++ b/server/channels/store/sqlstore/thread_store.go
+@@ -287,7 +287,7 @@ func (s *SqlThreadStore) GetThreadsForUser(rctx request.CTX, userId, teamId stri
+ 	}
+ 
+ 	unreadRepliesQuery := sq.
+-		Select("COUNT(Posts.Id)").
++		Select("COUNT(*)").
+ 		From("Posts").
+ 		Where(sq.Expr("Posts.RootId = ThreadMemberships.PostId")).
+ 		Where(sq.Expr("Posts.CreateAt > ThreadMemberships.LastViewed"))
+@@ -565,7 +565,7 @@ func (s *SqlThreadStore) GetThreadForUser(rctx request.CTX, threadMembership *mo
+ 	}
+ 
+ 	unreadRepliesQuery := sq.
+-		Select("COUNT(Posts.Id)").
++		Select("COUNT(*)").
+ 		From("Posts").
+ 		Where(sq.And{
+ 			sq.Eq{"Posts.RootId": threadMembership.PostId},
+@@ -1054,7 +1054,7 @@ func (s *SqlThreadStore) DeleteOrphanedRows(limit int) (deleted int64, err error
+ // return number of unread replies for a single thread
+ func (s *SqlThreadStore) GetThreadUnreadReplyCount(threadMembership *model.ThreadMembership) (int64, error) {
+ 	query := s.getQueryBuilder().
+-		Select("COUNT(Posts.Id)").
++		Select("COUNT(*)").
+ 		From("Posts").
+ 		Where(sq.And{
+ 			sq.Eq{"Posts.RootId": threadMembership.PostId},
+diff --git a/server/channels/store/sqlstore/thread_unread_reply_benchmark_test.go b/server/channels/store/sqlstore/thread_unread_reply_benchmark_test.go
+new file mode 100644
+index 000000000000..d36742ed29cc
+--- /dev/null
++++ b/server/channels/store/sqlstore/thread_unread_reply_benchmark_test.go
+@@ -0,0 +1,177 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++package sqlstore
++
++import (
++	"fmt"
++	"os"
++	"strings"
++	"testing"
++
++	"github.com/lib/pq"
++
++	"github.com/mattermost/mattermost/server/public/model"
++	"github.com/mattermost/mattermost/server/public/shared/request"
++)
++
++// BenchmarkThreadUnreadReplies validates counts and complete page identity on
++// fresh, interleaved reply rows. Setup, index changes and cleanup are untimed.
++func BenchmarkThreadUnreadReplies(b *testing.B) {
++	if len(storeTypes) == 0 {
++		b.Fatal("PostgreSQL store required")
++	}
++	for _, st := range storeTypes {
++		b.Run(st.Name, func(b *testing.B) {
++			before := os.Getenv("MATTERMAX_UNREAD_INDEX_VARIANT") == "before"
++			if before {
++				if _, err := st.SqlStore.GetMaster().ExecNoTimeout("DROP INDEX IF EXISTS idx_posts_root_id_delete_at_create_at"); err != nil {
++					b.Fatal(err)
++				}
++
++				if _, err := st.SqlStore.GetMaster().ExecNoTimeout("CREATE INDEX IF NOT EXISTS idx_posts_root_id_delete_at ON Posts(RootId,DeleteAt)"); err != nil {
++					b.Fatal(err)
++				}
++			}
++			var present bool
++			if err := st.SqlStore.GetMaster().Get(&present, "SELECT to_regclass('idx_posts_root_id_delete_at_create_at') IS NOT NULL"); err != nil {
++				b.Fatal(err)
++			}
++			if present == before {
++				b.Fatal("unexpected index state")
++			}
++			for _, replies := range []int{0, 100, 1000} {
++				b.Run(fmt.Sprintf("replies=%d", replies), func(b *testing.B) {
++					rctx := request.TestContext(b)
++					user := model.NewId()
++					channel, err := st.Store.Channel().Save(rctx, &model.Channel{Name: model.NewId(), DisplayName: "Unread benchmark", Type: model.ChannelTypeOpen}, 999)
++					if err != nil {
++						b.Fatal(err)
++					}
++					if _, err = st.Store.Channel().SaveMember(rctx, &model.ChannelMember{ChannelId: channel.Id, UserId: user, NotifyProps: model.GetDefaultChannelNotifyProps()}); err != nil {
++						b.Fatal(err)
++					}
++					const base = int64(1000000)
++					roots := make([]*model.Post, 30)
++					for i := range roots {
++						roots[i] = &model.Post{ChannelId: channel.Id, UserId: user, CreateAt: base, Message: strings.Repeat("root message ", 100)}
++					}
++					if _, _, err = st.Store.Post().SaveMultiple(rctx, roots); err != nil {
++						b.Fatal(err)
++					}
++					ids := make(model.StringArray, len(roots))
++					indices := make(map[string]uint, len(roots))
++					for i, p := range roots {
++						ids[i] = p.Id
++						indices[p.Id] = uint(i)
++					}
++					if _, err = st.SqlStore.GetMaster().Exec(`INSERT INTO Threads(PostId,ChannelId,ReplyCount,LastReplyAt,Participants,ThreadTeamId)
++                        SELECT id,?,?,?,? ,'' FROM unnest(?::varchar[]) id`, channel.Id, replies, base+int64(replies), model.StringArray{user}, pq.Array([]string(ids))); err != nil {
++						b.Fatal(err)
++					}
++					if _, err = st.SqlStore.GetMaster().Exec(`INSERT INTO ThreadMemberships(PostId,UserId,Following,LastViewed,LastUpdated,UnreadMentions)
++                        SELECT id,?,true,0,0,0 FROM unnest(?::varchar[]) id`, user, pq.Array([]string(ids))); err != nil {
++						b.Fatal(err)
++					}
++					if replies > 0 {
++						// n is the outer input so replies from different roots
++						// share heap pages, rather than forming contiguous runs.
++						if _, err = st.SqlStore.GetMaster().Exec(`INSERT INTO Posts(Id,RootId,ChannelId,UserId,CreateAt,UpdateAt,DeleteAt,Message,Type,Props,Hashtags,Filenames,FileIds,RemoteId)
++                            SELECT substr(md5(id||n::text),1,26),id,?,?,?::bigint+n,?::bigint+n,CASE WHEN n%7=0 THEN 1 ELSE 0 END,repeat('reply ',100),'','{}','','[]','[]',''
++                            FROM generate_series(1,?) n CROSS JOIN unnest(?::varchar[]) id ORDER BY n,id`, channel.Id, user, base, base, replies, pq.Array([]string(ids))); err != nil {
++							b.Fatal(err)
++						}
++					}
++					// Analyze leaves freshly inserted pages non-all-visible.
++					if _, err = st.SqlStore.GetMaster().ExecNoTimeout("ANALYZE Posts"); err != nil {
++						b.Fatal(err)
++					}
++					b.Cleanup(func() {
++						for _, q := range []string{"DELETE FROM Posts WHERE ChannelId=?", "DELETE FROM ThreadMemberships WHERE UserId=?", "DELETE FROM Threads WHERE ChannelId=?", "DELETE FROM ChannelMembers WHERE ChannelId=?", "DELETE FROM Channels WHERE Id=?"} {
++							arg := channel.Id
++							if strings.Contains(q, "UserId") {
++								arg = user
++							}
++							if _, err := st.SqlStore.GetMaster().Exec(q, arg); err != nil {
++								b.Error(err)
++							}
++						}
++					})
++					for _, read := range []string{"mostly_read", "all_read"} {
++						viewed := base + int64(replies*9/10)
++						if read == "all_read" {
++							viewed = base + int64(replies)
++						}
++						var expected int64
++						for n := 1; n <= replies; n++ {
++							if base+int64(n) > viewed && n%7 != 0 {
++								expected++
++							}
++						}
++						if _, err = st.SqlStore.GetMaster().Exec("UPDATE ThreadMemberships SET LastViewed=? WHERE UserId=?", viewed, user); err != nil {
++							b.Fatal(err)
++						}
++						membership := &model.ThreadMembership{PostId: roots[0].Id, UserId: user, Following: true, LastViewed: viewed}
++						for _, method := range []string{"count", "single", "page", "totals_control", "reply_total_control"} {
++							b.Run(read+"/"+method, func(b *testing.B) {
++								lookup := func() {
++									switch method {
++									case "count":
++										n, err := st.Store.Thread().GetThreadUnreadReplyCount(membership)
++										if err != nil || n != expected {
++											b.Fatalf("count=%d want=%d err=%v", n, expected, err)
++										}
++									case "single":
++										thread, err := st.Store.Thread().GetThreadForUser(rctx, membership, false, false)
++										if err != nil {
++											b.Fatal(err)
++										}
++										if thread.Post.Id != roots[0].Id || thread.Post.Message != roots[0].Message || thread.UnreadReplies != expected {
++											b.Fatal("incorrect single response")
++										}
++									case "page":
++										threads, err := st.Store.Thread().GetThreadsForUser(rctx, user, "", model.GetUserThreadsOpts{PageSize: 30})
++										if err != nil {
++											b.Fatal(err)
++										}
++										if len(threads) != len(roots) {
++											b.Fatal("incorrect page size")
++										}
++										var seen uint32
++										for _, thread := range threads {
++											i, ok := indices[thread.Post.Id]
++											if !ok || seen&(1<<i) != 0 || thread.UnreadReplies != expected || thread.Post.Message != roots[0].Message {
++												b.Fatal("incorrect page data")
++											}
++											seen |= 1 << i
++										}
++
++									case "reply_total_control":
++										post, err := st.Store.Post().GetSingle(rctx, roots[0].Id, false)
++										if err != nil {
++											b.Fatal(err)
++										}
++										if post.Id != roots[0].Id || post.ReplyCount != int64(replies-replies/7) {
++											b.Fatal("incorrect reply-count control")
++										}
++									case "totals_control":
++										n, err := st.Store.Thread().GetTotalThreads(user, "", model.GetUserThreadsOpts{})
++										if err != nil || n != int64(len(roots)) {
++											b.Fatalf("total=%d err=%v", n, err)
++										}
++									}
++								}
++								lookup()
++								b.ReportAllocs()
++								b.ResetTimer()
++								for i := 0; i < b.N; i++ {
++									lookup()
++								}
++							})
++						}
++					}
++				})
++			}
++		})
++	}
++}
+diff --git a/server/channels/store/sqlstore/thread_unread_reply_index_test.go b/server/channels/store/sqlstore/thread_unread_reply_index_test.go
+new file mode 100644
+index 000000000000..7c9988ec6ca1
+--- /dev/null
++++ b/server/channels/store/sqlstore/thread_unread_reply_index_test.go
+@@ -0,0 +1,143 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++package sqlstore
++
++import (
++	"testing"
++
++	"github.com/mattermost/mattermost/server/public/model"
++	"github.com/mattermost/mattermost/server/public/shared/request"
++	"github.com/mattermost/mattermost/server/v8/channels/store"
++	"github.com/mattermost/mattermost/server/v8/channels/store/storetest"
++	"github.com/stretchr/testify/require"
++)
++
++// Compare all three callers with the retained non-null primary-key count,
++// including boundary, null, deleted and empty-root behavior.
++func TestThreadUnreadReplyCountCompatibility(t *testing.T) {
++	StoreTestWithSqlStore(t, func(t *testing.T, rctx request.CTX, ss store.Store, db storetest.SqlStore) {
++		user, err := ss.User().Save(rctx, &model.User{Email: model.NewId() + "@example.com", Username: model.NewId()})
++		require.NoError(t, err)
++		channel, err := ss.Channel().Save(rctx, &model.Channel{Name: model.NewId(), DisplayName: model.NewId(), Type: model.ChannelTypeOpen}, 999)
++		require.NoError(t, err)
++		_, err = ss.Channel().SaveMember(rctx, &model.ChannelMember{ChannelId: channel.Id, UserId: user.Id, NotifyProps: model.GetDefaultChannelNotifyProps()})
++		require.NoError(t, err)
++		root, err := ss.Post().Save(rctx, &model.Post{ChannelId: channel.Id, UserId: user.Id, Message: "root", CreateAt: 100})
++		require.NoError(t, err)
++		emptyCreated := false
++		t.Cleanup(func() {
++			_, e := db.GetMaster().Exec("DELETE FROM Posts WHERE Id=? OR RootId=?", root.Id, root.Id)
++			require.NoError(t, e)
++			if emptyCreated {
++				_, e = db.GetMaster().Exec("DELETE FROM Posts WHERE Id='' ")
++				require.NoError(t, e)
++			}
++			for _, item := range []struct {
++				q   string
++				arg string
++			}{
++				{"DELETE FROM ThreadMemberships WHERE UserId=?", user.Id},
++				{"DELETE FROM Threads WHERE ChannelId=?", channel.Id},
++				{"DELETE FROM ChannelMembers WHERE ChannelId=?", channel.Id},
++				{"DELETE FROM Channels WHERE Id=?", channel.Id},
++				{"DELETE FROM Users WHERE Id=?", user.Id},
++			} {
++				_, e = db.GetMaster().Exec(item.q, item.arg)
++				require.NoError(t, e)
++			}
++		})
++		_, err = ss.Post().Save(rctx, &model.Post{ChannelId: channel.Id, UserId: user.Id, RootId: root.Id, Message: "reply", CreateAt: 200})
++		require.NoError(t, err)
++		membership, err := ss.Thread().MaintainMembership(user.Id, root.Id, store.ThreadMembershipOpts{Following: true, UpdateFollowing: true})
++		require.NoError(t, err)
++		for _, row := range []struct{ created, deleted any }{{100, 0}, {201, 0}, {202, 1}, {203, nil}, {nil, 0}, {-1, 0}} {
++			_, err = db.GetMaster().Exec("INSERT INTO Posts(Id,RootId,CreateAt,DeleteAt) VALUES (?,?,?,?)", model.NewId(), root.Id, row.created, row.deleted)
++			require.NoError(t, err)
++		}
++		legacy := func(id string, viewed int64, deleted bool) int64 {
++			t.Helper()
++			q := "SELECT COUNT(Id) FROM Posts WHERE RootId=? AND CreateAt>?"
++			if !deleted {
++				q += " AND DeleteAt=0"
++			}
++			var n int64
++			require.NoError(t, db.GetMaster().Get(&n, q, id, viewed))
++			return n
++		}
++		for _, viewed := range []int64{-2, 0, 100, 200, 1000} {
++			membership.LastViewed = viewed
++			_, err = ss.Thread().UpdateMembership(membership)
++			require.NoError(t, err)
++			n, err := ss.Thread().GetThreadUnreadReplyCount(membership)
++			require.NoError(t, err)
++			require.Equal(t, legacy(root.Id, viewed, false), n)
++			thread, err := ss.Thread().GetThreadForUser(rctx, membership, false, false)
++			require.NoError(t, err)
++			require.Equal(t, n, thread.UnreadReplies)
++			for _, deleted := range []bool{false, true} {
++				threads, err := ss.Thread().GetThreadsForUser(rctx, user.Id, "", model.GetUserThreadsOpts{Deleted: deleted})
++				require.NoError(t, err)
++				require.Len(t, threads, 1)
++				require.Equal(t, root.Id, threads[0].Post.Id)
++				require.Equal(t, legacy(root.Id, viewed, deleted), threads[0].UnreadReplies)
++			}
++		}
++		for _, id := range []string{model.NewId(), ""} {
++			m := &model.ThreadMembership{PostId: id, UserId: user.Id, Following: true}
++			n, err := ss.Thread().GetThreadUnreadReplyCount(m)
++			require.NoError(t, err)
++			require.Equal(t, legacy(id, 0, false), n)
++		}
++		// A stored empty-ID root exercises the correlated fallback as well.
++		_, err = db.GetMaster().Exec("INSERT INTO Posts (Id,RootId,ChannelId,UserId,CreateAt,UpdateAt,DeleteAt,Message,Type,Props,Hashtags,Filenames,FileIds,RemoteId) VALUES ('','',?,?,100,100,0,'empty root','','{}','','[]','[]','')", channel.Id, user.Id)
++		require.NoError(t, err)
++		emptyCreated = true
++		_, err = db.GetMaster().Exec("INSERT INTO Threads(PostId,ChannelId,ReplyCount,LastReplyAt,Participants,ThreadTeamId) VALUES ('',?,0,200,?,'')", channel.Id, model.StringArray{user.Id})
++		require.NoError(t, err)
++		_, err = db.GetMaster().Exec("INSERT INTO ThreadMemberships(PostId,UserId,Following,LastViewed,LastUpdated,UnreadMentions) VALUES ('',?,true,0,0,0)", user.Id)
++		require.NoError(t, err)
++		threads, err := ss.Thread().GetThreadsForUser(rctx, user.Id, "", model.GetUserThreadsOpts{})
++		require.NoError(t, err)
++		require.Len(t, threads, 2)
++		found := false
++		for _, thread := range threads {
++			if thread.PostId == "" {
++				found = true
++				require.Equal(t, legacy("", 0, false), thread.UnreadReplies)
++			}
++		}
++		require.True(t, found)
++
++	})
++}
++
++func TestMigration000244(t *testing.T) {
++	StoreTestWithSqlStore(t, func(t *testing.T, _ request.CTX, _ store.Store, db storetest.SqlStore) {
++		check := func(old, new bool) {
++			t.Helper()
++			for name, wanted := range map[string]bool{"idx_posts_root_id_delete_at": old, "idx_posts_root_id_delete_at_create_at": new} {
++				var present bool
++				require.NoError(t, db.GetMaster().Get(&present, "SELECT EXISTS (SELECT 1 FROM pg_index i JOIN pg_class c ON c.oid=i.indexrelid WHERE c.relname=? AND c.relnamespace=current_schema()::regnamespace AND i.indisready AND i.indisvalid)", name))
++				require.Equal(t, wanted, present, name)
++			}
++		}
++		// Each concurrent statement has its own nontransactional migration.
++		// Upgrade builds the replacement before removing the old index;
++		// downgrade restores the old index before removing the replacement.
++		check(false, true)
++		for _, step := range []struct {
++			file     string
++			old, new bool
++		}{
++			{"000245_replace_posts_root_delete_index.down.sql", true, true},
++			{"000244_posts_root_delete_create_at.down.sql", true, false},
++			{"000244_posts_root_delete_create_at.up.sql", true, true},
++			{"000245_replace_posts_root_delete_index.up.sql", false, true},
++		} {
++			_, err := db.GetMaster().Exec(readMigrationSQL(t, step.file))
++			require.NoError(t, err)
++			check(step.old, step.new)
++		}
++	})
++}

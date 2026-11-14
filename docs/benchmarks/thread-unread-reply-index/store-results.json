@@ -1,0 +1,1421 @@
+{
+  "status": "passed",
+  "iterations": 500,
+  "trials": 3,
+  "baseline_sha": "c9dbbcc480b242f7349cb7f4e9dcb6ea35cf6404",
+  "production_file_sha256": "939319ad62aeb9612787cbbe43747c4a77daca93606f32f0115db254987ba08d",
+  "baseline_file_sha256": "d0fc1c28f67706250968abd4f221dcefb295b5e2bfbf87e94599e751dade3218",
+  "samples": [
+    {
+      "trial": 0,
+      "variant": "before",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./channels/store/sqlstore",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkThreadUnreadReplies$",
+        "-benchtime",
+        "500x",
+        "-count=1",
+        "-timeout=15m",
+        "-json",
+        "-overlay",
+        "/home/rhnvrm/.bb/thread-storage/thr_jynvcygccx/thread-unread-replacement-pairs/baseline-overlay.json"
+      ],
+      "benchmarks": [
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/mostly_read/count",
+          "iterations": 500,
+          "ns_op": 251463.0,
+          "bytes_op": 6819.0,
+          "allocs_op": 123.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/mostly_read/single",
+          "iterations": 500,
+          "ns_op": 615605.0,
+          "bytes_op": 34088.0,
+          "allocs_op": 435.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/mostly_read/page",
+          "iterations": 500,
+          "ns_op": 1097293.0,
+          "bytes_op": 190373.0,
+          "allocs_op": 1681.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/mostly_read/totals_control",
+          "iterations": 500,
+          "ns_op": 346268.0,
+          "bytes_op": 11630.0,
+          "allocs_op": 160.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/mostly_read/reply_total_control",
+          "iterations": 500,
+          "ns_op": 266851.0,
+          "bytes_op": 19190.0,
+          "allocs_op": 204.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/all_read/count",
+          "iterations": 500,
+          "ns_op": 149054.0,
+          "bytes_op": 6800.0,
+          "allocs_op": 123.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/all_read/single",
+          "iterations": 500,
+          "ns_op": 324647.0,
+          "bytes_op": 34067.0,
+          "allocs_op": 435.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/all_read/page",
+          "iterations": 500,
+          "ns_op": 1001183.0,
+          "bytes_op": 190339.0,
+          "allocs_op": 1681.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/all_read/totals_control",
+          "iterations": 500,
+          "ns_op": 290359.0,
+          "bytes_op": 11617.0,
+          "allocs_op": 160.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/all_read/reply_total_control",
+          "iterations": 500,
+          "ns_op": 218907.0,
+          "bytes_op": 19178.0,
+          "allocs_op": 204.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/mostly_read/count",
+          "iterations": 500,
+          "ns_op": 164474.0,
+          "bytes_op": 6801.0,
+          "allocs_op": 123.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/mostly_read/single",
+          "iterations": 500,
+          "ns_op": 411549.0,
+          "bytes_op": 34068.0,
+          "allocs_op": 435.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/mostly_read/page",
+          "iterations": 500,
+          "ns_op": 1167486.0,
+          "bytes_op": 190336.0,
+          "allocs_op": 1681.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/mostly_read/totals_control",
+          "iterations": 500,
+          "ns_op": 315866.0,
+          "bytes_op": 11616.0,
+          "allocs_op": 160.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/mostly_read/reply_total_control",
+          "iterations": 500,
+          "ns_op": 284620.0,
+          "bytes_op": 19176.0,
+          "allocs_op": 204.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/all_read/count",
+          "iterations": 500,
+          "ns_op": 155796.0,
+          "bytes_op": 6801.0,
+          "allocs_op": 123.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/all_read/single",
+          "iterations": 500,
+          "ns_op": 341660.0,
+          "bytes_op": 34068.0,
+          "allocs_op": 435.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/all_read/page",
+          "iterations": 500,
+          "ns_op": 1044227.0,
+          "bytes_op": 190338.0,
+          "allocs_op": 1681.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/all_read/totals_control",
+          "iterations": 500,
+          "ns_op": 323495.0,
+          "bytes_op": 11617.0,
+          "allocs_op": 160.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/all_read/reply_total_control",
+          "iterations": 500,
+          "ns_op": 316388.0,
+          "bytes_op": 19180.0,
+          "allocs_op": 204.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/mostly_read/count",
+          "iterations": 500,
+          "ns_op": 284385.0,
+          "bytes_op": 6801.0,
+          "allocs_op": 123.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/mostly_read/single",
+          "iterations": 500,
+          "ns_op": 640668.0,
+          "bytes_op": 34086.0,
+          "allocs_op": 436.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/mostly_read/page",
+          "iterations": 500,
+          "ns_op": 4632017.0,
+          "bytes_op": 190579.0,
+          "allocs_op": 1711.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/mostly_read/totals_control",
+          "iterations": 500,
+          "ns_op": 302021.0,
+          "bytes_op": 11616.0,
+          "allocs_op": 160.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/mostly_read/reply_total_control",
+          "iterations": 500,
+          "ns_op": 545255.0,
+          "bytes_op": 19196.0,
+          "allocs_op": 205.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/all_read/count",
+          "iterations": 500,
+          "ns_op": 144286.0,
+          "bytes_op": 6801.0,
+          "allocs_op": 123.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/all_read/single",
+          "iterations": 500,
+          "ns_op": 368959.0,
+          "bytes_op": 34081.0,
+          "allocs_op": 436.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/all_read/page",
+          "iterations": 500,
+          "ns_op": 2638725.0,
+          "bytes_op": 190575.0,
+          "allocs_op": 1711.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/all_read/totals_control",
+          "iterations": 500,
+          "ns_op": 304250.0,
+          "bytes_op": 11617.0,
+          "allocs_op": 160.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/all_read/reply_total_control",
+          "iterations": 500,
+          "ns_op": 623023.0,
+          "bytes_op": 19196.0,
+          "allocs_op": 205.0
+        }
+      ],
+      "log_sha256": "14ac223086aa23d87890ea4b3b6c20361b0fd39db06d4272710f03d2ee66ccf4"
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./channels/store/sqlstore",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkThreadUnreadReplies$",
+        "-benchtime",
+        "500x",
+        "-count=1",
+        "-timeout=15m",
+        "-json"
+      ],
+      "benchmarks": [
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/mostly_read/count",
+          "iterations": 500,
+          "ns_op": 244822.0,
+          "bytes_op": 6791.0,
+          "allocs_op": 123.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/mostly_read/single",
+          "iterations": 500,
+          "ns_op": 634501.0,
+          "bytes_op": 34136.0,
+          "allocs_op": 435.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/mostly_read/page",
+          "iterations": 500,
+          "ns_op": 1308613.0,
+          "bytes_op": 189826.0,
+          "allocs_op": 1681.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/mostly_read/totals_control",
+          "iterations": 500,
+          "ns_op": 363395.0,
+          "bytes_op": 11617.0,
+          "allocs_op": 160.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/mostly_read/reply_total_control",
+          "iterations": 500,
+          "ns_op": 275197.0,
+          "bytes_op": 19181.0,
+          "allocs_op": 204.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/all_read/count",
+          "iterations": 500,
+          "ns_op": 158948.0,
+          "bytes_op": 6798.0,
+          "allocs_op": 123.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/all_read/single",
+          "iterations": 500,
+          "ns_op": 341102.0,
+          "bytes_op": 34068.0,
+          "allocs_op": 435.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/all_read/page",
+          "iterations": 500,
+          "ns_op": 1044939.0,
+          "bytes_op": 189833.0,
+          "allocs_op": 1681.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/all_read/totals_control",
+          "iterations": 500,
+          "ns_op": 295858.0,
+          "bytes_op": 11616.0,
+          "allocs_op": 160.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/all_read/reply_total_control",
+          "iterations": 500,
+          "ns_op": 196413.0,
+          "bytes_op": 19180.0,
+          "allocs_op": 204.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/mostly_read/count",
+          "iterations": 500,
+          "ns_op": 162563.0,
+          "bytes_op": 6785.0,
+          "allocs_op": 123.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/mostly_read/single",
+          "iterations": 500,
+          "ns_op": 399052.0,
+          "bytes_op": 34077.0,
+          "allocs_op": 435.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/mostly_read/page",
+          "iterations": 500,
+          "ns_op": 1038713.0,
+          "bytes_op": 189828.0,
+          "allocs_op": 1681.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/mostly_read/totals_control",
+          "iterations": 500,
+          "ns_op": 296089.0,
+          "bytes_op": 11618.0,
+          "allocs_op": 160.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/mostly_read/reply_total_control",
+          "iterations": 500,
+          "ns_op": 252262.0,
+          "bytes_op": 19179.0,
+          "allocs_op": 204.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/all_read/count",
+          "iterations": 500,
+          "ns_op": 139109.0,
+          "bytes_op": 6784.0,
+          "allocs_op": 123.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/all_read/single",
+          "iterations": 500,
+          "ns_op": 354657.0,
+          "bytes_op": 34067.0,
+          "allocs_op": 435.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/all_read/page",
+          "iterations": 500,
+          "ns_op": 996500.0,
+          "bytes_op": 189824.0,
+          "allocs_op": 1681.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/all_read/totals_control",
+          "iterations": 500,
+          "ns_op": 337864.0,
+          "bytes_op": 11618.0,
+          "allocs_op": 160.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/all_read/reply_total_control",
+          "iterations": 500,
+          "ns_op": 282626.0,
+          "bytes_op": 19180.0,
+          "allocs_op": 204.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/mostly_read/count",
+          "iterations": 500,
+          "ns_op": 187962.0,
+          "bytes_op": 6785.0,
+          "allocs_op": 123.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/mostly_read/single",
+          "iterations": 500,
+          "ns_op": 397988.0,
+          "bytes_op": 34081.0,
+          "allocs_op": 436.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/mostly_read/page",
+          "iterations": 500,
+          "ns_op": 1685372.0,
+          "bytes_op": 190066.0,
+          "allocs_op": 1711.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/mostly_read/totals_control",
+          "iterations": 500,
+          "ns_op": 285284.0,
+          "bytes_op": 11616.0,
+          "allocs_op": 160.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/mostly_read/reply_total_control",
+          "iterations": 500,
+          "ns_op": 567293.0,
+          "bytes_op": 19196.0,
+          "allocs_op": 205.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/all_read/count",
+          "iterations": 500,
+          "ns_op": 159880.0,
+          "bytes_op": 6784.0,
+          "allocs_op": 123.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/all_read/single",
+          "iterations": 500,
+          "ns_op": 378514.0,
+          "bytes_op": 34087.0,
+          "allocs_op": 436.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/all_read/page",
+          "iterations": 500,
+          "ns_op": 1071397.0,
+          "bytes_op": 190060.0,
+          "allocs_op": 1711.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/all_read/totals_control",
+          "iterations": 500,
+          "ns_op": 318558.0,
+          "bytes_op": 11617.0,
+          "allocs_op": 160.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/all_read/reply_total_control",
+          "iterations": 500,
+          "ns_op": 612151.0,
+          "bytes_op": 19195.0,
+          "allocs_op": 205.0
+        }
+      ],
+      "log_sha256": "225c160cb004915f69e6d8e36744fe5a7421a662b532ff33e32831b31d3eda8e"
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./channels/store/sqlstore",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkThreadUnreadReplies$",
+        "-benchtime",
+        "500x",
+        "-count=1",
+        "-timeout=15m",
+        "-json"
+      ],
+      "benchmarks": [
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/mostly_read/count",
+          "iterations": 500,
+          "ns_op": 249809.0,
+          "bytes_op": 6813.0,
+          "allocs_op": 123.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/mostly_read/single",
+          "iterations": 500,
+          "ns_op": 601186.0,
+          "bytes_op": 34110.0,
+          "allocs_op": 435.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/mostly_read/page",
+          "iterations": 500,
+          "ns_op": 1406767.0,
+          "bytes_op": 189847.0,
+          "allocs_op": 1681.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/mostly_read/totals_control",
+          "iterations": 500,
+          "ns_op": 347834.0,
+          "bytes_op": 11629.0,
+          "allocs_op": 160.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/mostly_read/reply_total_control",
+          "iterations": 500,
+          "ns_op": 235865.0,
+          "bytes_op": 19180.0,
+          "allocs_op": 204.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/all_read/count",
+          "iterations": 500,
+          "ns_op": 184078.0,
+          "bytes_op": 6785.0,
+          "allocs_op": 123.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/all_read/single",
+          "iterations": 500,
+          "ns_op": 365245.0,
+          "bytes_op": 34067.0,
+          "allocs_op": 435.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/all_read/page",
+          "iterations": 500,
+          "ns_op": 1025999.0,
+          "bytes_op": 189833.0,
+          "allocs_op": 1681.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/all_read/totals_control",
+          "iterations": 500,
+          "ns_op": 316097.0,
+          "bytes_op": 11619.0,
+          "allocs_op": 160.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/all_read/reply_total_control",
+          "iterations": 500,
+          "ns_op": 240877.0,
+          "bytes_op": 19179.0,
+          "allocs_op": 204.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/mostly_read/count",
+          "iterations": 500,
+          "ns_op": 165088.0,
+          "bytes_op": 6788.0,
+          "allocs_op": 123.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/mostly_read/single",
+          "iterations": 500,
+          "ns_op": 412438.0,
+          "bytes_op": 34069.0,
+          "allocs_op": 435.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/mostly_read/page",
+          "iterations": 500,
+          "ns_op": 1056885.0,
+          "bytes_op": 189836.0,
+          "allocs_op": 1681.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/mostly_read/totals_control",
+          "iterations": 500,
+          "ns_op": 292014.0,
+          "bytes_op": 11617.0,
+          "allocs_op": 160.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/mostly_read/reply_total_control",
+          "iterations": 500,
+          "ns_op": 271793.0,
+          "bytes_op": 19177.0,
+          "allocs_op": 204.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/all_read/count",
+          "iterations": 500,
+          "ns_op": 138859.0,
+          "bytes_op": 6785.0,
+          "allocs_op": 123.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/all_read/single",
+          "iterations": 500,
+          "ns_op": 333443.0,
+          "bytes_op": 34069.0,
+          "allocs_op": 435.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/all_read/page",
+          "iterations": 500,
+          "ns_op": 1036000.0,
+          "bytes_op": 189829.0,
+          "allocs_op": 1681.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/all_read/totals_control",
+          "iterations": 500,
+          "ns_op": 300204.0,
+          "bytes_op": 11617.0,
+          "allocs_op": 160.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/all_read/reply_total_control",
+          "iterations": 500,
+          "ns_op": 263216.0,
+          "bytes_op": 19178.0,
+          "allocs_op": 204.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/mostly_read/count",
+          "iterations": 500,
+          "ns_op": 163555.0,
+          "bytes_op": 6792.0,
+          "allocs_op": 123.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/mostly_read/single",
+          "iterations": 500,
+          "ns_op": 392205.0,
+          "bytes_op": 34083.0,
+          "allocs_op": 436.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/mostly_read/page",
+          "iterations": 500,
+          "ns_op": 1799029.0,
+          "bytes_op": 190062.0,
+          "allocs_op": 1711.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/mostly_read/totals_control",
+          "iterations": 500,
+          "ns_op": 336485.0,
+          "bytes_op": 11617.0,
+          "allocs_op": 160.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/mostly_read/reply_total_control",
+          "iterations": 500,
+          "ns_op": 581830.0,
+          "bytes_op": 19193.0,
+          "allocs_op": 205.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/all_read/count",
+          "iterations": 500,
+          "ns_op": 145390.0,
+          "bytes_op": 6785.0,
+          "allocs_op": 123.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/all_read/single",
+          "iterations": 500,
+          "ns_op": 382466.0,
+          "bytes_op": 34086.0,
+          "allocs_op": 436.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/all_read/page",
+          "iterations": 500,
+          "ns_op": 1065845.0,
+          "bytes_op": 190063.0,
+          "allocs_op": 1711.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/all_read/totals_control",
+          "iterations": 500,
+          "ns_op": 340011.0,
+          "bytes_op": 11616.0,
+          "allocs_op": 160.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/all_read/reply_total_control",
+          "iterations": 500,
+          "ns_op": 608002.0,
+          "bytes_op": 19193.0,
+          "allocs_op": 205.0
+        }
+      ],
+      "log_sha256": "c848ea0c4b2cea3909b704e69e518a7bb42d4224bc9f2829453f516da5947ac6"
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./channels/store/sqlstore",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkThreadUnreadReplies$",
+        "-benchtime",
+        "500x",
+        "-count=1",
+        "-timeout=15m",
+        "-json",
+        "-overlay",
+        "/home/rhnvrm/.bb/thread-storage/thr_jynvcygccx/thread-unread-replacement-pairs/baseline-overlay.json"
+      ],
+      "benchmarks": [
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/mostly_read/count",
+          "iterations": 500,
+          "ns_op": 236835.0,
+          "bytes_op": 6819.0,
+          "allocs_op": 123.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/mostly_read/single",
+          "iterations": 500,
+          "ns_op": 594388.0,
+          "bytes_op": 34075.0,
+          "allocs_op": 435.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/mostly_read/page",
+          "iterations": 500,
+          "ns_op": 1389985.0,
+          "bytes_op": 190402.0,
+          "allocs_op": 1681.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/mostly_read/totals_control",
+          "iterations": 500,
+          "ns_op": 367735.0,
+          "bytes_op": 11618.0,
+          "allocs_op": 160.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/mostly_read/reply_total_control",
+          "iterations": 500,
+          "ns_op": 226711.0,
+          "bytes_op": 19179.0,
+          "allocs_op": 204.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/all_read/count",
+          "iterations": 500,
+          "ns_op": 184888.0,
+          "bytes_op": 6800.0,
+          "allocs_op": 123.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/all_read/single",
+          "iterations": 500,
+          "ns_op": 396328.0,
+          "bytes_op": 34070.0,
+          "allocs_op": 435.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/all_read/page",
+          "iterations": 500,
+          "ns_op": 1002909.0,
+          "bytes_op": 190341.0,
+          "allocs_op": 1681.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/all_read/totals_control",
+          "iterations": 500,
+          "ns_op": 390340.0,
+          "bytes_op": 11617.0,
+          "allocs_op": 160.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/all_read/reply_total_control",
+          "iterations": 500,
+          "ns_op": 215392.0,
+          "bytes_op": 19178.0,
+          "allocs_op": 204.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/mostly_read/count",
+          "iterations": 500,
+          "ns_op": 179966.0,
+          "bytes_op": 6800.0,
+          "allocs_op": 123.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/mostly_read/single",
+          "iterations": 500,
+          "ns_op": 407411.0,
+          "bytes_op": 34075.0,
+          "allocs_op": 435.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/mostly_read/page",
+          "iterations": 500,
+          "ns_op": 1203622.0,
+          "bytes_op": 190334.0,
+          "allocs_op": 1681.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/mostly_read/totals_control",
+          "iterations": 500,
+          "ns_op": 294848.0,
+          "bytes_op": 11617.0,
+          "allocs_op": 160.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/mostly_read/reply_total_control",
+          "iterations": 500,
+          "ns_op": 270063.0,
+          "bytes_op": 19178.0,
+          "allocs_op": 204.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/all_read/count",
+          "iterations": 500,
+          "ns_op": 164533.0,
+          "bytes_op": 6800.0,
+          "allocs_op": 123.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/all_read/single",
+          "iterations": 500,
+          "ns_op": 378835.0,
+          "bytes_op": 34069.0,
+          "allocs_op": 435.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/all_read/page",
+          "iterations": 500,
+          "ns_op": 1082359.0,
+          "bytes_op": 190344.0,
+          "allocs_op": 1681.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/all_read/totals_control",
+          "iterations": 500,
+          "ns_op": 291298.0,
+          "bytes_op": 11617.0,
+          "allocs_op": 160.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/all_read/reply_total_control",
+          "iterations": 500,
+          "ns_op": 275339.0,
+          "bytes_op": 19179.0,
+          "allocs_op": 204.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/mostly_read/count",
+          "iterations": 500,
+          "ns_op": 286166.0,
+          "bytes_op": 6800.0,
+          "allocs_op": 123.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/mostly_read/single",
+          "iterations": 500,
+          "ns_op": 571562.0,
+          "bytes_op": 34083.0,
+          "allocs_op": 436.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/mostly_read/page",
+          "iterations": 500,
+          "ns_op": 4942831.0,
+          "bytes_op": 190574.0,
+          "allocs_op": 1711.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/mostly_read/totals_control",
+          "iterations": 500,
+          "ns_op": 306429.0,
+          "bytes_op": 11617.0,
+          "allocs_op": 160.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/mostly_read/reply_total_control",
+          "iterations": 500,
+          "ns_op": 636310.0,
+          "bytes_op": 19193.0,
+          "allocs_op": 205.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/all_read/count",
+          "iterations": 500,
+          "ns_op": 145943.0,
+          "bytes_op": 6800.0,
+          "allocs_op": 123.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/all_read/single",
+          "iterations": 500,
+          "ns_op": 406708.0,
+          "bytes_op": 34082.0,
+          "allocs_op": 436.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/all_read/page",
+          "iterations": 500,
+          "ns_op": 2782907.0,
+          "bytes_op": 190580.0,
+          "allocs_op": 1711.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/all_read/totals_control",
+          "iterations": 500,
+          "ns_op": 283514.0,
+          "bytes_op": 11633.0,
+          "allocs_op": 160.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/all_read/reply_total_control",
+          "iterations": 500,
+          "ns_op": 569549.0,
+          "bytes_op": 19195.0,
+          "allocs_op": 205.0
+        }
+      ],
+      "log_sha256": "9689408b0e3353bc6fcb9c35bc0e1898b5e5b4e83eb3c857390a65858016a9c9"
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./channels/store/sqlstore",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkThreadUnreadReplies$",
+        "-benchtime",
+        "500x",
+        "-count=1",
+        "-timeout=15m",
+        "-json",
+        "-overlay",
+        "/home/rhnvrm/.bb/thread-storage/thr_jynvcygccx/thread-unread-replacement-pairs/baseline-overlay.json"
+      ],
+      "benchmarks": [
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/mostly_read/count",
+          "iterations": 500,
+          "ns_op": 254462.0,
+          "bytes_op": 6807.0,
+          "allocs_op": 123.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/mostly_read/single",
+          "iterations": 500,
+          "ns_op": 622397.0,
+          "bytes_op": 34092.0,
+          "allocs_op": 435.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/mostly_read/page",
+          "iterations": 500,
+          "ns_op": 1442905.0,
+          "bytes_op": 190355.0,
+          "allocs_op": 1681.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/mostly_read/totals_control",
+          "iterations": 500,
+          "ns_op": 318981.0,
+          "bytes_op": 11642.0,
+          "allocs_op": 160.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/mostly_read/reply_total_control",
+          "iterations": 500,
+          "ns_op": 235506.0,
+          "bytes_op": 19180.0,
+          "allocs_op": 204.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/all_read/count",
+          "iterations": 500,
+          "ns_op": 135448.0,
+          "bytes_op": 6800.0,
+          "allocs_op": 123.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/all_read/single",
+          "iterations": 500,
+          "ns_op": 388009.0,
+          "bytes_op": 34068.0,
+          "allocs_op": 435.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/all_read/page",
+          "iterations": 500,
+          "ns_op": 1043819.0,
+          "bytes_op": 190345.0,
+          "allocs_op": 1681.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/all_read/totals_control",
+          "iterations": 500,
+          "ns_op": 371832.0,
+          "bytes_op": 11618.0,
+          "allocs_op": 160.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/all_read/reply_total_control",
+          "iterations": 500,
+          "ns_op": 245331.0,
+          "bytes_op": 19180.0,
+          "allocs_op": 204.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/mostly_read/count",
+          "iterations": 500,
+          "ns_op": 154957.0,
+          "bytes_op": 6800.0,
+          "allocs_op": 123.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/mostly_read/single",
+          "iterations": 500,
+          "ns_op": 458362.0,
+          "bytes_op": 34073.0,
+          "allocs_op": 435.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/mostly_read/page",
+          "iterations": 500,
+          "ns_op": 1231587.0,
+          "bytes_op": 190348.0,
+          "allocs_op": 1681.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/mostly_read/totals_control",
+          "iterations": 500,
+          "ns_op": 302463.0,
+          "bytes_op": 11616.0,
+          "allocs_op": 160.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/mostly_read/reply_total_control",
+          "iterations": 500,
+          "ns_op": 302353.0,
+          "bytes_op": 19181.0,
+          "allocs_op": 204.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/all_read/count",
+          "iterations": 500,
+          "ns_op": 182314.0,
+          "bytes_op": 6801.0,
+          "allocs_op": 123.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/all_read/single",
+          "iterations": 500,
+          "ns_op": 350794.0,
+          "bytes_op": 34064.0,
+          "allocs_op": 435.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/all_read/page",
+          "iterations": 500,
+          "ns_op": 1087386.0,
+          "bytes_op": 190347.0,
+          "allocs_op": 1681.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/all_read/totals_control",
+          "iterations": 500,
+          "ns_op": 309727.0,
+          "bytes_op": 11617.0,
+          "allocs_op": 160.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/all_read/reply_total_control",
+          "iterations": 500,
+          "ns_op": 259117.0,
+          "bytes_op": 19177.0,
+          "allocs_op": 204.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/mostly_read/count",
+          "iterations": 500,
+          "ns_op": 279796.0,
+          "bytes_op": 6800.0,
+          "allocs_op": 123.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/mostly_read/single",
+          "iterations": 500,
+          "ns_op": 551590.0,
+          "bytes_op": 34092.0,
+          "allocs_op": 436.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/mostly_read/page",
+          "iterations": 500,
+          "ns_op": 4974662.0,
+          "bytes_op": 190574.0,
+          "allocs_op": 1711.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/mostly_read/totals_control",
+          "iterations": 500,
+          "ns_op": 295682.0,
+          "bytes_op": 11618.0,
+          "allocs_op": 160.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/mostly_read/reply_total_control",
+          "iterations": 500,
+          "ns_op": 556036.0,
+          "bytes_op": 19195.0,
+          "allocs_op": 205.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/all_read/count",
+          "iterations": 500,
+          "ns_op": 138996.0,
+          "bytes_op": 6801.0,
+          "allocs_op": 123.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/all_read/single",
+          "iterations": 500,
+          "ns_op": 344454.0,
+          "bytes_op": 34083.0,
+          "allocs_op": 436.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/all_read/page",
+          "iterations": 500,
+          "ns_op": 2824081.0,
+          "bytes_op": 190582.0,
+          "allocs_op": 1711.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/all_read/totals_control",
+          "iterations": 500,
+          "ns_op": 302342.0,
+          "bytes_op": 11617.0,
+          "allocs_op": 160.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/all_read/reply_total_control",
+          "iterations": 500,
+          "ns_op": 634986.0,
+          "bytes_op": 19194.0,
+          "allocs_op": 205.0
+        }
+      ],
+      "log_sha256": "d18f15b5eb42dff35c1dacc6c0f377324d729e8d32ff4f03fb0c71c60c5ad9f1"
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./channels/store/sqlstore",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkThreadUnreadReplies$",
+        "-benchtime",
+        "500x",
+        "-count=1",
+        "-timeout=15m",
+        "-json"
+      ],
+      "benchmarks": [
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/mostly_read/count",
+          "iterations": 500,
+          "ns_op": 243117.0,
+          "bytes_op": 6816.0,
+          "allocs_op": 123.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/mostly_read/single",
+          "iterations": 500,
+          "ns_op": 620332.0,
+          "bytes_op": 34108.0,
+          "allocs_op": 435.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/mostly_read/page",
+          "iterations": 500,
+          "ns_op": 1122231.0,
+          "bytes_op": 189876.0,
+          "allocs_op": 1681.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/mostly_read/totals_control",
+          "iterations": 500,
+          "ns_op": 295637.0,
+          "bytes_op": 11616.0,
+          "allocs_op": 160.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/mostly_read/reply_total_control",
+          "iterations": 500,
+          "ns_op": 213956.0,
+          "bytes_op": 19180.0,
+          "allocs_op": 204.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/all_read/count",
+          "iterations": 500,
+          "ns_op": 180718.0,
+          "bytes_op": 6789.0,
+          "allocs_op": 123.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/all_read/single",
+          "iterations": 500,
+          "ns_op": 373736.0,
+          "bytes_op": 34072.0,
+          "allocs_op": 435.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/all_read/page",
+          "iterations": 500,
+          "ns_op": 1051908.0,
+          "bytes_op": 189855.0,
+          "allocs_op": 1681.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/all_read/totals_control",
+          "iterations": 500,
+          "ns_op": 373631.0,
+          "bytes_op": 11617.0,
+          "allocs_op": 160.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/all_read/reply_total_control",
+          "iterations": 500,
+          "ns_op": 253777.0,
+          "bytes_op": 19180.0,
+          "allocs_op": 204.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/mostly_read/count",
+          "iterations": 500,
+          "ns_op": 145086.0,
+          "bytes_op": 6785.0,
+          "allocs_op": 123.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/mostly_read/single",
+          "iterations": 500,
+          "ns_op": 372967.0,
+          "bytes_op": 34067.0,
+          "allocs_op": 435.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/mostly_read/page",
+          "iterations": 500,
+          "ns_op": 1075150.0,
+          "bytes_op": 189830.0,
+          "allocs_op": 1681.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/mostly_read/totals_control",
+          "iterations": 500,
+          "ns_op": 288724.0,
+          "bytes_op": 11617.0,
+          "allocs_op": 160.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/mostly_read/reply_total_control",
+          "iterations": 500,
+          "ns_op": 264020.0,
+          "bytes_op": 19180.0,
+          "allocs_op": 204.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/all_read/count",
+          "iterations": 500,
+          "ns_op": 201292.0,
+          "bytes_op": 6784.0,
+          "allocs_op": 123.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/all_read/single",
+          "iterations": 500,
+          "ns_op": 371547.0,
+          "bytes_op": 34067.0,
+          "allocs_op": 435.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/all_read/page",
+          "iterations": 500,
+          "ns_op": 1077423.0,
+          "bytes_op": 189822.0,
+          "allocs_op": 1681.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/all_read/totals_control",
+          "iterations": 500,
+          "ns_op": 305989.0,
+          "bytes_op": 11616.0,
+          "allocs_op": 160.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/all_read/reply_total_control",
+          "iterations": 500,
+          "ns_op": 279259.0,
+          "bytes_op": 19180.0,
+          "allocs_op": 204.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/mostly_read/count",
+          "iterations": 500,
+          "ns_op": 176143.0,
+          "bytes_op": 6783.0,
+          "allocs_op": 123.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/mostly_read/single",
+          "iterations": 500,
+          "ns_op": 499394.0,
+          "bytes_op": 34083.0,
+          "allocs_op": 436.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/mostly_read/page",
+          "iterations": 500,
+          "ns_op": 1802110.0,
+          "bytes_op": 190061.0,
+          "allocs_op": 1711.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/mostly_read/totals_control",
+          "iterations": 500,
+          "ns_op": 312026.0,
+          "bytes_op": 11617.0,
+          "allocs_op": 160.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/mostly_read/reply_total_control",
+          "iterations": 500,
+          "ns_op": 623200.0,
+          "bytes_op": 19195.0,
+          "allocs_op": 205.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/all_read/count",
+          "iterations": 500,
+          "ns_op": 151586.0,
+          "bytes_op": 6783.0,
+          "allocs_op": 123.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/all_read/single",
+          "iterations": 500,
+          "ns_op": 368174.0,
+          "bytes_op": 34083.0,
+          "allocs_op": 436.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/all_read/page",
+          "iterations": 500,
+          "ns_op": 1074090.0,
+          "bytes_op": 190062.0,
+          "allocs_op": 1711.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/all_read/totals_control",
+          "iterations": 500,
+          "ns_op": 306788.0,
+          "bytes_op": 11617.0,
+          "allocs_op": 160.0
+        },
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/all_read/reply_total_control",
+          "iterations": 500,
+          "ns_op": 584134.0,
+          "bytes_op": 19194.0,
+          "allocs_op": 205.0
+        }
+      ],
+      "log_sha256": "8d57328c2c636425abdc7e50c90bbe65c50ca7bff7fa07c486a2ea31dee46120"
+    }
+  ],
+  "scope": "Serial SQL-store calls on 30 roots and fresh, interleaved reply rows. Before uses the original production file and drops the candidate index before seeding. Each process has a new database from the standard store test harness. Fixture setup, index changes and cleanup are outside timing. Not App/HTTP latency or production capacity. Before also restores the original RootId/DeleteAt index before seeding; steady-state index definitions match the original baseline.",
+  "source_sha": "a3ebaebc47f544d7269095f9de42004bb61fb267",
+  "source_tree_sha": "f89076c524c675f31b0f4fab484c270265f29e8c",
+  "source_identity_verified_after_run": true,
+  "go_version": "go version go1.26.10 linux/amd64",
+  "gomaxprocs": 4,
+  "benchmark_source_sha256": "a75e795db9751646c8ab5129b5a05ac2e724843dea542e24025be1b6fea63de1"
+}

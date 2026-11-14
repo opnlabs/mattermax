@@ -1,0 +1,327 @@
+{
+  "status": "passed",
+  "source_sha": "a3ebaebc47f544d7269095f9de42004bb61fb267",
+  "source_tree_sha": "f89076c524c675f31b0f4fab484c270265f29e8c",
+  "go_version": "go version go1.26.10 linux/amd64",
+  "gomaxprocs": 4,
+  "benchmark_filter": "^BenchmarkThreadUnreadReplies$/^PostgreSQL$/^replies=0$/^all_read$/^page$",
+  "expected_cases": 1,
+  "iterations": 5000,
+  "trials": 5,
+  "baseline_sha": "HEAD^",
+  "production_file_sha256": "939319ad62aeb9612787cbbe43747c4a77daca93606f32f0115db254987ba08d",
+  "baseline_file_sha256": "d0fc1c28f67706250968abd4f221dcefb295b5e2bfbf87e94599e751dade3218",
+  "samples": [
+    {
+      "trial": 0,
+      "variant": "before",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./channels/store/sqlstore",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkThreadUnreadReplies$/^PostgreSQL$/^replies=0$/^all_read$/^page$",
+        "-benchtime",
+        "5000x",
+        "-count=1",
+        "-timeout=15m",
+        "-json",
+        "-overlay",
+        "/home/rhnvrm/.bb/thread-storage/thr_jynvcygccx/thread-unread-isolated-empty_page/baseline-overlay.json"
+      ],
+      "benchmarks": [
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/all_read/page",
+          "iterations": 5000,
+          "ns_op": 1065144.0,
+          "bytes_op": 190341.0,
+          "allocs_op": 1681.0
+        }
+      ],
+      "log_sha256": "41244a8ff9437b8ea6b62933e201f2664a067821dca49e0c989713ffaa31ef93"
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./channels/store/sqlstore",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkThreadUnreadReplies$/^PostgreSQL$/^replies=0$/^all_read$/^page$",
+        "-benchtime",
+        "5000x",
+        "-count=1",
+        "-timeout=15m",
+        "-json"
+      ],
+      "benchmarks": [
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/all_read/page",
+          "iterations": 5000,
+          "ns_op": 1035678.0,
+          "bytes_op": 189830.0,
+          "allocs_op": 1681.0
+        }
+      ],
+      "log_sha256": "a23a0f4bae3f03053f1aec7d7c3daf31f5bd39168481e9824a0c01b0112e685e"
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./channels/store/sqlstore",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkThreadUnreadReplies$/^PostgreSQL$/^replies=0$/^all_read$/^page$",
+        "-benchtime",
+        "5000x",
+        "-count=1",
+        "-timeout=15m",
+        "-json"
+      ],
+      "benchmarks": [
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/all_read/page",
+          "iterations": 5000,
+          "ns_op": 1051443.0,
+          "bytes_op": 189833.0,
+          "allocs_op": 1681.0
+        }
+      ],
+      "log_sha256": "00324136b3453eddaecd70adbe683f2a1a9b420acf38041958f5496e552f9a46"
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./channels/store/sqlstore",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkThreadUnreadReplies$/^PostgreSQL$/^replies=0$/^all_read$/^page$",
+        "-benchtime",
+        "5000x",
+        "-count=1",
+        "-timeout=15m",
+        "-json",
+        "-overlay",
+        "/home/rhnvrm/.bb/thread-storage/thr_jynvcygccx/thread-unread-isolated-empty_page/baseline-overlay.json"
+      ],
+      "benchmarks": [
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/all_read/page",
+          "iterations": 5000,
+          "ns_op": 1053865.0,
+          "bytes_op": 190341.0,
+          "allocs_op": 1681.0
+        }
+      ],
+      "log_sha256": "bc2a9c1b53a5175646e14719b12f6e3858248ef7c07ea58462da87fb17025a0c"
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./channels/store/sqlstore",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkThreadUnreadReplies$/^PostgreSQL$/^replies=0$/^all_read$/^page$",
+        "-benchtime",
+        "5000x",
+        "-count=1",
+        "-timeout=15m",
+        "-json",
+        "-overlay",
+        "/home/rhnvrm/.bb/thread-storage/thr_jynvcygccx/thread-unread-isolated-empty_page/baseline-overlay.json"
+      ],
+      "benchmarks": [
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/all_read/page",
+          "iterations": 5000,
+          "ns_op": 1031395.0,
+          "bytes_op": 190344.0,
+          "allocs_op": 1681.0
+        }
+      ],
+      "log_sha256": "1404260a2c6be920fde01144a562e0e02725ba868cbd290b5cb2265e216936de"
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./channels/store/sqlstore",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkThreadUnreadReplies$/^PostgreSQL$/^replies=0$/^all_read$/^page$",
+        "-benchtime",
+        "5000x",
+        "-count=1",
+        "-timeout=15m",
+        "-json"
+      ],
+      "benchmarks": [
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/all_read/page",
+          "iterations": 5000,
+          "ns_op": 1061705.0,
+          "bytes_op": 189832.0,
+          "allocs_op": 1681.0
+        }
+      ],
+      "log_sha256": "44f2463408f348e1edba0f5f7d5428a8f73c46fc77fe9952b6bc03df0fead99f"
+    },
+    {
+      "trial": 3,
+      "variant": "after",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./channels/store/sqlstore",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkThreadUnreadReplies$/^PostgreSQL$/^replies=0$/^all_read$/^page$",
+        "-benchtime",
+        "5000x",
+        "-count=1",
+        "-timeout=15m",
+        "-json"
+      ],
+      "benchmarks": [
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/all_read/page",
+          "iterations": 5000,
+          "ns_op": 1304810.0,
+          "bytes_op": 189839.0,
+          "allocs_op": 1681.0
+        }
+      ],
+      "log_sha256": "7e5058352806aaa6f7171ce9b80da1212ede9871f825908a4d958356b7d046b5"
+    },
+    {
+      "trial": 3,
+      "variant": "before",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./channels/store/sqlstore",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkThreadUnreadReplies$/^PostgreSQL$/^replies=0$/^all_read$/^page$",
+        "-benchtime",
+        "5000x",
+        "-count=1",
+        "-timeout=15m",
+        "-json",
+        "-overlay",
+        "/home/rhnvrm/.bb/thread-storage/thr_jynvcygccx/thread-unread-isolated-empty_page/baseline-overlay.json"
+      ],
+      "benchmarks": [
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/all_read/page",
+          "iterations": 5000,
+          "ns_op": 1437099.0,
+          "bytes_op": 190345.0,
+          "allocs_op": 1681.0
+        }
+      ],
+      "log_sha256": "9a15c6ec2a7587d0939d00af627545d03c84a04dbbac8195783391d1e203c8a0"
+    },
+    {
+      "trial": 4,
+      "variant": "before",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./channels/store/sqlstore",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkThreadUnreadReplies$/^PostgreSQL$/^replies=0$/^all_read$/^page$",
+        "-benchtime",
+        "5000x",
+        "-count=1",
+        "-timeout=15m",
+        "-json",
+        "-overlay",
+        "/home/rhnvrm/.bb/thread-storage/thr_jynvcygccx/thread-unread-isolated-empty_page/baseline-overlay.json"
+      ],
+      "benchmarks": [
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/all_read/page",
+          "iterations": 5000,
+          "ns_op": 1325239.0,
+          "bytes_op": 190345.0,
+          "allocs_op": 1681.0
+        }
+      ],
+      "log_sha256": "544dea2d631559f8c4757e5477e5b6fa854366578aaaa9867f3055117994799f"
+    },
+    {
+      "trial": 4,
+      "variant": "after",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./channels/store/sqlstore",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkThreadUnreadReplies$/^PostgreSQL$/^replies=0$/^all_read$/^page$",
+        "-benchtime",
+        "5000x",
+        "-count=1",
+        "-timeout=15m",
+        "-json"
+      ],
+      "benchmarks": [
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/all_read/page",
+          "iterations": 5000,
+          "ns_op": 1314703.0,
+          "bytes_op": 189831.0,
+          "allocs_op": 1681.0
+        }
+      ],
+      "log_sha256": "40c6043fb125a8b1a2706ccd7ba88149c98d680a8a89dc2844f91a34fea10268"
+    }
+  ],
+  "scope": "Serial SQL-store calls on 30 roots and fresh, interleaved reply rows. Before uses the original production file and drops the candidate index before seeding. Each process has a new database from the standard store test harness. Fixture setup, index changes and cleanup are outside timing. Not App/HTTP latency or production capacity."
+}
