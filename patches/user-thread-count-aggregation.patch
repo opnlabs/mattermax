@@ -1,0 +1,623 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: rhnvrm <hello@rohanverma.net>
+Date: Sat, 14 Nov 2026 21:26:31 +0530
+Subject: [PATCH] perf: aggregate user thread response counts
+
+Fetch the count fields with one aggregate statement while keeping individual getters for other callers. Preserve response flags and copy count fields separately from the concurrent page result.
+
+Mattermax-Patch: user-thread-count-aggregation.patch
+---
+ server/channels/app/user.go                   |  46 +-----
+ .../app/user_thread_counts_benchmark_test.go  | 151 ++++++++++++++++++
+ .../channels/app/user_thread_counts_test.go   |  97 +++++++++++
+ .../channels/store/retrylayer/retrylayer.go   |  21 +++
+ .../channels/store/sqlstore/thread_store.go   |  28 ++++
+ .../store/sqlstore/user_thread_counts_test.go | 121 ++++++++++++++
+ server/channels/store/store.go                |   1 +
+ .../store/storetest/mocks/ThreadStore.go      |  30 ++++
+ .../channels/store/timerlayer/timerlayer.go   |  16 ++
+ 9 files changed, 471 insertions(+), 40 deletions(-)
+ create mode 100644 server/channels/app/user_thread_counts_benchmark_test.go
+ create mode 100644 server/channels/app/user_thread_counts_test.go
+ create mode 100644 server/channels/store/sqlstore/user_thread_counts_test.go
+
+diff --git a/server/channels/app/user.go b/server/channels/app/user.go
+index dbac1a759e1e..02b79b171487 100644
+--- a/server/channels/app/user.go
++++ b/server/channels/app/user.go
+@@ -2992,51 +2992,17 @@ func (a *App) GetThreadsForUser(rctx request.CTX, userID, teamID string, options
+ 
+ 	if !options.ThreadsOnly {
+ 		eg.Go(func() error {
+-			totalUnreadThreads, err := a.Srv().Store().Thread().GetTotalUnreadThreads(userID, teamID, options)
+-			if err != nil {
+-				return errors.Wrapf(err, "failed to count unread threads for user id=%s", userID)
+-			}
+-			result.TotalUnreadThreads = totalUnreadThreads
+-
+-			return nil
+-		})
+-
+-		// Unread is a legacy flag that caused GetTotalThreads to compute the same value as
+-		// GetTotalUnreadThreads. If unspecified, do this work normally; otherwise, skip,
+-		// and send back duplicate values down below.
+-		if !options.Unread {
+-			eg.Go(func() error {
+-				totalCount, err := a.Srv().Store().Thread().GetTotalThreads(userID, teamID, options)
+-				if err != nil {
+-					return errors.Wrapf(err, "failed to count threads for user id=%s", userID)
+-				}
+-				result.Total = totalCount
+-
+-				return nil
+-			})
+-		}
+-
+-		eg.Go(func() error {
+-			totalUnreadMentions, err := a.Srv().Store().Thread().GetTotalUnreadMentions(userID, teamID, options)
++			counts, err := a.Srv().Store().Thread().GetThreadCountsForUser(userID, teamID, options, postPriorityIsEnabled)
+ 			if err != nil {
+ 				return errors.Wrapf(err, "failed to count threads for user id=%s", userID)
+ 			}
+-			result.TotalUnreadMentions = totalUnreadMentions
+-
++			// The page query writes Threads concurrently; copy only the count fields.
++			result.Total = counts.Total
++			result.TotalUnreadThreads = counts.TotalUnreadThreads
++			result.TotalUnreadMentions = counts.TotalUnreadMentions
++			result.TotalUnreadUrgentMentions = counts.TotalUnreadUrgentMentions
+ 			return nil
+ 		})
+-
+-		if postPriorityIsEnabled {
+-			eg.Go(func() error {
+-				totalUnreadUrgentMentions, err := a.Srv().Store().Thread().GetTotalUnreadUrgentMentions(userID, teamID, options)
+-				if err != nil {
+-					return errors.Wrapf(err, "failed to count urgent mentioned threads for user id=%s", userID)
+-				}
+-				result.TotalUnreadUrgentMentions = totalUnreadUrgentMentions
+-
+-				return nil
+-			})
+-		}
+ 	}
+ 
+ 	if !options.TotalsOnly {
+diff --git a/server/channels/app/user_thread_counts_benchmark_test.go b/server/channels/app/user_thread_counts_benchmark_test.go
+new file mode 100644
+index 000000000000..9c8a086ebcb5
+--- /dev/null
++++ b/server/channels/app/user_thread_counts_benchmark_test.go
+@@ -0,0 +1,151 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++package app
++
++import (
++	"fmt"
++	"testing"
++
++	"github.com/mattermost/mattermost/server/public/model"
++	"github.com/mattermost/mattermost/server/public/shared/request"
++)
++
++// BenchmarkUserThreadCountsHistory checks real stored roots/replies and the
++// returned totals/page. Parallel results are amortized time/op, not latency.
++func BenchmarkUserThreadCountsHistory(b *testing.B) {
++	for _, priority := range []bool{false, true} {
++		b.Run(fmt.Sprintf("priority=%t", priority), func(b *testing.B) {
++			th := SetupConfig(b, func(cfg *model.Config) {
++				*cfg.ServiceSettings.PostPriority = priority
++				*cfg.ServiceSettings.SiteURL = "http://localhost:8065"
++			}).InitBasic(b)
++			pool := th.SQLStore.GetReplica().DB()
++			if pool != th.SQLStore.GetMaster().DB() {
++				b.Fatal("benchmark requires one pool")
++			}
++			oldOpen, oldIdle := pool.Stats().MaxOpenConnections, *th.App.Config().SqlSettings.MaxIdleConns
++			pool.SetMaxOpenConns(8)
++			pool.SetMaxIdleConns(8)
++			b.Cleanup(func() { pool.SetMaxOpenConns(oldOpen); pool.SetMaxIdleConns(oldIdle) })
++			for _, size := range []int{0, 10, 1000} {
++				b.Run(fmt.Sprintf("threads=%d", size), func(b *testing.B) {
++					user := th.CreateUser(b)
++					if _, err := th.App.Srv().Store().Team().SaveMember(th.Context, &model.TeamMember{TeamId: th.BasicTeam.Id, UserId: user.Id, SchemeUser: true}, -1); err != nil {
++						b.Fatal(err)
++					}
++					if _, err := th.App.Srv().Store().Channel().SaveMember(th.Context, &model.ChannelMember{ChannelId: th.BasicChannel.Id, UserId: user.Id, SchemeUser: true, NotifyProps: model.GetDefaultChannelNotifyProps()}); err != nil {
++						b.Fatal(err)
++					}
++					roots, replies := make([]*model.Post, size), make([]*model.Post, size)
++					members := make([]*model.ThreadMembership, size)
++					indices := make(map[string]int, size)
++					var unread, mentions, urgentMentions int64
++					for i := range roots {
++
++						stamp := int64(1000000 + i*2)
++						roots[i] = &model.Post{ChannelId: th.BasicChannel.Id, UserId: th.BasicUser.Id, Message: "count benchmark", CreateAt: stamp}
++						replies[i] = &model.Post{ChannelId: th.BasicChannel.Id, UserId: th.BasicUser.Id, Message: "reply", CreateAt: stamp + 1}
++						viewed := int64(0)
++						if i%2 == 0 {
++							viewed = stamp + 2
++						} else {
++							unread++
++						}
++						members[i] = &model.ThreadMembership{UserId: user.Id, Following: true, LastViewed: viewed, UnreadMentions: int64(i % 3)}
++
++						mentions += int64(i % 3)
++						if i%4 == 0 && priority {
++							urgentMentions += int64(i % 3)
++						}
++					}
++					if size > 0 {
++						if _, _, err := th.App.Srv().Store().Post().SaveMultiple(th.Context, roots); err != nil {
++							b.Fatal(err)
++						}
++						for i, root := range roots {
++							replies[i].RootId = root.Id
++							members[i].PostId = root.Id
++							indices[root.Id] = i
++						}
++						if _, _, err := th.App.Srv().Store().Post().SaveMultiple(th.Context, replies); err != nil {
++							b.Fatal(err)
++						}
++						if _, err := th.App.Srv().Store().Thread().SaveMultipleMemberships(members); err != nil {
++							b.Fatal(err)
++						}
++						if priority {
++							for i, root := range roots {
++								if i%4 != 0 {
++									continue
++								}
++								if _, err := th.App.Srv().Store().PostPriority().Save(&model.PostPriority{PostId: root.Id, ChannelId: root.ChannelId, Priority: model.NewPointer(model.PostPriorityUrgent)}); err != nil {
++									b.Fatal(err)
++								}
++							}
++						}
++					}
++					for _, responseMode := range []string{"page", "totals", "threads_only"} {
++						totalsOnly, threadsOnly := responseMode == "totals", responseMode == "threads_only"
++						name := responseMode
++						b.Run(name, func(b *testing.B) {
++							modes := []string{"serial"}
++							if size == 1000 {
++								modes = append(modes, "parallel")
++							}
++							for _, mode := range modes {
++								b.Run(mode, func(b *testing.B) {
++									options := model.GetUserThreadsOpts{PageSize: 30, TotalsOnly: totalsOnly, ThreadsOnly: threadsOnly}
++									check := func(result *model.Threads, err *model.AppError) {
++										if err != nil {
++											b.Fatal(err)
++										}
++										expectedTotal, expectedUnread, expectedMentions, expectedUrgent := int64(size), unread, mentions, urgentMentions
++										if threadsOnly {
++											expectedTotal, expectedUnread, expectedMentions, expectedUrgent = 0, 0, 0, 0
++										}
++										if result == nil || result.Total != expectedTotal || result.TotalUnreadThreads != expectedUnread || result.TotalUnreadMentions != expectedMentions || result.TotalUnreadUrgentMentions != expectedUrgent {
++											b.Fatalf("incorrect totals: %#v", result)
++										}
++										if totalsOnly {
++											if result.Threads != nil {
++												b.Fatal("totals-only fetched page")
++											}
++											return
++										}
++										if len(result.Threads) != min(size, 30) {
++											b.Fatal("incorrect page size")
++										}
++										for _, thread := range result.Threads {
++											i, ok := indices[thread.PostId]
++											if !ok || thread.Post == nil || thread.Post.Id != thread.PostId || thread.Post.Message != "count benchmark" || thread.ReplyCount != 1 || thread.LastViewedAt != members[i].LastViewed || thread.UnreadMentions != members[i].UnreadMentions || thread.IsUrgent != (priority && i%4 == 0) {
++												b.Fatalf("incorrect page: %#v", thread)
++											}
++										}
++									}
++									rctx := th.Context.WithSession(&model.Session{UserId: user.Id})
++									call := func(ctx request.CTX) { check(th.App.GetThreadsForUser(ctx, user.Id, th.BasicTeam.Id, options)) }
++									call(rctx)
++									b.ReportAllocs()
++									b.ResetTimer()
++									if mode == "serial" {
++										for range b.N {
++											call(rctx)
++										}
++									} else {
++										b.RunParallel(func(pb *testing.PB) {
++											ctx := th.Context.WithSession(&model.Session{UserId: user.Id})
++											for pb.Next() {
++												call(ctx)
++											}
++										})
++									}
++								})
++							}
++						})
++					}
++				})
++			}
++		})
++	}
++}
+diff --git a/server/channels/app/user_thread_counts_test.go b/server/channels/app/user_thread_counts_test.go
+new file mode 100644
+index 000000000000..f01d3f587190
+--- /dev/null
++++ b/server/channels/app/user_thread_counts_test.go
+@@ -0,0 +1,97 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++package app
++
++import (
++	"errors"
++	"fmt"
++	"testing"
++
++	"github.com/mattermost/mattermost/server/public/model"
++	"github.com/mattermost/mattermost/server/v8/channels/store/storetest/mocks"
++	"github.com/stretchr/testify/mock"
++	"github.com/stretchr/testify/require"
++)
++
++func TestUserThreadCountFlags(t *testing.T) {
++	for _, threadsOnly := range []bool{false, true} {
++		for _, totalsOnly := range []bool{false, true} {
++			for _, unread := range []bool{false, true} {
++				t.Run(fmt.Sprintf("threadsOnly=%t/totalsOnly=%t/unread=%t", threadsOnly, totalsOnly, unread), func(t *testing.T) {
++					th := SetupConfigWithStoreMock(t, func(cfg *model.Config) { *cfg.ServiceSettings.PostPriority = false })
++					user, team, root := model.NewId(), model.NewId(), model.NewId()
++					options := model.GetUserThreadsOpts{ThreadsOnly: threadsOnly, TotalsOnly: totalsOnly, Unread: unread}
++					threadStore := &mocks.ThreadStore{}
++					th.App.Srv().Store().(*mocks.Store).On("Thread").Return(threadStore)
++					if !threadsOnly {
++						// Page data from the count DTO must never replace the separate page result.
++						countDTO := &model.Threads{Total: 42, TotalUnreadThreads: 5, TotalUnreadMentions: 7, Threads: []*model.ThreadResponse{{PostId: "counts-are-not-page-data"}}}
++						threadStore.On("GetThreadCountsForUser", user, team, options, false).Return(countDTO, nil).Once()
++					}
++					if !totalsOnly {
++						page := []*model.ThreadResponse{{PostId: root, Post: &model.Post{Id: root, ChannelId: model.NewId(), UserId: user, Message: "thread page"}}}
++						threadStore.On("GetThreadsForUser", mock.Anything, user, team, options).Return(page, nil).Once()
++					}
++					got, err := th.App.GetThreadsForUser(th.Context, user, team, options)
++					require.Nil(t, err)
++					require.NotNil(t, got)
++					if threadsOnly {
++						require.Zero(t, got.Total)
++						require.Zero(t, got.TotalUnreadThreads)
++						require.Zero(t, got.TotalUnreadMentions)
++					} else {
++						wantTotal := int64(42)
++						if unread {
++							wantTotal = 5
++						}
++						require.Equal(t, wantTotal, got.Total)
++						require.Equal(t, int64(5), got.TotalUnreadThreads)
++						require.Equal(t, int64(7), got.TotalUnreadMentions)
++					}
++					require.Zero(t, got.TotalUnreadUrgentMentions)
++					if totalsOnly {
++						require.Nil(t, got.Threads)
++					} else {
++						require.Len(t, got.Threads, 1)
++						require.Equal(t, root, got.Threads[0].PostId)
++						require.Equal(t, "thread page", got.Threads[0].Post.Message)
++					}
++					threadStore.AssertExpectations(t)
++				})
++			}
++		}
++	}
++}
++
++func TestUserThreadCountFailure(t *testing.T) {
++	th := SetupConfigWithStoreMock(t, func(cfg *model.Config) { *cfg.ServiceSettings.PostPriority = false })
++	user, team := model.NewId(), model.NewId()
++	options := model.GetUserThreadsOpts{TotalsOnly: true}
++	threadStore := &mocks.ThreadStore{}
++	th.App.Srv().Store().(*mocks.Store).On("Thread").Return(threadStore)
++	threadStore.On("GetThreadCountsForUser", user, team, options, false).Return(nil, errors.New("count failed")).Once()
++	got, err := th.App.GetThreadsForUser(th.Context, user, team, options)
++	require.Nil(t, got)
++	require.NotNil(t, err)
++	require.Equal(t, "app.user.get_threads_for_user.app_error", err.Id)
++	require.Equal(t, 500, err.StatusCode)
++	threadStore.AssertExpectations(t)
++}
++
++func TestUserThreadCountPriorityFlag(t *testing.T) {
++	th := SetupConfigWithStoreMock(t, func(cfg *model.Config) { *cfg.ServiceSettings.PostPriority = true })
++	user, team := model.NewId(), model.NewId()
++	options := model.GetUserThreadsOpts{TotalsOnly: true}
++	expectedOptions := options
++	expectedOptions.IncludeIsUrgent = true
++	threadStore := &mocks.ThreadStore{}
++	th.App.Srv().Store().(*mocks.Store).On("Thread").Return(threadStore)
++	threadStore.On("GetThreadCountsForUser", user, team, expectedOptions, true).Return(&model.Threads{Total: 8, TotalUnreadUrgentMentions: 3}, nil).Once()
++	got, err := th.App.GetThreadsForUser(th.Context, user, team, options)
++	require.Nil(t, err)
++	require.Equal(t, int64(8), got.Total)
++	require.Equal(t, int64(3), got.TotalUnreadUrgentMentions)
++	require.Nil(t, got.Threads)
++	threadStore.AssertExpectations(t)
++}
+diff --git a/server/channels/store/retrylayer/retrylayer.go b/server/channels/store/retrylayer/retrylayer.go
+index 468cfba8d54e..e1e9d5bf01bc 100644
+--- a/server/channels/store/retrylayer/retrylayer.go
++++ b/server/channels/store/retrylayer/retrylayer.go
+@@ -16825,6 +16825,27 @@ func (s *RetryLayerThreadStore) GetTeamsUnreadForUser(userID string, teamIDs []s
+ 
+ }
+ 
++func (s *RetryLayerThreadStore) GetThreadCountsForUser(userID string, teamID string, opts model.GetUserThreadsOpts, includeUrgentMentionCount bool) (*model.Threads, error) {
++
++	tries := 0
++	for {
++		result, err := s.ThreadStore.GetThreadCountsForUser(userID, teamID, opts, includeUrgentMentionCount)
++		if err == nil {
++			return result, nil
++		}
++		if !isRepeatableError(err) {
++			return result, err
++		}
++		tries++
++		if tries >= 3 {
++			err = errors.Wrap(err, "giving up after 3 consecutive repeatable transaction failures")
++			return result, err
++		}
++		timepkg.Sleep(100 * timepkg.Millisecond)
++	}
++
++}
++
+ func (s *RetryLayerThreadStore) GetThreadFollowerIDsForChannel(teamName string, channelName string, includeArchivedChannels bool) ([]string, error) {
+ 
+ 	tries := 0
+diff --git a/server/channels/store/sqlstore/thread_store.go b/server/channels/store/sqlstore/thread_store.go
+index a18afe7e6be1..3f67ce4cf466 100644
+--- a/server/channels/store/sqlstore/thread_store.go
++++ b/server/channels/store/sqlstore/thread_store.go
+@@ -164,6 +164,34 @@ func (s *SqlThreadStore) getTotalThreadsQuery(userId, teamId string, opts model.
+ 	return query
+ }
+ 
++// GetThreadCountsForUser computes the counts used by the user-thread response.
++// The existing count methods remain available to callers that need one value.
++func (s *SqlThreadStore) GetThreadCountsForUser(userID, teamID string, opts model.GetUserThreadsOpts, includeUrgentMentionCount bool) (*model.Threads, error) {
++	query := s.getTotalThreadsQuery(userID, teamID, opts).
++		Column("COUNT(ThreadMemberships.PostId) FILTER (WHERE ThreadMemberships.LastViewed < Threads.LastReplyAt) AS UnreadCount").
++		Column("COALESCE(SUM(ThreadMemberships.UnreadMentions), 0) AS Mentions")
++	if includeUrgentMentionCount {
++		query = query.LeftJoin("PostsPriority ON PostsPriority.PostId = ThreadMemberships.PostId").
++			Column("COALESCE(SUM(CASE WHEN PostsPriority.Priority = ? THEN ThreadMemberships.UnreadMentions ELSE 0 END), 0) AS UrgentMentions", model.PostPriorityUrgent)
++	} else {
++		query = query.Column("0 AS UrgentMentions")
++	}
++	var row struct{ Count, UnreadCount, Mentions, UrgentMentions int64 }
++	if err := s.GetReplica().GetBuilder(&row, query); err != nil {
++		return nil, errors.Wrapf(err, "failed to get thread counts for user id=%s", userID)
++	}
++	result := &model.Threads{
++		Total:                     row.Count,
++		TotalUnreadThreads:        row.UnreadCount,
++		TotalUnreadMentions:       row.Mentions,
++		TotalUnreadUrgentMentions: row.UrgentMentions,
++	}
++	if opts.Unread {
++		result.Total = result.TotalUnreadThreads
++	}
++	return result, nil
++}
++
+ // GetTotalUnreadThreads counts the number of unread threads for the given user, optionally
+ // constrained to the given team + DMs/GMs.
+ func (s *SqlThreadStore) GetTotalUnreadThreads(userId, teamId string, opts model.GetUserThreadsOpts) (int64, error) {
+diff --git a/server/channels/store/sqlstore/user_thread_counts_test.go b/server/channels/store/sqlstore/user_thread_counts_test.go
+new file mode 100644
+index 000000000000..6c2bbf1c5230
+--- /dev/null
++++ b/server/channels/store/sqlstore/user_thread_counts_test.go
+@@ -0,0 +1,121 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++package sqlstore
++
++import (
++	"testing"
++
++	"github.com/mattermost/mattermost/server/public/model"
++	"github.com/mattermost/mattermost/server/public/shared/request"
++	"github.com/mattermost/mattermost/server/v8/channels/store"
++	"github.com/mattermost/mattermost/server/v8/channels/store/storetest"
++	"github.com/stretchr/testify/require"
++	"golang.org/x/sync/errgroup"
++)
++
++func legacyUserThreadCounts(st store.ThreadStore, user, team string, opts model.GetUserThreadsOpts, urgent bool) (*model.Threads, error) {
++	var result model.Threads
++	var group errgroup.Group
++	group.Go(func() error {
++		value, err := st.GetTotalUnreadThreads(user, team, opts)
++		result.TotalUnreadThreads = value
++		return err
++	})
++	if !opts.Unread {
++		group.Go(func() error { value, err := st.GetTotalThreads(user, team, opts); result.Total = value; return err })
++	}
++	group.Go(func() error {
++		value, err := st.GetTotalUnreadMentions(user, team, opts)
++		result.TotalUnreadMentions = value
++		return err
++	})
++	if urgent {
++		group.Go(func() error {
++			value, err := st.GetTotalUnreadUrgentMentions(user, team, opts)
++			result.TotalUnreadUrgentMentions = value
++			return err
++		})
++	}
++	if err := group.Wait(); err != nil {
++		return nil, err
++	}
++	if opts.Unread {
++		result.Total = result.TotalUnreadThreads
++	}
++	return &result, nil
++}
++
++func TestUserThreadCountAggregation(t *testing.T) {
++	StoreTestWithSqlStore(t, func(t *testing.T, rctx request.CTX, ss store.Store, db storetest.SqlStore) {
++		user, otherUser := model.NewId(), model.NewId()
++		teamA, teamB, teamAbsent := model.NewId(), model.NewId(), model.NewId()
++		channelA, channelB, missingChannel, dmChannel := model.NewId(), model.NewId(), model.NewId(), model.NewId()
++		var ids []string
++		t.Cleanup(func() {
++			for _, id := range ids {
++				_, err := db.GetMaster().Exec("DELETE FROM PostsPriority WHERE PostId = ?", id)
++				require.NoError(t, err)
++				_, err = db.GetMaster().Exec("DELETE FROM ThreadMemberships WHERE PostId = ?", id)
++				require.NoError(t, err)
++				_, err = db.GetMaster().Exec("DELETE FROM Threads WHERE PostId = ?", id)
++				require.NoError(t, err)
++			}
++			_, err := db.GetMaster().Exec("DELETE FROM ChannelMembers WHERE UserId IN (?, ?)", user, otherUser)
++			require.NoError(t, err)
++		})
++		for _, channel := range []string{channelA, channelB} {
++			_, err := db.GetMaster().Exec("INSERT INTO ChannelMembers (ChannelId,UserId) VALUES (?, ?)", channel, user)
++			require.NoError(t, err)
++		}
++		add := func(team any, channel string, lastReply, lastViewed, mentions, deleted, following any, urgent bool) string {
++			t.Helper()
++			id := model.NewId()
++			ids = append(ids, id)
++			_, err := db.GetMaster().Exec("INSERT INTO Threads (PostId,ChannelId,ThreadTeamId,LastReplyAt,ThreadDeleteAt) VALUES (?,?,?,?,?)", id, channel, team, lastReply, deleted)
++			require.NoError(t, err)
++			_, err = db.GetMaster().Exec("INSERT INTO ThreadMemberships (PostId,UserId,Following,LastViewed,UnreadMentions) VALUES (?,?,?,?,?)", id, user, following, lastViewed, mentions)
++			require.NoError(t, err)
++			if urgent {
++				_, err = db.GetMaster().Exec("INSERT INTO PostsPriority (PostId,ChannelId,Priority) VALUES (?,?,?)", id, channel, model.PostPriorityUrgent)
++				require.NoError(t, err)
++			}
++			return id
++		}
++		first := add(teamA, channelA, 100, 0, 2, 0, true, true)
++		add(teamA, channelA, 100, 100, 3, 0, true, false)
++		add(teamA, channelA, 100, 0, 7, 0, false, true)
++		add(teamA, channelA, 100, 0, 11, 1, true, true)
++		add(teamA, missingChannel, 100, 0, 13, 0, true, true)
++		add(teamA, channelA, nil, 0, nil, nil, true, false)
++		add(teamA, channelA, 100, nil, 4, 0, true, true)
++		add(teamA, channelA, 100, 0, 17, 0, nil, true)
++		add(teamB, channelB, 100, 100, nil, 0, true, false)
++		add(teamB, channelB, 100, 0, -3, 0, true, true)
++		add("", dmChannel, 100, 0, 1, 0, true, true)
++		add(nil, channelA, 100, 0, 19, 0, true, true)
++		_, err := db.GetMaster().Exec("INSERT INTO ThreadMemberships (PostId,UserId,Following,LastViewed,UnreadMentions) VALUES (?,?,true,0,100)", first, otherUser)
++		require.NoError(t, err)
++		orphan := model.NewId()
++		ids = append(ids, orphan)
++		_, err = db.GetMaster().Exec("INSERT INTO ThreadMemberships (PostId,UserId,Following,LastViewed,UnreadMentions) VALUES (?,?,true,0,100)", orphan, user)
++		require.NoError(t, err)
++		raw := db.(*StoreTestWrapper).orig.Thread().(*SqlThreadStore)
++		for _, team := range []string{"", teamA, teamB, teamAbsent} {
++			for _, urgent := range []bool{false, true} {
++				for _, unread := range []bool{false, true} {
++					for _, deleted := range []bool{false, true} {
++						for _, exclude := range []bool{false, true} {
++							options := model.GetUserThreadsOpts{Unread: unread, Deleted: deleted, ExcludeDirect: exclude}
++							want, err := legacyUserThreadCounts(ss.Thread(), user, team, options, urgent)
++							require.NoError(t, err)
++							got, err := raw.GetThreadCountsForUser(user, team, options, urgent)
++							require.NoError(t, err)
++							require.Equal(t, want, got, "team=%s urgent=%t opts=%+v", team, urgent, options)
++						}
++					}
++				}
++			}
++		}
++	})
++}
+diff --git a/server/channels/store/store.go b/server/channels/store/store.go
+index c117ffd453f4..d811aceec065 100644
+--- a/server/channels/store/store.go
++++ b/server/channels/store/store.go
+@@ -359,6 +359,7 @@ type ThreadStore interface {
+ 	GetThreadFollowerIDsForChannel(teamName string, channelName string, includeArchivedChannels bool) ([]string, error)
+ 
+ 	Get(id string) (*model.Thread, error)
++	GetThreadCountsForUser(userID, teamID string, opts model.GetUserThreadsOpts, includeUrgentMentionCount bool) (*model.Threads, error)
+ 	GetTotalUnreadThreads(userID, teamID string, opts model.GetUserThreadsOpts) (int64, error)
+ 	GetTotalThreads(userID, teamID string, opts model.GetUserThreadsOpts) (int64, error)
+ 	GetTotalUnreadMentions(userID, teamID string, opts model.GetUserThreadsOpts) (int64, error)
+diff --git a/server/channels/store/storetest/mocks/ThreadStore.go b/server/channels/store/storetest/mocks/ThreadStore.go
+index 130f8143cd0b..0679a45c6caa 100644
+--- a/server/channels/store/storetest/mocks/ThreadStore.go
++++ b/server/channels/store/storetest/mocks/ThreadStore.go
+@@ -200,6 +200,36 @@ func (_m *ThreadStore) GetTeamsUnreadForUser(userID string, teamIDs []string, in
+ 	return r0, r1
+ }
+ 
++// GetThreadCountsForUser provides a mock function with given fields: userID, teamID, opts, includeUrgentMentionCount
++func (_m *ThreadStore) GetThreadCountsForUser(userID string, teamID string, opts model.GetUserThreadsOpts, includeUrgentMentionCount bool) (*model.Threads, error) {
++	ret := _m.Called(userID, teamID, opts, includeUrgentMentionCount)
++
++	if len(ret) == 0 {
++		panic("no return value specified for GetThreadCountsForUser")
++	}
++
++	var r0 *model.Threads
++	var r1 error
++	if rf, ok := ret.Get(0).(func(string, string, model.GetUserThreadsOpts, bool) (*model.Threads, error)); ok {
++		return rf(userID, teamID, opts, includeUrgentMentionCount)
++	}
++	if rf, ok := ret.Get(0).(func(string, string, model.GetUserThreadsOpts, bool) *model.Threads); ok {
++		r0 = rf(userID, teamID, opts, includeUrgentMentionCount)
++	} else {
++		if ret.Get(0) != nil {
++			r0 = ret.Get(0).(*model.Threads)
++		}
++	}
++
++	if rf, ok := ret.Get(1).(func(string, string, model.GetUserThreadsOpts, bool) error); ok {
++		r1 = rf(userID, teamID, opts, includeUrgentMentionCount)
++	} else {
++		r1 = ret.Error(1)
++	}
++
++	return r0, r1
++}
++
+ // GetThreadFollowerIDsForChannel provides a mock function with given fields: teamName, channelName, includeArchivedChannels
+ func (_m *ThreadStore) GetThreadFollowerIDsForChannel(teamName string, channelName string, includeArchivedChannels bool) ([]string, error) {
+ 	ret := _m.Called(teamName, channelName, includeArchivedChannels)
+diff --git a/server/channels/store/timerlayer/timerlayer.go b/server/channels/store/timerlayer/timerlayer.go
+index 46d600e1e0c6..70528bbfb504 100644
+--- a/server/channels/store/timerlayer/timerlayer.go
++++ b/server/channels/store/timerlayer/timerlayer.go
+@@ -13300,6 +13300,22 @@ func (s *TimerLayerThreadStore) GetTeamsUnreadForUser(userID string, teamIDs []s
+ 	return result, err
+ }
+ 
++func (s *TimerLayerThreadStore) GetThreadCountsForUser(userID string, teamID string, opts model.GetUserThreadsOpts, includeUrgentMentionCount bool) (*model.Threads, error) {
++	start := time.Now()
++
++	result, err := s.ThreadStore.GetThreadCountsForUser(userID, teamID, opts, includeUrgentMentionCount)
++
++	elapsed := float64(time.Since(start)) / float64(time.Second)
++	if s.Root.Metrics != nil {
++		success := "false"
++		if err == nil {
++			success = "true"
++		}
++		s.Root.Metrics.ObserveStoreMethodDuration("ThreadStore.GetThreadCountsForUser", success, elapsed)
++	}
++	return result, err
++}
++
+ func (s *TimerLayerThreadStore) GetThreadFollowerIDsForChannel(teamName string, channelName string, includeArchivedChannels bool) ([]string, error) {
+ 	start := time.Now()
+ 

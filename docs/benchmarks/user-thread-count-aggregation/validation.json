@@ -1,0 +1,153 @@
+{
+  "status": "passed",
+  "source_workspace_sha": "0805fa28ef7d033ed4c5f9172eb12b8faf12c31d",
+  "source_tree_sha": "b207598ac219bc86242b9171e6920c98e6ff1c07",
+  "baseline_source_sha": "c9dbbcc480b242f7349cb7f4e9dcb6ea35cf6404",
+  "tests": [
+    {
+      "variant": "current",
+      "status": "passed",
+      "source_workspace_sha": "0805fa28ef7d033ed4c5f9172eb12b8faf12c31d",
+      "app_production_file_sha256": "022eded2703c11f30f054d9eafb20acc8403a5339f836300372be663f051dde6",
+      "command": [
+        "go",
+        "test",
+        "-race",
+        "-p",
+        "2",
+        "./channels/store/sqlstore",
+        "./channels/app",
+        "./channels/api4",
+        "-run",
+        "^(TestUserThreadCountAggregation|TestThreadStore|TestUserThreadCountFlags|TestUserThreadCountFailure|TestUserThreadCountPriorityFlag|TestGetThreadsForUserSanitizesRootPost|TestGetThreadsForUser|TestGetThreadsForUser_AfterTeamRemovalAndReinvite|TestFollowThreads|TestReadThreads)$",
+        "-bench",
+        "^BenchmarkUserThreadCountsHistory$",
+        "-benchtime=20x",
+        "-count=1",
+        "-timeout=15m",
+        "-json"
+      ],
+      "counts": {
+        "sqlstore": {
+          "pass": 83,
+          "fail": 0,
+          "skip": 0
+        },
+        "app": {
+          "pass": 14,
+          "fail": 0,
+          "skip": 0
+        },
+        "api4": {
+          "pass": 26,
+          "fail": 0,
+          "skip": 0
+        }
+      },
+      "parent_subtest_pass_events": 123,
+      "benchmark_execution_cases": 24,
+      "private_log_sha256": "b220b56c4b95c476f8952c7854df9bc23c7dab5a6864d17414ae5c41a616ac59"
+    },
+    {
+      "variant": "baseline",
+      "status": "passed",
+      "source_workspace_sha": "0805fa28ef7d033ed4c5f9172eb12b8faf12c31d",
+      "app_production_file_sha256": "c6ed932b00dd8439b627f3416d6989cee79c061ee046ecf556af32644ad99a53",
+      "command": [
+        "go",
+        "test",
+        "-race",
+        "-p",
+        "2",
+        "./channels/app",
+        "./channels/api4",
+        "-run",
+        "^(TestGetThreadsForUserSanitizesRootPost|TestGetThreadsForUser|TestGetThreadsForUser_AfterTeamRemovalAndReinvite)$",
+        "-count=1",
+        "-timeout=10m",
+        "-overlay",
+        "/home/rhnvrm/.bb/thread-storage/thr_jynvcygccx/user-thread-counts-baseline-overlay.json",
+        "-json"
+      ],
+      "counts": {
+        "app": {
+          "pass": 3,
+          "fail": 0,
+          "skip": 0
+        },
+        "api4": {
+          "pass": 18,
+          "fail": 0,
+          "skip": 0
+        }
+      },
+      "parent_subtest_pass_events": 21,
+      "benchmark_execution_cases": 0,
+      "private_log_sha256": "c90243b7a2e87252495170af698ad661e66e0e69a244037ab435a5d23faba56f"
+    }
+  ],
+  "semantic_matrix": "64 combinations of team, urgent counting, legacy unread, deleted and exclude-direct flags compare the new SQL method to the retained individual getters.",
+  "app_flags": "Mocks verify count/page skips, both flags together, unread-total duplication, priority propagation, error identity and page isolation from the count DTO.",
+  "baseline_scope": "Only the legacy App dispatcher is restored; the added store method and generated adapters remain compiled but unused by that App path. Baseline existing API/root-sanitization checks also pass.",
+  "generated_adapters": {
+    "stdlib_generator": "go generate ./channels/store",
+    "mock_generator": "mockery v2.53.4 --config channels/store/.mockery.yaml",
+    "modified_generated_files": [
+      "server/channels/store/retrylayer/retrylayer.go",
+      "server/channels/store/timerlayer/timerlayer.go",
+      "server/channels/store/storetest/mocks/ThreadStore.go"
+    ]
+  },
+  "patches": {
+    "status": "passed",
+    "total": 39,
+    "original_patch_files_byte_identical": 38,
+    "private_log_sha256": "beab570c027102ef1d8f465f5ae4c7fddbaa4ffc1d552cde44f3454b15df802a"
+  },
+  "backend_build": {
+    "status": "passed",
+    "source_workspace_sha": "0805fa28ef7d033ed4c5f9172eb12b8faf12c31d",
+    "command": [
+      "go",
+      "build",
+      "-tags",
+      "production",
+      "-ldflags",
+      "-X github.com/mattermost/mattermost/server/public/model.BuildNumber=12.0.2-1.user-thread-counts -X github.com/mattermost/mattermost/server/public/model.BuildHash=0805fa28ef7d033ed4c5f9172eb12b8faf12c31d -X github.com/mattermost/mattermost/server/public/model.BuildEnterpriseReady=false",
+      "-o",
+      "/tmp/mattermax-user-thread-counts-server",
+      "./cmd/mattermost"
+    ],
+    "build_tags": "production",
+    "forbidden_build_tags": false,
+    "enterprise_symbols_found": false,
+    "binary_sha256": "8a2cfe1caebe176c67873dd27fd655ee5da695604fbca2191e051634c277e95f",
+    "private_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "scope": "Public backend only. No branded frontend/package rebuild, deployment or production load test.",
+    "symbol_tool": "Matching standard SDK cmd/nm via temporary GOROOT; same exclusion criteria as scripts/build-release.sh."
+  },
+  "limits": [
+    "Selected suites are not complete HTTP API equivalence or the entire repository suite.",
+    "App method benchmarks are not HTTP endpoint latency or production capacity.",
+    "Parallel time/op is amortized wall time per completed operation, not per-request latency.",
+    "Full branded packaging, browser flows and production load tests were not run."
+  ],
+  "authorship": "All inherited patch files are byte-identical, preserving existing authorship including @mr-karan.",
+  "isolated_followup": {
+    "status": "passed",
+    "source_workspace_sha": "0805fa28ef7d033ed4c5f9172eb12b8faf12c31d",
+    "processes": 18,
+    "response_modes": 3,
+    "pairs_per_mode": 3,
+    "iterations": 1000,
+    "timing_scope": "Each mode runs in its own process, so earlier response modes do not execute. Control variation prevents assigning every observed gain solely to count aggregation."
+  },
+  "reproduction_command_smoke": {
+    "status": "passed",
+    "cases": 3,
+    "processes": 6,
+    "iterations": 1,
+    "scope": "Public --isolated runner execution/output check only; no timing claim.",
+    "report_sha256": "481321fe8c75c820c673fb2981cca6d4ce1ea486e498f55d9894af0b0ce96682"
+  }
+}

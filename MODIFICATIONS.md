@@ -23,6 +23,16 @@ was added or last changed in behaviour, and what it does and why. When a patch
 is removed (for example because upstream merged it), keep its entry and add the
 removal date.
 
+### user-thread-count-aggregation.patch
+
+2026-11-14. Add an internal aggregate-count store method and use it for the user
+thread response, replacing up to four concurrent count queries with one. Keep
+individual getters for other callers. Preserve page/count flags, unread-total
+duplication, team/DM/deleted filters and the priority toggle. Copy only count
+fields so the concurrent page result is retained. Regenerate store adapters and
+mocks; add compatibility and real-data App benchmarks. No HTTP API, schema,
+configuration or dependency changes.
+
 ### release-license.patch
 
 2026-11-03. `server/build/release.mk` packages `LICENSE.txt` (AGPL v3.0) with
