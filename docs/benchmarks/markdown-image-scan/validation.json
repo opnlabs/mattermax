@@ -1,0 +1,30 @@
+{
+  "status": "passed",
+  "source_sha": "d51a6a26a371d5a22052b56d7d1b1ffebc6ba7df",
+  "command": "go test -race ./channels/app -run '^(TestMarkdownImageScanSyntax|TestGetFirstLink|TestGetImagesForPost|TestPreparePostForClientWithImageProxy)$' -count=1 -timeout=10m -json",
+  "counts": {
+    "pass": 53
+  },
+  "counting": "Go parent and subtest pass events, excluding package summary.",
+  "private_log_sha256": "819c7ca3d68e1de402a5d8df78da886807837603156dccb151bf5d363cfe28d4",
+  "limits": [
+    "Selected app suites, not the full repository suite.",
+    "Full branded release build not run.",
+    "Benchmarks measure local post preparation and do not establish server-wide throughput."
+  ],
+  "patch_check": {
+    "command": "just check",
+    "status": "passed",
+    "patches": 39,
+    "original_patch_files_byte_identical": 38
+  },
+  "baseline_syntax_check": {
+    "status": "passed",
+    "baseline_sha": "c9dbbcc480b242f7349cb7f4e9dcb6ea35cf6404",
+    "method": "Same new TestMarkdownImageScanSyntax cases with only post_metadata.go restored to baseline through Go overlay. Confirms expected outputs also hold for the original parser path.",
+    "counts": {
+      "pass": 13
+    },
+    "private_log_sha256": "3f28ee7c02beafa43e3c553ff836256875d4b84dd0b990b0d39d239159566e27"
+  }
+}
