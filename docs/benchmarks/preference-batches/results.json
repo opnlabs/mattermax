@@ -1,0 +1,267 @@
+{
+  "status": "passed",
+  "method": "Real Go SQL store, committed updates to existing keys, 32-byte values. Each process initializes the PostgreSQL test store. Single-threaded benchmark; HTTP, app side effects and race instrumentation excluded. Alternating-order paired processes; median ns/op across trials.",
+  "baseline_workspace_sha": "c9dbbcc480b242f7349cb7f4e9dcb6ea35cf6404",
+  "current_workspace_sha": "241f93c0619ee055a4718dca1678bd23d6109197",
+  "source_sha256": {
+    "before": "69648553383260bc84639f43c469e0c9d28ca580b260aeaf2dbae7b4b514258b",
+    "after": "4aa9dd2f60e8968387214538ae6b1717af14421c07cb7a263a6ac9b4236e86ec",
+    "benchmark_test": "409c265937bae8f7f6f267e4795ed0368f662c8331277d87031a2410288e93c8"
+  },
+  "environment": {
+    "platform": "Linux-6.18.55-cachyos-x86_64-with-glibc2.44",
+    "go": "go version go1.26.10 linux/amd64",
+    "cpu": "13th Gen Intel(R) Core(TM) i7-1355U"
+  },
+  "settings": {
+    "trials": 3,
+    "iterations": 500
+  },
+  "samples": [
+    {
+      "trial": 0,
+      "variant": "before",
+      "benchmarks": [
+        {
+          "records": 1,
+          "iterations": 500,
+          "ns_per_op": 5087301.0,
+          "bytes_per_op": 7022.0,
+          "allocations_per_op": 130.0,
+          "raw": "BenchmarkPreferenceSave/PostgreSQL/records=1-12         \t     500\t   5087301 ns/op\t    7022 B/op\t     130 allocs/op"
+        },
+        {
+          "records": 10,
+          "iterations": 500,
+          "ns_per_op": 6641773.0,
+          "bytes_per_op": 63790.0,
+          "allocations_per_op": 1165.0,
+          "raw": "BenchmarkPreferenceSave/PostgreSQL/records=10-12        \t     500\t   6641773 ns/op\t   63790 B/op\t    1165 allocs/op"
+        },
+        {
+          "records": 100,
+          "iterations": 500,
+          "ns_per_op": 17052391.0,
+          "bytes_per_op": 632723.0,
+          "allocations_per_op": 11515.0,
+          "raw": "BenchmarkPreferenceSave/PostgreSQL/records=100-12       \t     500\t  17052391 ns/op\t  632723 B/op\t   11515 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "benchmarks": [
+        {
+          "records": 1,
+          "iterations": 500,
+          "ns_per_op": 6628019.0,
+          "bytes_per_op": 7033.0,
+          "allocations_per_op": 130.0,
+          "raw": "BenchmarkPreferenceSave/PostgreSQL/records=1-12         \t     500\t   6628019 ns/op\t    7033 B/op\t     130 allocs/op"
+        },
+        {
+          "records": 10,
+          "iterations": 500,
+          "ns_per_op": 9389055.0,
+          "bytes_per_op": 24735.0,
+          "allocations_per_op": 373.0,
+          "raw": "BenchmarkPreferenceSave/PostgreSQL/records=10-12        \t     500\t   9389055 ns/op\t   24735 B/op\t     373 allocs/op"
+        },
+        {
+          "records": 100,
+          "iterations": 500,
+          "ns_per_op": 10213861.0,
+          "bytes_per_op": 224656.0,
+          "allocations_per_op": 2872.0,
+          "raw": "BenchmarkPreferenceSave/PostgreSQL/records=100-12       \t     500\t  10213861 ns/op\t  224656 B/op\t    2872 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "benchmarks": [
+        {
+          "records": 1,
+          "iterations": 500,
+          "ns_per_op": 8609430.0,
+          "bytes_per_op": 6998.0,
+          "allocations_per_op": 130.0,
+          "raw": "BenchmarkPreferenceSave/PostgreSQL/records=1-12         \t     500\t   8609430 ns/op\t    6998 B/op\t     130 allocs/op"
+        },
+        {
+          "records": 10,
+          "iterations": 500,
+          "ns_per_op": 10053191.0,
+          "bytes_per_op": 24759.0,
+          "allocations_per_op": 373.0,
+          "raw": "BenchmarkPreferenceSave/PostgreSQL/records=10-12        \t     500\t  10053191 ns/op\t   24759 B/op\t     373 allocs/op"
+        },
+        {
+          "records": 100,
+          "iterations": 500,
+          "ns_per_op": 10456114.0,
+          "bytes_per_op": 224669.0,
+          "allocations_per_op": 2872.0,
+          "raw": "BenchmarkPreferenceSave/PostgreSQL/records=100-12       \t     500\t  10456114 ns/op\t  224669 B/op\t    2872 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "benchmarks": [
+        {
+          "records": 1,
+          "iterations": 500,
+          "ns_per_op": 6706591.0,
+          "bytes_per_op": 7004.0,
+          "allocations_per_op": 130.0,
+          "raw": "BenchmarkPreferenceSave/PostgreSQL/records=1-12         \t     500\t   6706591 ns/op\t    7004 B/op\t     130 allocs/op"
+        },
+        {
+          "records": 10,
+          "iterations": 500,
+          "ns_per_op": 8913544.0,
+          "bytes_per_op": 63812.0,
+          "allocations_per_op": 1165.0,
+          "raw": "BenchmarkPreferenceSave/PostgreSQL/records=10-12        \t     500\t   8913544 ns/op\t   63812 B/op\t    1165 allocs/op"
+        },
+        {
+          "records": 100,
+          "iterations": 500,
+          "ns_per_op": 20466520.0,
+          "bytes_per_op": 632667.0,
+          "allocations_per_op": 11515.0,
+          "raw": "BenchmarkPreferenceSave/PostgreSQL/records=100-12       \t     500\t  20466520 ns/op\t  632667 B/op\t   11515 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "benchmarks": [
+        {
+          "records": 1,
+          "iterations": 500,
+          "ns_per_op": 7475627.0,
+          "bytes_per_op": 6990.0,
+          "allocations_per_op": 130.0,
+          "raw": "BenchmarkPreferenceSave/PostgreSQL/records=1-12         \t     500\t   7475627 ns/op\t    6990 B/op\t     130 allocs/op"
+        },
+        {
+          "records": 10,
+          "iterations": 500,
+          "ns_per_op": 9959512.0,
+          "bytes_per_op": 63794.0,
+          "allocations_per_op": 1165.0,
+          "raw": "BenchmarkPreferenceSave/PostgreSQL/records=10-12        \t     500\t   9959512 ns/op\t   63794 B/op\t    1165 allocs/op"
+        },
+        {
+          "records": 100,
+          "iterations": 500,
+          "ns_per_op": 19286033.0,
+          "bytes_per_op": 632706.0,
+          "allocations_per_op": 11515.0,
+          "raw": "BenchmarkPreferenceSave/PostgreSQL/records=100-12       \t     500\t  19286033 ns/op\t  632706 B/op\t   11515 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "benchmarks": [
+        {
+          "records": 1,
+          "iterations": 500,
+          "ns_per_op": 7329895.0,
+          "bytes_per_op": 6984.0,
+          "allocations_per_op": 130.0,
+          "raw": "BenchmarkPreferenceSave/PostgreSQL/records=1-12         \t     500\t   7329895 ns/op\t    6984 B/op\t     130 allocs/op"
+        },
+        {
+          "records": 10,
+          "iterations": 500,
+          "ns_per_op": 7466734.0,
+          "bytes_per_op": 24764.0,
+          "allocations_per_op": 373.0,
+          "raw": "BenchmarkPreferenceSave/PostgreSQL/records=10-12        \t     500\t   7466734 ns/op\t   24764 B/op\t     373 allocs/op"
+        },
+        {
+          "records": 100,
+          "iterations": 500,
+          "ns_per_op": 10274652.0,
+          "bytes_per_op": 224690.0,
+          "allocations_per_op": 2872.0,
+          "raw": "BenchmarkPreferenceSave/PostgreSQL/records=100-12       \t     500\t  10274652 ns/op\t  224690 B/op\t    2872 allocs/op"
+        }
+      ]
+    }
+  ],
+  "summary": [
+    {
+      "records": 1,
+      "before": {
+        "ns_per_op": 6706591.0,
+        "bytes_per_op": 7004.0,
+        "allocations_per_op": 130.0,
+        "ns_per_op_range": [
+          5087301.0,
+          7475627.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 7329895.0,
+        "bytes_per_op": 6998.0,
+        "allocations_per_op": 130.0,
+        "ns_per_op_range": [
+          6628019.0,
+          8609430.0
+        ]
+      }
+    },
+    {
+      "records": 10,
+      "before": {
+        "ns_per_op": 8913544.0,
+        "bytes_per_op": 63794.0,
+        "allocations_per_op": 1165.0,
+        "ns_per_op_range": [
+          6641773.0,
+          9959512.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 9389055.0,
+        "bytes_per_op": 24759.0,
+        "allocations_per_op": 373.0,
+        "ns_per_op_range": [
+          7466734.0,
+          10053191.0
+        ]
+      }
+    },
+    {
+      "records": 100,
+      "before": {
+        "ns_per_op": 19286033.0,
+        "bytes_per_op": 632706.0,
+        "allocations_per_op": 11515.0,
+        "ns_per_op_range": [
+          17052391.0,
+          20466520.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 10274652.0,
+        "bytes_per_op": 224669.0,
+        "allocations_per_op": 2872.0,
+        "ns_per_op_range": [
+          10213861.0,
+          10456114.0
+        ]
+      }
+    }
+  ]
+}
