@@ -519,3 +519,13 @@ and channels keep their names. Gates removed: `createChannel` in
 `PluginAPI.CreateChannel` in `app/plugin_api.go`, the webapp selector
 `isAnonymousURLEnabled` that hides the URL editors, and the System Console
 toggle's Enterprise Advanced check.
+
+### read-receipt-preference-reads.patch
+
+2026-11-14. Loads read-receipt privacy preferences for the current channel
+members in one array-bound query instead of one query per member. Keeps
+missing-row defaults, opt-out and enable-time parsing, visibility checks and
+fail-closed errors. Adds store/app regressions and a reproducible preference
+input benchmark. This complements Karan Sharma's read-receipts work; existing
+patches and authorship remain unchanged.
+[Measured results](docs/benchmarks/read-receipt-inputs/README.md).

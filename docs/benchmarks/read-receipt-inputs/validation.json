@@ -1,0 +1,32 @@
+{
+  "status": "passed",
+  "checks": [
+    {
+      "name": "read-receipt-store-race",
+      "status": "passed",
+      "command": "go test -race ./channels/store/sqlstore -run '^(TestPreferenceStore|TestPreferenceUsersLookup)$' -count=1 -timeout=10m -json",
+      "counts": {
+        "pass": 18,
+        "fail": 0,
+        "skip": 0
+      }
+    },
+    {
+      "name": "read-receipt-app-api-race",
+      "status": "passed",
+      "command": "go test -race ./channels/app ./channels/api4 -run '^(TestReadReceiptBulkInputs|TestGetChannelReadReceiptsAPI|TestReadReceiptsPrefServerStamp|TestReadReceiptWebsocketEvent)$' -count=1 -timeout=10m -json",
+      "counts": {
+        "pass": 33,
+        "fail": 0,
+        "skip": 0
+      }
+    }
+  ],
+  "packaging": "Full branded packaging build not run.",
+  "patch_check": {
+    "command": "just check",
+    "status": "passed",
+    "patches": 39,
+    "existing_patches_modified": 0
+  }
+}
