@@ -1,0 +1,41 @@
+{
+  "status": "passed",
+  "public_code_only": true,
+  "checks": [
+    {
+      "name": "preferences-store-race",
+      "command": "go test -race ./channels/store/sqlstore -run '^(TestPreferenceStore|TestPreferenceBatchSave|TestDeleteUnusedFeatures|TestBulkInsertChunking)$' -count=1 -timeout=15m -json",
+      "status": "passed",
+      "counts": {
+        "pass": 40,
+        "fail": 0,
+        "skip": 0
+      }
+    },
+    {
+      "name": "preferences-api-race",
+      "command": "go test -race ./channels/api4 -run '^Test.*(Preference|Preferences)' -count=1 -timeout=15m -json",
+      "status": "passed",
+      "counts": {
+        "pass": 31,
+        "fail": 0,
+        "skip": 0
+      }
+    },
+    {
+      "name": "patch series",
+      "command": "just check",
+      "status": "passed",
+      "patches": 39,
+      "existing_patch_files_changed": 0
+    }
+  ],
+  "negative_control": {
+    "command": "go test -race -overlay /tmp/before-overlay.json ./channels/store/sqlstore -run '^TestPreferenceBatchSave/PostgreSQL/opposite_order_concurrent_updates$' -count=1 -timeout=5m -json",
+    "status": "expected_failure",
+    "error": "pq: deadlock detected (40P01)",
+    "method": "The overlay restores only the original preference_store.go. The exact final regression test remains unchanged.",
+    "before_sha256": "69648553383260bc84639f43c469e0c9d28ca580b260aeaf2dbae7b4b514258b"
+  },
+  "full_branded_packaging_build": "not run"
+}

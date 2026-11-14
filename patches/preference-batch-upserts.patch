@@ -1,0 +1,260 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: rhnvrm <hello@rohanverma.net>
+Date: Sat, 14 Nov 2026 10:56:18 +0530
+Subject: [PATCH] perf: batch preference upserts in stable key order
+
+Normalize and validate copied records, then write unique-key batches with chunked multi-row upserts in one transaction. Sort the full batch before chunking to avoid opposite-order row locks. Keep single records and duplicate-key batches on the existing path so overwritten database errors and last-value-wins behavior are preserved.
+
+Add regressions for normalization, duplicate validation, later-chunk rollback and concurrent batches, plus a real SQL-store benchmark.
+
+Mattermax-Patch: preference-batch-upserts.patch
+---
+ .../store/sqlstore/preference_store.go        |  57 ++++++-
+ .../store/sqlstore/preference_store_test.go   | 147 ++++++++++++++++++
+ 2 files changed, 197 insertions(+), 7 deletions(-)
+
+diff --git a/server/channels/store/sqlstore/preference_store.go b/server/channels/store/sqlstore/preference_store.go
+index e923c0175e9c..3b4434485e0b 100644
+--- a/server/channels/store/sqlstore/preference_store.go
++++ b/server/channels/store/sqlstore/preference_store.go
+@@ -4,6 +4,9 @@
+ package sqlstore
+ 
+ import (
++	"cmp"
++	"slices"
++
+ 	sq "github.com/mattermost/squirrel"
+ 	"github.com/pkg/errors"
+ 
+@@ -42,21 +45,61 @@ func (s SqlPreferenceStore) deleteUnusedFeatures() {
+ }
+ 
+ func (s SqlPreferenceStore) Save(preferences model.Preferences) (err error) {
+-	// wrap in a transaction so that if one fails, everything fails
++	// Keep duplicate-key batches on the sequential path. Besides last-value-wins,
++	// this preserves database errors from an earlier overwritten record.
++	batch := len(preferences) > 1
++	if batch {
++		seen := make(map[[3]string]struct{}, len(preferences))
++		for _, p := range preferences {
++			key := [3]string{p.UserId, p.Category, p.Name}
++			if _, exists := seen[key]; exists {
++				batch = false
++				break
++			}
++			seen[key] = struct{}{}
++		}
++	}
++
++	var prepared model.Preferences
++	if batch {
++		prepared = slices.Clone(preferences)
++		for i := range prepared {
++			prepared[i].PreUpdate()
++			if err := prepared[i].IsValid(); err != nil {
++				return err
++			}
++		}
++		// Give concurrent batches the same row-lock order, including across chunks.
++		slices.SortFunc(prepared, func(a, b model.Preference) int {
++			return cmp.Or(cmp.Compare(a.UserId, b.UserId), cmp.Compare(a.Category, b.Category), cmp.Compare(a.Name, b.Name))
++		})
++	}
++
++	// All chunks share one transaction so a later failure rolls back earlier writes.
+ 	transaction, err := s.GetMaster().Begin()
+ 	if err != nil {
+ 		return errors.Wrap(err, "begin_transaction")
+ 	}
+-
+ 	defer finalizeTransactionX(transaction, &err)
+-	for _, preference := range preferences {
+-		if upsertErr := s.saveTx(transaction, &preference); upsertErr != nil {
+-			return upsertErr
++	if batch {
++		for _, chunk := range chunkSlice(prepared, 4, s.getMaxInsertParams()) {
++			query := s.getQueryBuilder().Insert("Preferences").Columns("UserId", "Category", "Name", "Value")
++			for _, p := range chunk {
++				query = query.Values(p.UserId, p.Category, p.Name, p.Value)
++			}
++			query = query.Suffix("ON CONFLICT (userid, category, name) DO UPDATE SET Value = EXCLUDED.Value")
++			if _, err := transaction.ExecBuilder(query); err != nil {
++				return errors.Wrap(err, "failed to save Preference")
++			}
++		}
++	} else {
++		for _, preference := range preferences {
++			if err := s.saveTx(transaction, &preference); err != nil {
++				return err
++			}
+ 		}
+ 	}
+-
+ 	if err := transaction.Commit(); err != nil {
+-		// don't need to rollback here since the transaction is already closed
+ 		return errors.Wrap(err, "commit_transaction")
+ 	}
+ 	return nil
+diff --git a/server/channels/store/sqlstore/preference_store_test.go b/server/channels/store/sqlstore/preference_store_test.go
+index a64cebb2b0cd..ec113c689287 100644
+--- a/server/channels/store/sqlstore/preference_store_test.go
++++ b/server/channels/store/sqlstore/preference_store_test.go
+@@ -4,6 +4,9 @@
+ package sqlstore
+ 
+ import (
++	"fmt"
++	"slices"
++	"strings"
+ 	"testing"
+ 
+ 	"github.com/stretchr/testify/require"
+@@ -82,3 +85,147 @@ func TestDeleteUnusedFeatures(t *testing.T) {
+ 		}
+ 	})
+ }
++
++func TestPreferenceBatchSave(t *testing.T) {
++	StoreTest(t, func(t *testing.T, _ request.CTX, ss store.Store) {
++		t.Run("duplicates and normalization preserve input", func(t *testing.T) {
++			user := model.NewId()
++			prefs := model.Preferences{
++				{UserId: user, Category: "test", Name: "same", Value: "first"},
++				{UserId: model.NewId(), Category: "test", Name: "same", Value: "other user"},
++				{UserId: user, Category: model.PreferenceCategoryTheme, Name: "", Value: `{"sidebarBg":"invalid","type":"custom"}`},
++				{UserId: user, Category: "test", Name: "same", Value: "last"},
++				{UserId: user, Category: "different", Name: "same", Value: "other category"},
++			}
++			original := slices.Clone(prefs)
++			require.NoError(t, ss.Preference().Save(prefs))
++			require.Equal(t, original, prefs, "normalization and sorting must not mutate the caller's event payload")
++			for _, index := range []int{1, 2, 3, 4} {
++				want := prefs[index]
++				want.PreUpdate()
++				got, err := ss.Preference().Get(want.UserId, want.Category, want.Name)
++				require.NoError(t, err)
++				require.Equal(t, &want, got)
++			}
++		})
++		t.Run("invalid overwritten record still rejects batch", func(t *testing.T) {
++			user := model.NewId()
++			require.Error(t, ss.Preference().Save(model.Preferences{
++				{UserId: user, Category: "test", Name: "keep", Value: "valid"},
++				{UserId: user, Category: "test", Name: "duplicate", Value: strings.Repeat("x", model.MaxPreferenceValueLength+1)},
++				{UserId: user, Category: "test", Name: "duplicate", Value: "last"},
++			}))
++			got, err := ss.Preference().GetAll(user)
++			require.NoError(t, err)
++			require.Empty(t, got)
++		})
++		t.Run("overwritten database error still rejects batch", func(t *testing.T) {
++			user := model.NewId()
++			require.Error(t, ss.Preference().Save(model.Preferences{
++				{UserId: user, Category: "test", Name: "same", Value: "invalid\x00text"},
++				{UserId: user, Category: "test", Name: "same", Value: "last"},
++			}))
++			got, err := ss.Preference().GetAll(user)
++			require.NoError(t, err)
++			require.Empty(t, got)
++		})
++
++		t.Run("successful save across chunks", func(t *testing.T) {
++			setMaxInsertParams(t, ss, 8)
++			user := model.NewId()
++			prefs := model.Preferences{}
++			for i := 4; i >= 0; i-- {
++				prefs = append(prefs, model.Preference{UserId: user, Category: "test", Name: fmt.Sprint(i), Value: "before"})
++			}
++			require.NoError(t, ss.Preference().Save(prefs))
++			for i := range prefs {
++				prefs[i].Value = "after"
++			}
++			require.NoError(t, ss.Preference().Save(prefs))
++			got, err := ss.Preference().GetAll(user)
++			require.NoError(t, err)
++			require.ElementsMatch(t, prefs, got)
++		})
++
++		t.Run("chunks remain atomic on database error", func(t *testing.T) {
++			setMaxInsertParams(t, ss, 8)
++			user := model.NewId()
++			seed := model.Preference{UserId: user, Category: "test", Name: "a", Value: "before"}
++			require.NoError(t, ss.Preference().Save(model.Preferences{seed}))
++			require.Error(t, ss.Preference().Save(model.Preferences{
++				{UserId: user, Category: "test", Name: "a", Value: "changed"},
++				{UserId: user, Category: "test", Name: "b", Value: "inserted"},
++				{UserId: user, Category: "test", Name: "z", Value: "invalid\x00text"},
++			}))
++			got, err := ss.Preference().GetAll(user)
++			require.NoError(t, err)
++			require.Equal(t, model.Preferences{seed}, got)
++		})
++		t.Run("empty batch", func(t *testing.T) { require.NoError(t, ss.Preference().Save(nil)) })
++		t.Run("opposite order concurrent updates", func(t *testing.T) {
++			setMaxInsertParams(t, ss, 8)
++			user := model.NewId()
++			left, right := model.Preferences{}, model.Preferences{}
++			for i := 0; i < 50; i++ {
++				left = append(left, model.Preference{UserId: user, Category: "test", Name: fmt.Sprintf("%02d", i), Value: "left"})
++				right = append(right, model.Preference{UserId: user, Category: "test", Name: fmt.Sprintf("%02d", i), Value: "right"})
++			}
++			slices.Reverse(right)
++			require.NoError(t, ss.Preference().Save(left))
++			for range 10 {
++				start := make(chan struct{})
++				results := make(chan error, 2)
++				for _, prefs := range []model.Preferences{left, right} {
++					go func() { <-start; results <- ss.Preference().Save(prefs) }()
++				}
++				close(start)
++				// Drain both writers before assertions so no test writes escape cleanup.
++				first, second := <-results, <-results
++				require.NoError(t, first)
++				require.NoError(t, second)
++				got, err := ss.Preference().GetAll(user)
++				require.NoError(t, err)
++				require.Len(t, got, 50)
++				for _, p := range got {
++					require.Equal(t, got[0].Value, p.Value, "each save remains a whole transaction")
++				}
++			}
++		})
++	})
++}
++
++// BenchmarkPreferenceSave measures committed updates through the real SQL
++// store. Database/network work is included; HTTP and app side effects are not.
++func BenchmarkPreferenceSave(b *testing.B) {
++	if len(storeTypes) == 0 {
++		b.Fatal("PostgreSQL store is required")
++	}
++	for _, st := range storeTypes {
++		b.Run(st.Name, func(b *testing.B) {
++			for _, size := range []int{1, 10, 100} {
++				b.Run(fmt.Sprintf("records=%d", size), func(b *testing.B) {
++					user := model.NewId()
++					prefs := make(model.Preferences, size)
++					for i := range prefs {
++						prefs[i] = model.Preference{UserId: user, Category: "benchmark", Name: fmt.Sprintf("%03d", i), Value: strings.Repeat("v", 32)}
++					}
++					if err := st.Store.Preference().Save(prefs); err != nil {
++						b.Fatal(err)
++					}
++					b.Cleanup(func() {
++						if err := st.Store.Preference().PermanentDeleteByUser(user); err != nil {
++							b.Error(err)
++						}
++					})
++					b.ReportAllocs()
++					b.ResetTimer()
++					for i := 0; i < b.N; i++ {
++						if err := st.Store.Preference().Save(prefs); err != nil {
++							b.Fatal(err)
++						}
++					}
++				})
++			}
++		})
++	}
++}

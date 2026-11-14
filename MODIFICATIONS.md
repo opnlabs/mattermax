@@ -519,3 +519,15 @@ and channels keep their names. Gates removed: `createChannel` in
 `PluginAPI.CreateChannel` in `app/plugin_api.go`, the webapp selector
 `isAnonymousURLEnabled` that hides the URL editors, and the System Console
 toggle's Enterprise Advanced check.
+
+### preference-batch-upserts.patch
+
+2026-11-14. Saves unique-key preference batches with chunked multi-row upserts
+in one transaction. Normalization and validation use copies so preference
+events retain the caller's values and order. The full batch uses a stable
+user/category/name order before chunking to avoid opposite-order batch locks.
+Single records and duplicate-key batches keep the existing sequential path,
+including errors from overwritten records. Tests cover duplicate validation,
+theme normalization, later-chunk rollback and concurrent chunked saves.
+[The benchmark](docs/benchmarks/preference-batches/README.md) compares the
+current SQL store with its original implementation.
