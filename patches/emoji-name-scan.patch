@@ -1,0 +1,212 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: rhnvrm <hello@rohanverma.net>
+Date: Sun, 15 Nov 2026 01:34:51 +0530
+Subject: [PATCH] perf: scan emoji names without regexp match allocations
+
+Match the existing ASCII emoji syntax with a linear scan while preserving non-overlapping matches, nil results, order and duplicates. Add regex-oracle equivalence checks and ordered history benchmarks.
+
+Mattermax-Patch: emoji-name-scan.patch
+---
+ server/channels/app/emoji_name_scan_test.go | 152 ++++++++++++++++++++
+ server/channels/app/post_metadata.go        |  28 +++-
+ 2 files changed, 174 insertions(+), 6 deletions(-)
+ create mode 100644 server/channels/app/emoji_name_scan_test.go
+
+diff --git a/server/channels/app/emoji_name_scan_test.go b/server/channels/app/emoji_name_scan_test.go
+new file mode 100644
+index 000000000000..40eccf1f7bdb
+--- /dev/null
++++ b/server/channels/app/emoji_name_scan_test.go
+@@ -0,0 +1,152 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++package app
++
++import (
++	"fmt"
++	"math/rand"
++	"reflect"
++	"strings"
++	"testing"
++
++	"github.com/mattermost/mattermost/server/public/model"
++)
++
++func legacyEmojiNamesForScanTest(s string) []string {
++	names := model.EmojiPattern.FindAllString(s, -1)
++	for i, name := range names {
++		names[i] = strings.Trim(name, ":")
++	}
++	return names
++}
++
++func TestEmojiNameScanEquivalence(t *testing.T) {
++	check := func(s string) {
++		t.Helper()
++		if got, want := getEmojiNamesForString(s), legacyEmojiNamesForScanTest(s); !reflect.DeepEqual(got, want) {
++			t.Fatalf("input %q: got %#v, want %#v", s, got, want)
++		}
++	}
++	for _, s := range []string{"", ":", "::", ":::a:", ":a:b:", ":a::b:", ":a b:c:", ":a\x00:b:", ":A0_+-:", ":é:", ":a\xff:b:", ":😀::smile:", strings.Repeat(":a", 10000), ":" + strings.Repeat("a", 20000) + ":"} {
++		check(s)
++	}
++	// Exhaust every short combination of valid name, delimiter and invalid bytes.
++	alphabet := []byte{':', 'a', '+', ' ', 0xff}
++	for n := 0; n <= 7; n++ {
++		var visit func([]byte)
++		visit = func(b []byte) {
++			if len(b) == n {
++				check(string(b))
++				return
++			}
++			for _, c := range alphabet {
++				visit(append(b, c))
++			}
++		}
++		visit(nil)
++	}
++	rng := rand.New(rand.NewSource(42))
++	alphabet = []byte(":aZ0_+- /\n\xff\xc3\xa9")
++	for range 200000 {
++		b := make([]byte, rng.Intn(160))
++		for i := range b {
++			b[i] = alphabet[rng.Intn(len(alphabet))]
++		}
++		check(string(b))
++	}
++}
++
++func FuzzEmojiNameScan(f *testing.F) {
++	for _, s := range []string{"", ":a::b:", ":a:b:", ":a\xff:b:", "https://example.com/:emoji:", ":A0_+-:"} {
++		f.Add(s)
++	}
++	f.Fuzz(func(t *testing.T, s string) {
++		if got, want := getEmojiNamesForString(s), legacyEmojiNamesForScanTest(s); !reflect.DeepEqual(got, want) {
++			t.Fatalf("%q: %#v != %#v", s, got, want)
++		}
++	})
++}
++
++var emojiScanBenchmarkResult []string
++
++func BenchmarkEmojiNameScan(b *testing.B) {
++	for _, c := range []struct{ name, text string }{
++		{"plain", "a short ordinary message"}, {"link", "https://example.com/path"},
++		{"emoji", ":smile: hello :party_parrot: :+1:"}, {"long_plain", strings.Repeat("ordinary message ", 1000)},
++		{"dense", strings.Repeat(":smile: :party_parrot: ", 100)}, {"invalid", strings.Repeat(":_x! ", 1000)},
++	} {
++		b.Run(c.name, func(b *testing.B) {
++			b.ReportAllocs()
++			for b.Loop() {
++				emojiScanBenchmarkResult = getEmojiNamesForString(c.text)
++			}
++		})
++	}
++}
++
++// Stored, ordered history pages retain normal priority reads and warm emoji caches.
++// No reactions, files, image proxy or network previews are included.
++func BenchmarkEmojiNameScanHistory(b *testing.B) {
++	th := Setup(b).InitBasic(b)
++	th.App.UpdateConfig(func(c *model.Config) { *c.ServiceSettings.EnableLinkPreviews = false })
++	if !th.App.IsPostPriorityEnabled() || !*th.App.Config().ServiceSettings.EnableCustomEmoji {
++		b.Fatal("expected default priority/custom emoji settings")
++	}
++	emoji := th.CreateEmoji(b)
++	for _, kind := range []string{"plain", "system", "custom", "dense", "invalid"} {
++		b.Run(kind, func(b *testing.B) {
++			message := "ordinary message"
++			switch kind {
++			case "system":
++				message = ":smile: hello :heart: :+1:"
++			case "custom":
++				message = ":" + emoji.Name + ": hello :smile:"
++			case "dense":
++				message = strings.Repeat(":"+emoji.Name+": :smile: ", 100)
++			case "invalid":
++				message = strings.Repeat(":_x! ", 100)
++			}
++			for _, size := range []int{1, 60} {
++				b.Run(fmt.Sprintf("posts=%d", size), func(b *testing.B) {
++					list := model.NewPostList()
++					for range size {
++						post, err := th.App.Srv().Store().Post().Save(th.Context, &model.Post{ChannelId: th.BasicChannel.Id, UserId: th.BasicUser.Id, Message: message})
++						if err != nil {
++							b.Fatal(err)
++						}
++						list.AddPost(post)
++						list.AddOrder(post.Id)
++					}
++					check := func(got *model.PostList) {
++						if !reflect.DeepEqual(got.Order, list.Order) || len(got.Posts) != size {
++							b.Fatal("incorrect page/order")
++						}
++						for _, id := range list.Order {
++							post := got.Posts[id]
++							if post == nil || post.Message != message || post.Metadata == nil {
++								b.Fatal("incorrect post")
++							}
++							want := 0
++							if kind == "custom" || kind == "dense" {
++								want = 1
++							}
++							if len(post.Metadata.Emojis) != want {
++								b.Fatalf("incorrect emoji metadata: %#v", post.Metadata.Emojis)
++							}
++							if want == 1 && post.Metadata.Emojis[0].Id != emoji.Id {
++								b.Fatal("incorrect custom emoji")
++							}
++						}
++					}
++					check(th.App.PreparePostListForClient(th.Context, list))
++					b.ReportAllocs()
++					b.ResetTimer()
++					for range b.N {
++						check(th.App.PreparePostListForClient(th.Context, list))
++					}
++				})
++			}
++		})
++	}
++}
+diff --git a/server/channels/app/post_metadata.go b/server/channels/app/post_metadata.go
+index 8021a3f38709..c025335b2812 100644
+--- a/server/channels/app/post_metadata.go
++++ b/server/channels/app/post_metadata.go
+@@ -752,13 +752,29 @@ func (a *App) getImagesForPost(rctx request.CTX, post *model.Post, isNewPost boo
+ }
+ 
+ func getEmojiNamesForString(s string) []string {
+-	names := model.EmojiPattern.FindAllString(s, -1)
+-
+-	for i, name := range names {
+-		names[i] = strings.Trim(name, ":")
++	var names []string
++	for {
++		start := strings.IndexByte(s, ':')
++		if start < 0 {
++			return names
++		}
++		end := start + 1
++		for end < len(s) {
++			c := s[end]
++			if !(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '_' || c == '+' || c == '-') {
++				break
++			}
++			end++
++		}
++		if end > start+1 && end < len(s) && s[end] == ':' {
++			// Consume both colons to retain EmojiPattern's non-overlapping matches.
++			names = append(names, s[start+1:end])
++			s = s[end+1:]
++		} else {
++			// No name byte can be a colon, so resume at the invalid byte.
++			s = s[end:]
++		}
+ 	}
+-
+-	return names
+ }
+ 
+ func getEmojiNamesForPost(post *model.Post, reactions []*model.Reaction, mmBlocksEnabled bool) []string {

@@ -1,0 +1,391 @@
+{
+  "status": "passed",
+  "source_sha": "f1cde2185ba8d6eec5bdd3139da45ca4d2ab4321",
+  "scope": "Standalone change over the original 38-patch source. Ordered stored history pages with warm emoji caches and priority reads enabled. No reactions, files, image proxy or network previews. Helper timings are not whole-server throughput. Before uses a Go overlay for the original production file; test file is identical.",
+  "trials": 3,
+  "cases": [
+    {
+      "name": "BenchmarkEmojiNameScan/plain",
+      "before": {
+        "ns_per_op": 28.42,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      "after": {
+        "ns_per_op": 3.189,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      "median_ns_change_percent": -88.77902885292048,
+      "paired_ns_change_percent": [
+        -88.77902885292048,
+        -88.76850848681835,
+        -88.58533194299618
+      ],
+      "median_paired_ns_change_percent": -88.76850848681835
+    },
+    {
+      "name": "BenchmarkEmojiNameScan/link",
+      "before": {
+        "ns_per_op": 48.7,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      "after": {
+        "ns_per_op": 8.003,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      "median_ns_change_percent": -83.56673511293636,
+      "paired_ns_change_percent": [
+        -83.5091695858232,
+        -85.30573847601129,
+        -82.48870636550308
+      ],
+      "median_paired_ns_change_percent": -83.5091695858232
+    },
+    {
+      "name": "BenchmarkEmojiNameScan/emoji",
+      "before": {
+        "ns_per_op": 503.1,
+        "bytes_per_op": 208,
+        "allocs_per_op": 4
+      },
+      "after": {
+        "ns_per_op": 97.85,
+        "bytes_per_op": 112,
+        "allocs_per_op": 3
+      },
+      "median_ns_change_percent": -80.55058636453985,
+      "paired_ns_change_percent": [
+        -79.87388120423108,
+        -84.5005816852252,
+        -80.55058636453985
+      ],
+      "median_paired_ns_change_percent": -80.55058636453985
+    },
+    {
+      "name": "BenchmarkEmojiNameScan/long_plain",
+      "before": {
+        "ns_per_op": 264.5,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      "after": {
+        "ns_per_op": 196.1,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      "median_ns_change_percent": -25.860113421550103,
+      "paired_ns_change_percent": [
+        -26.238185255198488,
+        -64.92146596858639,
+        -25.860113421550103
+      ],
+      "median_paired_ns_change_percent": -26.238185255198488
+    },
+    {
+      "name": "BenchmarkEmojiNameScan/dense",
+      "before": {
+        "ns_per_op": 36229.0,
+        "bytes_per_op": 15018,
+        "allocs_per_op": 206
+      },
+      "after": {
+        "ns_per_op": 4257.0,
+        "bytes_per_op": 9328,
+        "allocs_per_op": 9
+      },
+      "median_ns_change_percent": -88.2497446796765,
+      "paired_ns_change_percent": [
+        -88.2497446796765,
+        -88.96191096280621,
+        -88.70018684291252
+      ],
+      "median_paired_ns_change_percent": -88.70018684291252
+    },
+    {
+      "name": "BenchmarkEmojiNameScan/invalid",
+      "before": {
+        "ns_per_op": 50489.0,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      "after": {
+        "ns_per_op": 7232.0,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      "median_ns_change_percent": -85.67608786072213,
+      "paired_ns_change_percent": [
+        -85.70335313664283,
+        -84.03023939521209,
+        -85.67608786072213
+      ],
+      "median_paired_ns_change_percent": -85.67608786072213
+    },
+    {
+      "name": "BenchmarkEmojiNameScanHistory/plain/posts=1",
+      "before": {
+        "ns_per_op": 262682.0,
+        "bytes_per_op": 16595,
+        "allocs_per_op": 285
+      },
+      "after": {
+        "ns_per_op": 270199.0,
+        "bytes_per_op": 16285,
+        "allocs_per_op": 285
+      },
+      "median_ns_change_percent": 2.8616349806990904,
+      "paired_ns_change_percent": [
+        7.22856788130859,
+        2.8616349806990904,
+        -4.820469702470809
+      ],
+      "median_paired_ns_change_percent": 2.8616349806990904
+    },
+    {
+      "name": "BenchmarkEmojiNameScanHistory/plain/posts=60",
+      "before": {
+        "ns_per_op": 813504.0,
+        "bytes_per_op": 128893,
+        "allocs_per_op": 2373
+      },
+      "after": {
+        "ns_per_op": 795426.0,
+        "bytes_per_op": 128771,
+        "allocs_per_op": 2373
+      },
+      "median_ns_change_percent": -2.2222386122256355,
+      "paired_ns_change_percent": [
+        -5.190468577408291,
+        0.306884761947801,
+        -2.2222386122256355
+      ],
+      "median_paired_ns_change_percent": -2.2222386122256355
+    },
+    {
+      "name": "BenchmarkEmojiNameScanHistory/system/posts=1",
+      "before": {
+        "ns_per_op": 399136.0,
+        "bytes_per_op": 17450,
+        "allocs_per_op": 309
+      },
+      "after": {
+        "ns_per_op": 404335.0,
+        "bytes_per_op": 17354,
+        "allocs_per_op": 308
+      },
+      "median_ns_change_percent": 1.302563537240431,
+      "paired_ns_change_percent": [
+        4.440090595686685,
+        4.15555778806449,
+        -4.367240645491732
+      ],
+      "median_paired_ns_change_percent": 4.15555778806449
+    },
+    {
+      "name": "BenchmarkEmojiNameScanHistory/system/posts=60",
+      "before": {
+        "ns_per_op": 1075202.0,
+        "bytes_per_op": 186491,
+        "allocs_per_op": 3874
+      },
+      "after": {
+        "ns_per_op": 1005987.0,
+        "bytes_per_op": 180740,
+        "allocs_per_op": 3814
+      },
+      "median_ns_change_percent": -6.437395019726521,
+      "paired_ns_change_percent": [
+        -14.402443530562948,
+        -2.0528278960266655,
+        -4.486319779911119
+      ],
+      "median_paired_ns_change_percent": -4.486319779911119
+    },
+    {
+      "name": "BenchmarkEmojiNameScanHistory/custom/posts=1",
+      "before": {
+        "ns_per_op": 404232.0,
+        "bytes_per_op": 17357,
+        "allocs_per_op": 310
+      },
+      "after": {
+        "ns_per_op": 415056.0,
+        "bytes_per_op": 17210,
+        "allocs_per_op": 309
+      },
+      "median_ns_change_percent": 2.677670248768038,
+      "paired_ns_change_percent": [
+        9.101703971976495,
+        87.92464106708684,
+        -31.197170473603876
+      ],
+      "median_paired_ns_change_percent": 9.101703971976495
+    },
+    {
+      "name": "BenchmarkEmojiNameScanHistory/custom/posts=60",
+      "before": {
+        "ns_per_op": 1165369.0,
+        "bytes_per_op": 180617,
+        "allocs_per_op": 3933
+      },
+      "after": {
+        "ns_per_op": 1115469.0,
+        "bytes_per_op": 172092,
+        "allocs_per_op": 3873
+      },
+      "median_ns_change_percent": -4.281905559526644,
+      "paired_ns_change_percent": [
+        -6.307542549861278,
+        -1.0378008869777022,
+        -4.281905559526644
+      ],
+      "median_paired_ns_change_percent": -4.281905559526644
+    },
+    {
+      "name": "BenchmarkEmojiNameScanHistory/dense/posts=1",
+      "before": {
+        "ns_per_op": 746595.0,
+        "bytes_per_op": 98058,
+        "allocs_per_op": 1715
+      },
+      "after": {
+        "ns_per_op": 714395.0,
+        "bytes_per_op": 92512,
+        "allocs_per_op": 1518
+      },
+      "median_ns_change_percent": -4.312913962724096,
+      "paired_ns_change_percent": [
+        -5.055887060588404,
+        -4.078569117218578,
+        10.252344427311177
+      ],
+      "median_paired_ns_change_percent": -4.078569117218578
+    },
+    {
+      "name": "BenchmarkEmojiNameScanHistory/dense/posts=60",
+      "before": {
+        "ns_per_op": 12731988.0,
+        "bytes_per_op": 5040822,
+        "allocs_per_op": 88235
+      },
+      "after": {
+        "ns_per_op": 13822987.0,
+        "bytes_per_op": 4699385,
+        "allocs_per_op": 76414
+      },
+      "median_ns_change_percent": 8.568960322614183,
+      "paired_ns_change_percent": [
+        -8.653464427357916,
+        7.028859647193886,
+        9.418992540677863
+      ],
+      "median_paired_ns_change_percent": 7.028859647193886
+    },
+    {
+      "name": "BenchmarkEmojiNameScanHistory/invalid/posts=1",
+      "before": {
+        "ns_per_op": 605141.0,
+        "bytes_per_op": 313633,
+        "allocs_per_op": 2690
+      },
+      "after": {
+        "ns_per_op": 830187.0,
+        "bytes_per_op": 313638,
+        "allocs_per_op": 2691
+      },
+      "median_ns_change_percent": 37.18901875761187,
+      "paired_ns_change_percent": [
+        7.090427344207417,
+        20.532342577388295,
+        73.65423925994108
+      ],
+      "median_paired_ns_change_percent": 20.532342577388295
+    },
+    {
+      "name": "BenchmarkEmojiNameScanHistory/invalid/posts=60",
+      "before": {
+        "ns_per_op": 10092769.0,
+        "bytes_per_op": 17964897,
+        "allocs_per_op": 146736
+      },
+      "after": {
+        "ns_per_op": 12260204.0,
+        "bytes_per_op": 17965018,
+        "allocs_per_op": 146736
+      },
+      "median_ns_change_percent": 21.475127390709137,
+      "paired_ns_change_percent": [
+        6.381534794942789,
+        21.475127390709137,
+        23.864064744420688
+      ],
+      "median_paired_ns_change_percent": 21.475127390709137
+    }
+  ],
+  "isolated_plain_single_control": {
+    "before": {
+      "ns_per_op": 320607.0,
+      "bytes_per_op": 16272,
+      "allocs_per_op": 284
+    },
+    "after": {
+      "ns_per_op": 298521.0,
+      "bytes_per_op": 16250,
+      "allocs_per_op": 284
+    },
+    "paired_ns_change_percent": [
+      9.397248228209087,
+      0.5887164300701242,
+      -6.888807792718188,
+      -15.996671267116158,
+      -16.466700407871627
+    ],
+    "median_ns_change_percent": -6.888807792718188,
+    "median_paired_ns_change_percent": -6.888807792718188
+  },
+  "initial_study": "initial-results.json",
+  "note": "Final timing runs were sequential, after build/race/startup checks completed. The initial study is retained without dropping slower cases. Baseline selection in the final runner uses the parent tree so patch replay can change commit IDs.",
+  "isolated_heavy_cases": {
+    "dense": {
+      "before": {
+        "ns_per_op": 12568604.0,
+        "bytes_per_op": 5040900,
+        "allocs_per_op": 88235
+      },
+      "after": {
+        "ns_per_op": 11315282.0,
+        "bytes_per_op": 4699780,
+        "allocs_per_op": 76415
+      },
+      "paired_ns_change_percent": [
+        -8.76475883736222,
+        -10.96190953267364,
+        -8.751797153995255
+      ],
+      "median_ns_change_percent": -9.971847310966275
+    },
+    "invalid": {
+      "before": {
+        "ns_per_op": 12260570.0,
+        "bytes_per_op": 17965607,
+        "allocs_per_op": 146736
+      },
+      "after": {
+        "ns_per_op": 9888938.0,
+        "bytes_per_op": 17965658,
+        "allocs_per_op": 146736
+      },
+      "paired_ns_change_percent": [
+        -7.221446482141869,
+        -21.52509074189449,
+        -5.786533578781405
+      ],
+      "median_ns_change_percent": -19.34357048652714
+    }
+  },
+  "readiness": "draft",
+  "unresolved": "Ordered matrix latency regressions remain unexplained despite helper allocation savings and improvements in isolated heavy cases. Do not claim a general history latency or throughput improvement."
+}

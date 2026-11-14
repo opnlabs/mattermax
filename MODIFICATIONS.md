@@ -519,3 +519,13 @@ and channels keep their names. Gates removed: `createChannel` in
 `PluginAPI.CreateChannel` in `app/plugin_api.go`, the webapp selector
 `isAnonymousURLEnabled` that hides the URL editors, and the System Console
 toggle's Enterprise Advanced check.
+
+### emoji-name-scan.patch
+
+2026-11-15. Extract emoji names with a linear ASCII scan instead of allocating
+regular-expression matches in `getEmojiNamesForString`. Preserve the existing
+`:[a-zA-Z0-9_+-]+:` syntax, non-overlapping matches, order, duplicates and nil
+results. Post text extraction, reaction names, custom-emoji reads and API
+metadata remain unchanged. Includes regex-oracle equivalence and fuzz checks,
+plus helper and ordered history benchmarks. No schema, settings, dependency or
+enterprise changes.

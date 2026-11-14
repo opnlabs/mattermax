@@ -1,0 +1,120 @@
+{
+  "status": "passed",
+  "source_sha": "f1cde2185ba8d6eec5bdd3139da45ca4d2ab4321",
+  "source_tree_sha": "5addc91e307b76b100b81f1ccfa3f08fefa397e3",
+  "race": {
+    "status": "passed",
+    "command": [
+      "go",
+      "test",
+      "-race",
+      "-p",
+      "2",
+      "./channels/app",
+      "./channels/api4",
+      "-run",
+      "^(TestEmojiNameScanEquivalence|TestGetEmojiNamesForString|TestGetEmojiNamesForPost|TestGetCustomEmojisForPost|TestGetMultipleEmojiByName|TestPreparePostListForClient|TestPreparePostForClient|TestGetPostsForChannel|TestGetPostThread|TestGetPostsByIds|FuzzEmojiNameScan)$",
+      "-count=1",
+      "-timeout=15m",
+      "-json"
+    ],
+    "source_sha": "f1cde2185ba8d6eec5bdd3139da45ca4d2ab4321",
+    "tests": [
+      {
+        "package": "app",
+        "counts": {
+          "pass": 89,
+          "fail": 0,
+          "skip": 0
+        }
+      },
+      {
+        "package": "api4",
+        "counts": {
+          "pass": 17,
+          "fail": 0,
+          "skip": 0
+        }
+      }
+    ],
+    "log_sha256": "13f90c26ffe5b36df6864d8026c7243716d78a8978c51223d04e489141867526"
+  },
+  "fresh_parent_subtest_pass_events": 106,
+  "patch_check": {
+    "status": "passed",
+    "patches": 39,
+    "original_patch_files_verified_byte_identical": 38,
+    "log_sha256": "beab570c027102ef1d8f465f5ae4c7fddbaa4ffc1d552cde44f3454b15df802a"
+  },
+  "backend_build": {
+    "status": "passed",
+    "source_workspace_sha": "f1cde2185ba8d6eec5bdd3139da45ca4d2ab4321",
+    "command": [
+      "go",
+      "build",
+      "-tags",
+      "production",
+      "-ldflags",
+      "-X github.com/mattermost/mattermost/server/public/model.BuildNumber=12.0.2-1.emoji-name-scan -X github.com/mattermost/mattermost/server/public/model.BuildHash=f1cde2185ba8d6eec5bdd3139da45ca4d2ab4321 -X github.com/mattermost/mattermost/server/public/model.BuildEnterpriseReady=false",
+      "-o",
+      "/tmp/mattermax-emoji-name-scan-server",
+      "./cmd/mattermost"
+    ],
+    "build_tags": "production",
+    "forbidden_build_tags": false,
+    "enterprise_symbols_found": false,
+    "binary_sha256": "8945f769ee43e1990e93013eaa3f9da33adf233739e26ce8f15b33e48794bc6f",
+    "private_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build_number": "12.0.2-1.emoji-name-scan",
+    "build_hash": "f1cde2185ba8d6eec5bdd3139da45ca4d2ab4321",
+    "build_enterprise_ready": "false",
+    "scope": "Public backend only. No branded frontend/package rebuild, deployment or production load test.",
+    "symbol_tool": "Matching standard SDK cmd/nm via temporary GOROOT; same exclusion criteria as scripts/build-release.sh."
+  },
+  "runtime_smoke": {
+    "status": "passed",
+    "database": "mm_emoji_name_scan_52050139274a",
+    "runtime_directory": "/tmp/mattermax-emoji_name_scan-smoke-dbdhxm89",
+    "database_removed": true,
+    "server_stopped": true,
+    "probes": [
+      {
+        "path": "/api/v4/system/ping",
+        "http_status": 200,
+        "response": {
+          "ActiveSearchBackend": "database",
+          "AndroidLatestVersion": "",
+          "AndroidMinVersion": "",
+          "IosLatestVersion": "",
+          "IosMinVersion": "",
+          "status": "OK"
+        }
+      },
+      {
+        "path": "/api/v4/config/client?format=old",
+        "http_status": 200,
+        "site_name": "Mattermax",
+        "version": "12.0.2"
+      }
+    ],
+    "base_url": "http://127.0.0.1:18065",
+    "binary": "/tmp/mattermax-emoji-name-scan-server",
+    "environment": "Allowlisted system variables only; configuration comes from the temporary file plus repository overlay.",
+    "verified_build_number": "12.0.2-1.emoji-name-scan",
+    "runtime_directory_removed": true
+  },
+  "source_scope": "Only getEmojiNamesForString changes in production, plus one new test/benchmark file. No schema, interfaces, dependency, config, branding or webapp changes. Existing authorship, including Karan Sharma (@mr-karan), remains byte-identical.",
+  "not_run": [
+    "Full branded packaging",
+    "Browser flows",
+    "Production load tests"
+  ],
+  "race_environment": {
+    "TZ": "UTC",
+    "GOMAXPROCS": 4
+  },
+  "performance_readiness": {
+    "status": "draft",
+    "reason": "Ordered matrix latency regressions remain unexplained despite helper allocation savings and improvements in isolated heavy cases. Do not claim a general history latency or throughput improvement."
+  }
+}

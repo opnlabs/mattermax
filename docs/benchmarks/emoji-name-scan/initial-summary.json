@@ -1,0 +1,327 @@
+{
+  "source_sha": "f1cde2185ba8d6eec5bdd3139da45ca4d2ab4321",
+  "scope": "Standalone change over the original 38-patch source. Ordered stored history pages with warm emoji caches and priority reads enabled. No reactions, files, image proxy or network previews. Helper timings are not whole-server throughput. Before uses a Go overlay for the original production file; test file is identical.",
+  "trials": 3,
+  "cases": [
+    {
+      "name": "BenchmarkEmojiNameScan/plain",
+      "before": {
+        "ns_per_op": 27.33,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      "after": {
+        "ns_per_op": 3.176,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      "median_ns_change_percent": -88.37907061836809,
+      "paired_ns_change_percent": [
+        -88.93254520166899,
+        -88.43395536040981,
+        -88.3363936834374
+      ],
+      "median_paired_ns_change_percent": -88.43395536040981
+    },
+    {
+      "name": "BenchmarkEmojiNameScan/link",
+      "before": {
+        "ns_per_op": 47.46,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      "after": {
+        "ns_per_op": 7.997,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      "median_ns_change_percent": -83.15002107037506,
+      "paired_ns_change_percent": [
+        -84.44790046656298,
+        -83.0319829424307,
+        -83.15002107037506
+      ],
+      "median_paired_ns_change_percent": -83.15002107037506
+    },
+    {
+      "name": "BenchmarkEmojiNameScan/emoji",
+      "before": {
+        "ns_per_op": 471.5,
+        "bytes_per_op": 208,
+        "allocs_per_op": 4
+      },
+      "after": {
+        "ns_per_op": 94.91,
+        "bytes_per_op": 112,
+        "allocs_per_op": 3
+      },
+      "median_ns_change_percent": -79.87062566277837,
+      "paired_ns_change_percent": [
+        -80.8029935275081,
+        -79.28586980187242,
+        -80.7762460233298
+      ],
+      "median_paired_ns_change_percent": -80.7762460233298
+    },
+    {
+      "name": "BenchmarkEmojiNameScan/long_plain",
+      "before": {
+        "ns_per_op": 254.8,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      "after": {
+        "ns_per_op": 191.2,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      "median_ns_change_percent": -24.96075353218211,
+      "paired_ns_change_percent": [
+        -23.312401883830457,
+        -24.754033844942935,
+        -25.313479623824453
+      ],
+      "median_paired_ns_change_percent": -24.754033844942935
+    },
+    {
+      "name": "BenchmarkEmojiNameScan/dense",
+      "before": {
+        "ns_per_op": 34037.0,
+        "bytes_per_op": 15011,
+        "allocs_per_op": 206
+      },
+      "after": {
+        "ns_per_op": 3832.0,
+        "bytes_per_op": 9328,
+        "allocs_per_op": 9
+      },
+      "median_ns_change_percent": -88.7416634838558,
+      "paired_ns_change_percent": [
+        -88.15985075932026,
+        -88.45331003103625,
+        -89.20292622734084
+      ],
+      "median_paired_ns_change_percent": -88.45331003103625
+    },
+    {
+      "name": "BenchmarkEmojiNameScan/invalid",
+      "before": {
+        "ns_per_op": 48081.0,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      "after": {
+        "ns_per_op": 7007.0,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      "median_ns_change_percent": -85.42667581789064,
+      "paired_ns_change_percent": [
+        -85.53677214275393,
+        -85.3174518770605,
+        -85.11886192050913
+      ],
+      "median_paired_ns_change_percent": -85.3174518770605
+    },
+    {
+      "name": "BenchmarkEmojiNameScanHistory/plain/posts=1",
+      "before": {
+        "ns_per_op": 337535.0,
+        "bytes_per_op": 16547,
+        "allocs_per_op": 285
+      },
+      "after": {
+        "ns_per_op": 373096.0,
+        "bytes_per_op": 16261,
+        "allocs_per_op": 284
+      },
+      "median_ns_change_percent": 10.535500022219924,
+      "paired_ns_change_percent": [
+        -1.235649346340173,
+        2.0236336410656364,
+        10.535500022219924
+      ],
+      "median_paired_ns_change_percent": 2.0236336410656364
+    },
+    {
+      "name": "BenchmarkEmojiNameScanHistory/plain/posts=60",
+      "before": {
+        "ns_per_op": 792017.0,
+        "bytes_per_op": 128909,
+        "allocs_per_op": 2374
+      },
+      "after": {
+        "ns_per_op": 786699.0,
+        "bytes_per_op": 128802,
+        "allocs_per_op": 2374
+      },
+      "median_ns_change_percent": -0.6714502340227524,
+      "paired_ns_change_percent": [
+        -0.256264719889876,
+        -1.3203340021880838,
+        -0.6714502340227524
+      ],
+      "median_paired_ns_change_percent": -0.6714502340227524
+    },
+    {
+      "name": "BenchmarkEmojiNameScanHistory/system/posts=1",
+      "before": {
+        "ns_per_op": 401314.0,
+        "bytes_per_op": 17325,
+        "allocs_per_op": 309
+      },
+      "after": {
+        "ns_per_op": 407640.0,
+        "bytes_per_op": 17228,
+        "allocs_per_op": 308
+      },
+      "median_ns_change_percent": 1.5763217829430243,
+      "paired_ns_change_percent": [
+        1.5763217829430243,
+        -9.176821912570043,
+        3.839553458944134
+      ],
+      "median_paired_ns_change_percent": 1.5763217829430243
+    },
+    {
+      "name": "BenchmarkEmojiNameScanHistory/system/posts=60",
+      "before": {
+        "ns_per_op": 1056689.0,
+        "bytes_per_op": 186490,
+        "allocs_per_op": 3873
+      },
+      "after": {
+        "ns_per_op": 1013995.0,
+        "bytes_per_op": 180730,
+        "allocs_per_op": 3813
+      },
+      "median_ns_change_percent": -4.040356244836463,
+      "paired_ns_change_percent": [
+        -4.138833340424631,
+        -2.2670439434761436,
+        -4.040356244836463
+      ],
+      "median_paired_ns_change_percent": -4.040356244836463
+    },
+    {
+      "name": "BenchmarkEmojiNameScanHistory/custom/posts=1",
+      "before": {
+        "ns_per_op": 414086.0,
+        "bytes_per_op": 17235,
+        "allocs_per_op": 310
+      },
+      "after": {
+        "ns_per_op": 409190.0,
+        "bytes_per_op": 17211,
+        "allocs_per_op": 310
+      },
+      "median_ns_change_percent": -1.18236308399704,
+      "paired_ns_change_percent": [
+        -6.210400233290681,
+        -0.4650913885118513,
+        5.408779818685017
+      ],
+      "median_paired_ns_change_percent": -0.4650913885118513
+    },
+    {
+      "name": "BenchmarkEmojiNameScanHistory/custom/posts=60",
+      "before": {
+        "ns_per_op": 1139250.0,
+        "bytes_per_op": 180747,
+        "allocs_per_op": 3934
+      },
+      "after": {
+        "ns_per_op": 1078575.0,
+        "bytes_per_op": 172093,
+        "allocs_per_op": 3873
+      },
+      "median_ns_change_percent": -5.325872284397626,
+      "paired_ns_change_percent": [
+        -4.562709044897096,
+        -6.485872524661051,
+        -2.820890937019971
+      ],
+      "median_paired_ns_change_percent": -4.562709044897096
+    },
+    {
+      "name": "BenchmarkEmojiNameScanHistory/dense/posts=1",
+      "before": {
+        "ns_per_op": 750161.0,
+        "bytes_per_op": 98197,
+        "allocs_per_op": 1716
+      },
+      "after": {
+        "ns_per_op": 711006.0,
+        "bytes_per_op": 92636,
+        "allocs_per_op": 1519
+      },
+      "median_ns_change_percent": -5.219546204081526,
+      "paired_ns_change_percent": [
+        -5.219546204081526,
+        -2.714759078476525,
+        -6.502314394326126
+      ],
+      "median_paired_ns_change_percent": -5.219546204081526
+    },
+    {
+      "name": "BenchmarkEmojiNameScanHistory/dense/posts=60",
+      "before": {
+        "ns_per_op": 12391724.0,
+        "bytes_per_op": 5040928,
+        "allocs_per_op": 88235
+      },
+      "after": {
+        "ns_per_op": 11235867.0,
+        "bytes_per_op": 4699505,
+        "allocs_per_op": 76414
+      },
+      "median_ns_change_percent": -9.327652875419112,
+      "paired_ns_change_percent": [
+        -8.430111389119055,
+        -9.327652875419112,
+        -7.661791815913621
+      ],
+      "median_paired_ns_change_percent": -8.430111389119055
+    },
+    {
+      "name": "BenchmarkEmojiNameScanHistory/invalid/posts=1",
+      "before": {
+        "ns_per_op": 639901.0,
+        "bytes_per_op": 313636,
+        "allocs_per_op": 2691
+      },
+      "after": {
+        "ns_per_op": 617508.0,
+        "bytes_per_op": 313511,
+        "allocs_per_op": 2690
+      },
+      "median_ns_change_percent": -3.4994475707961104,
+      "paired_ns_change_percent": [
+        -15.909610128810082,
+        -3.4994475707961104,
+        8.138282660740103
+      ],
+      "median_paired_ns_change_percent": -3.4994475707961104
+    },
+    {
+      "name": "BenchmarkEmojiNameScanHistory/invalid/posts=60",
+      "before": {
+        "ns_per_op": 10069797.0,
+        "bytes_per_op": 17967592,
+        "allocs_per_op": 146736
+      },
+      "after": {
+        "ns_per_op": 9597133.0,
+        "bytes_per_op": 17965735,
+        "allocs_per_op": 146736
+      },
+      "median_ns_change_percent": -4.693878138754936,
+      "paired_ns_change_percent": [
+        -3.1030109650788784,
+        -4.693878138754936,
+        -1.9997825968802618
+      ],
+      "median_paired_ns_change_percent": -3.1030109650788784
+    }
+  ]
+}

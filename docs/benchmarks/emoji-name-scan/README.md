@@ -1,0 +1,132 @@
+# Emoji-name extraction
+
+This candidate remains a draft because the ordered history matrix includes
+unresolved latency regressions. The helper and allocation improvements alone
+do not establish that it is ready to merge.
+
+Preparing emoji text currently allocates a regular-expression match for each
+name, although the metadata path only needs the name's bytes. This patch scans
+the fixed `:[a-zA-Z0-9_+-]+:` syntax directly. It preserves non-overlapping
+matches, order, duplicates and nil results. Text extraction from posts,
+attachments and interactive blocks, reaction names, sorting/deduplication,
+custom-emoji reads and cache behavior are unchanged.
+
+The baseline is the original 38-patch source at `c9dbbcc480b2`. The candidate is
+`f1cde2185ba8`. A Go overlay substitutes only the original production file for
+baseline runs; both variants use the identical test/benchmark file. This is an
+independent contribution, without the other performance PRs. The runner checks
+the parent tree so replayed patch commits can have different IDs.
+
+Three alternating before/after pairs ran on Go 1.26.10 with GOMAXPROCS=4 and
+local disposable PostgreSQL/Redis. Each variant uses separate helper and
+history processes. Six helper inputs run for 300 ms each; ten history cases run
+for 300 operations each. History pages are stored and ordered, with normal
+priority reads and warmed emoji caches. There are no reactions, files, image
+proxy or network previews. The dense message repeats a custom emoji and a
+system emoji 100 times per post.
+
+The dense helper falls from 36.229 to 4.257 microseconds and from 206 to 9
+allocations. A dense 60-post page measures 12.732 to 13.823 ms, with median
+allocations falling from 88,235 to 76,414 and bytes from 5,040,822 to 4,699,385.
+This does not establish a whole-server throughput gain.
+
+## Complete history results
+
+Times are medians across three processes, in milliseconds per page. Change is
+the ratio of those medians. The last column compares each before/after pair;
+those percentages can differ from the ratio of medians. Lower is faster.
+
+| Page | Before ms | After ms | Change | Paired change range |
+| --- | ---: | ---: | ---: | ---: |
+| plain/posts=1 | 0.263 | 0.270 | +2.9% | -4.8% to +7.2% |
+| plain/posts=60 | 0.814 | 0.795 | -2.2% | -5.2% to +0.3% |
+| system/posts=1 | 0.399 | 0.404 | +1.3% | -4.4% to +4.4% |
+| system/posts=60 | 1.075 | 1.006 | -6.4% | -14.4% to -2.1% |
+| custom/posts=1 | 0.404 | 0.415 | +2.7% | -31.2% to +87.9% |
+| custom/posts=60 | 1.165 | 1.115 | -4.3% | -6.3% to -1.0% |
+| dense/posts=1 | 0.747 | 0.714 | -4.3% | -5.1% to +10.3% |
+| dense/posts=60 | 12.732 | 13.823 | +8.6% | -8.7% to +9.4% |
+| invalid/posts=1 | 0.605 | 0.830 | +37.2% | +7.1% to +73.7% |
+| invalid/posts=60 | 10.093 | 12.260 | +21.5% | +6.4% to +23.9% |
+
+Full samples, all helper cases and slower observations are in
+[results.json](results.json); [summary.json](summary.json) also records allocation
+medians and every paired timing change. Short-page/control timings vary, so no
+general single-post latency improvement is claimed.
+
+## Isolated heavy cases
+
+Each case also ran in its own fresh process, with three alternating before/after
+pairs and 500 page preparations per process. All three paired timings improve
+for both cases. Their medians are:
+
+| Case | Before ms | After ms | Change |
+| --- | ---: | ---: | ---: |
+| dense, 60 posts | 12.569 | 11.315 | -10.0% |
+| invalid, 60 posts | 12.261 | 9.889 | -19.3% |
+
+[isolated-dense.json](isolated-dense.json) and
+[isolated-invalid.json](isolated-invalid.json) preserve every sample. These
+results disagree with parts of the ordered matrix. They do not explain its
+regressions or establish that those regressions are harmless. Mixed-workload
+latency and GC behavior need further investigation before marking this ready.
+
+## Controls and initial study
+
+A separate five-pair single-post plain-text control repeats 3,000 operations in
+each process. It measures median 0.321 to 0.299 ms, with paired changes ranging
+from -16.5% to +9.4%. Both slower and faster cases occur. These controls
+show local timing variability; they do not establish a plain-text speedup.
+[control.json](control.json) preserves every sample and command.
+
+The initial three-pair study is retained in [initial-results.json](initial-results.json)
+and [initial-summary.json](initial-summary.json), including the slower single-post
+plain median. A patch-application check overlapped part of its first baseline
+helper process. Its history timings ran without concurrent build/test workloads.
+The final study above, isolated control and heavy cases ran sequentially after all
+race/build/startup checks completed. The runner's baseline selection was made
+replay-safe before those final runs; the measured production and test-file
+hashes are identical across both studies.
+
+These are local synthetic workloads. Production data, latency tails, concurrency
+and complete HTTP throughput have not been measured. Standalone ratios do not
+describe the combined performance contribution stack.
+
+## Behavior and validation
+
+The oracle test compares against the original regex, including exact order,
+duplicates and nilness. It covers explicit boundary/invalid-UTF-8/long-name
+cases, every combination up to seven bytes from a delimiter/name/invalid-byte
+alphabet, and 200,000 deterministic generated strings. A fuzz target supplies
+seed checks and can be run for longer. It follows model.EmojiPattern, so future
+syntax changes will fail the equivalence test until the scanner is updated.
+History benchmarks assert ordered posts, messages and exact custom-emoji
+identity as well as metadata presence. Both variants pass these output checks.
+
+Selected app/API race suites passed 106 parent/subtest events without failures
+or skips, including fuzz seeds and existing metadata/emoji/history checks. All
+39 patches apply cleanly; the original 38 patch files and their authorship,
+including Karan Sharma (@mr-karan), remain byte-identical. Public backend build,
+enterprise tag/symbol exclusions and a fresh-database startup/ping/client-config
+smoke test passed. Its process, database and runtime directory were removed.
+[validation.json](validation.json) records commands, source hashes and scopes.
+
+## Reproduce
+
+Create this branch's unbranded workspace with `just workspace`. Use Go 1.26.10,
+set TEST_DATABASE_POSTGRESQL_DSN and TEST_REDIS_ADDR to disposable services,
+and keep only server and public in go.work. Set GOPATH/GOCACHE/GOMODCACHE if
+needed for your environment. Run from this repository root:
+
+```sh
+python3 docs/benchmarks/emoji-name-scan/benchmark.py --output /tmp/emoji-scan-results
+python3 docs/benchmarks/emoji-name-scan/control.py --output /tmp/emoji-scan-control
+python3 docs/benchmarks/emoji-name-scan/isolated.py --case dense --output /tmp/emoji-scan-dense
+python3 docs/benchmarks/emoji-name-scan/isolated.py --case invalid --output /tmp/emoji-scan-invalid
+```
+
+The runners check the baseline tree, use a temporary overlay and save all
+commands, raw log hashes and measurements. No source files are rewritten.
+Public backend validation uses only the production build tag, an explicit
+non-dev build number and BuildEnterpriseReady=false. Full branded packaging,
+browser flows and deployment are outside this check.

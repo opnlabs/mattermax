@@ -1,0 +1,701 @@
+{
+  "status": "passed",
+  "source_sha": "f1cde2185ba8d6eec5bdd3139da45ca4d2ab4321",
+  "source_tree_sha": "5addc91e307b76b100b81f1ccfa3f08fefa397e3",
+  "baseline_source_sha": "c9dbbcc480b242f7349cb7f4e9dcb6ea35cf6404",
+  "production_file_sha256": "9c6ce6156e841dbf2e2f24e308772f2c231902a8c54632150d806d5c7b6f568a",
+  "baseline_file_sha256": "7c1df926962309717a8bbb013c12f9bd18ca1882da213f4346ae370be66340b7",
+  "benchmark_file_sha256": "6486fec2b66b09fa91313d4d00c3508737d1f3b87870a0a25d7347619fa4bc60",
+  "runner_sha256": "5c0637f8bf214d5a9a8142b55bbf28f636a9152c55507c5c24ba78782ebe8e02",
+  "go_version": "go version go1.26.10 linux/amd64",
+  "trials": 3,
+  "history_iterations": 300,
+  "gomaxprocs": 4,
+  "samples": [
+    {
+      "trial": 0,
+      "variant": "before",
+      "group": "helper",
+      "command": "go test -p 1 ./channels/app -run '^$' -bench '^BenchmarkEmojiNameScan$' -benchtime=300ms -count=1 -timeout=10m -json -overlay /tmp/mattermax-emoji-scan-o2jtn12r/overlay.json",
+      "benchmarks": [
+        {
+          "name": "BenchmarkEmojiNameScan/plain",
+          "ns_per_op": 28.76,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        },
+        {
+          "name": "BenchmarkEmojiNameScan/link",
+          "ns_per_op": 51.44,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        },
+        {
+          "name": "BenchmarkEmojiNameScan/emoji",
+          "ns_per_op": 494.4,
+          "bytes_per_op": 208,
+          "allocs_per_op": 4
+        },
+        {
+          "name": "BenchmarkEmojiNameScan/long_plain",
+          "ns_per_op": 254.8,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        },
+        {
+          "name": "BenchmarkEmojiNameScan/dense",
+          "ns_per_op": 34307.0,
+          "bytes_per_op": 15015,
+          "allocs_per_op": 206
+        },
+        {
+          "name": "BenchmarkEmojiNameScan/invalid",
+          "ns_per_op": 48447.0,
+          "bytes_per_op": 4,
+          "allocs_per_op": 0
+        }
+      ],
+      "raw_log_sha256": "baffc24b5d09350070abc23671792f0ccd8a2039b8c76327451c5f735e39d89a"
+    },
+    {
+      "trial": 0,
+      "variant": "before",
+      "group": "history",
+      "command": "go test -p 1 ./channels/app -run '^$' -bench '^BenchmarkEmojiNameScanHistory$' -benchtime=300x -count=1 -timeout=10m -json -overlay /tmp/mattermax-emoji-scan-o2jtn12r/overlay.json",
+      "benchmarks": [
+        {
+          "name": "BenchmarkEmojiNameScanHistory/plain/posts=1",
+          "ns_per_op": 301380.0,
+          "bytes_per_op": 16547,
+          "allocs_per_op": 285
+        },
+        {
+          "name": "BenchmarkEmojiNameScanHistory/plain/posts=60",
+          "ns_per_op": 766395.0,
+          "bytes_per_op": 128774,
+          "allocs_per_op": 2374
+        },
+        {
+          "name": "BenchmarkEmojiNameScanHistory/system/posts=1",
+          "ns_per_op": 401314.0,
+          "bytes_per_op": 17325,
+          "allocs_per_op": 309
+        },
+        {
+          "name": "BenchmarkEmojiNameScanHistory/system/posts=60",
+          "ns_per_op": 1034132.0,
+          "bytes_per_op": 186402,
+          "allocs_per_op": 3874
+        },
+        {
+          "name": "BenchmarkEmojiNameScanHistory/custom/posts=1",
+          "ns_per_op": 414933.0,
+          "bytes_per_op": 17109,
+          "allocs_per_op": 310
+        },
+        {
+          "name": "BenchmarkEmojiNameScanHistory/custom/posts=60",
+          "ns_per_op": 1130140.0,
+          "bytes_per_op": 180742,
+          "allocs_per_op": 3934
+        },
+        {
+          "name": "BenchmarkEmojiNameScanHistory/dense/posts=1",
+          "ns_per_op": 750161.0,
+          "bytes_per_op": 98197,
+          "allocs_per_op": 1716
+        },
+        {
+          "name": "BenchmarkEmojiNameScanHistory/dense/posts=60",
+          "ns_per_op": 12249850.0,
+          "bytes_per_op": 5040667,
+          "allocs_per_op": 88234
+        },
+        {
+          "name": "BenchmarkEmojiNameScanHistory/invalid/posts=1",
+          "ns_per_op": 709106.0,
+          "bytes_per_op": 313909,
+          "allocs_per_op": 2691
+        },
+        {
+          "name": "BenchmarkEmojiNameScanHistory/invalid/posts=60",
+          "ns_per_op": 9872250.0,
+          "bytes_per_op": 17967746,
+          "allocs_per_op": 146737
+        }
+      ],
+      "raw_log_sha256": "559a1641afb09fd362320669e017d950612e7d47ee28c4f363950edbb7446f3b"
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "group": "helper",
+      "command": "go test -p 1 ./channels/app -run '^$' -bench '^BenchmarkEmojiNameScan$' -benchtime=300ms -count=1 -timeout=10m -json",
+      "benchmarks": [
+        {
+          "name": "BenchmarkEmojiNameScan/plain",
+          "ns_per_op": 3.183,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        },
+        {
+          "name": "BenchmarkEmojiNameScan/link",
+          "ns_per_op": 8.0,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        },
+        {
+          "name": "BenchmarkEmojiNameScan/emoji",
+          "ns_per_op": 94.91,
+          "bytes_per_op": 112,
+          "allocs_per_op": 3
+        },
+        {
+          "name": "BenchmarkEmojiNameScan/long_plain",
+          "ns_per_op": 195.4,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        },
+        {
+          "name": "BenchmarkEmojiNameScan/dense",
+          "ns_per_op": 4062.0,
+          "bytes_per_op": 9328,
+          "allocs_per_op": 9
+        },
+        {
+          "name": "BenchmarkEmojiNameScan/invalid",
+          "ns_per_op": 7007.0,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        }
+      ],
+      "raw_log_sha256": "7e2c0a37ad68a8e212e3a1d7215119b4e2af876d61c4406a44a42601d00b1474"
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "group": "history",
+      "command": "go test -p 1 ./channels/app -run '^$' -bench '^BenchmarkEmojiNameScanHistory$' -benchtime=300x -count=1 -timeout=10m -json",
+      "benchmarks": [
+        {
+          "name": "BenchmarkEmojiNameScanHistory/plain/posts=1",
+          "ns_per_op": 297656.0,
+          "bytes_per_op": 16301,
+          "allocs_per_op": 285
+        },
+        {
+          "name": "BenchmarkEmojiNameScanHistory/plain/posts=60",
+          "ns_per_op": 764431.0,
+          "bytes_per_op": 128788,
+          "allocs_per_op": 2373
+        },
+        {
+          "name": "BenchmarkEmojiNameScanHistory/system/posts=1",
+          "ns_per_op": 407640.0,
+          "bytes_per_op": 17228,
+          "allocs_per_op": 308
+        },
+        {
+          "name": "BenchmarkEmojiNameScanHistory/system/posts=60",
+          "ns_per_op": 991331.0,
+          "bytes_per_op": 180606,
+          "allocs_per_op": 3813
+        },
+        {
+          "name": "BenchmarkEmojiNameScanHistory/custom/posts=1",
+          "ns_per_op": 389164.0,
+          "bytes_per_op": 17336,
+          "allocs_per_op": 310
+        },
+        {
+          "name": "BenchmarkEmojiNameScanHistory/custom/posts=60",
+          "ns_per_op": 1078575.0,
+          "bytes_per_op": 172093,
+          "allocs_per_op": 3873
+        },
+        {
+          "name": "BenchmarkEmojiNameScanHistory/dense/posts=1",
+          "ns_per_op": 711006.0,
+          "bytes_per_op": 92654,
+          "allocs_per_op": 1519
+        },
+        {
+          "name": "BenchmarkEmojiNameScanHistory/dense/posts=60",
+          "ns_per_op": 11217174.0,
+          "bytes_per_op": 4700008,
+          "allocs_per_op": 76415
+        },
+        {
+          "name": "BenchmarkEmojiNameScanHistory/invalid/posts=1",
+          "ns_per_op": 596290.0,
+          "bytes_per_op": 313510,
+          "allocs_per_op": 2690
+        },
+        {
+          "name": "BenchmarkEmojiNameScanHistory/invalid/posts=60",
+          "ns_per_op": 9565913.0,
+          "bytes_per_op": 17965735,
+          "allocs_per_op": 146736
+        }
+      ],
+      "raw_log_sha256": "652e44161851b350da0b91b9480059a7b1f99dc6024fd7712af6a145648fc9ee"
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "group": "helper",
+      "command": "go test -p 1 ./channels/app -run '^$' -bench '^BenchmarkEmojiNameScan$' -benchtime=300ms -count=1 -timeout=10m -json",
+      "benchmarks": [
+        {
+          "name": "BenchmarkEmojiNameScan/plain",
+          "ns_per_op": 3.161,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        },
+        {
+          "name": "BenchmarkEmojiNameScan/link",
+          "ns_per_op": 7.958,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        },
+        {
+          "name": "BenchmarkEmojiNameScan/emoji",
+          "ns_per_op": 95.14,
+          "bytes_per_op": 112,
+          "allocs_per_op": 3
+        },
+        {
+          "name": "BenchmarkEmojiNameScan/long_plain",
+          "ns_per_op": 191.2,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        },
+        {
+          "name": "BenchmarkEmojiNameScan/dense",
+          "ns_per_op": 3832.0,
+          "bytes_per_op": 9328,
+          "allocs_per_op": 9
+        },
+        {
+          "name": "BenchmarkEmojiNameScan/invalid",
+          "ns_per_op": 6903.0,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        }
+      ],
+      "raw_log_sha256": "af639bc00844f293f8f77e060caa9b461b08bce400fbc43a8a94e693bf0a928e"
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "group": "history",
+      "command": "go test -p 1 ./channels/app -run '^$' -bench '^BenchmarkEmojiNameScanHistory$' -benchtime=300x -count=1 -timeout=10m -json",
+      "benchmarks": [
+        {
+          "name": "BenchmarkEmojiNameScanHistory/plain/posts=1",
+          "ns_per_op": 408118.0,
+          "bytes_per_op": 16261,
+          "allocs_per_op": 284
+        },
+        {
+          "name": "BenchmarkEmojiNameScanHistory/plain/posts=60",
+          "ns_per_op": 804559.0,
+          "bytes_per_op": 128802,
+          "allocs_per_op": 2374
+        },
+        {
+          "name": "BenchmarkEmojiNameScanHistory/system/posts=1",
+          "ns_per_op": 399028.0,
+          "bytes_per_op": 17105,
+          "allocs_per_op": 308
+        },
+        {
+          "name": "BenchmarkEmojiNameScanHistory/system/posts=60",
+          "ns_per_op": 1039993.0,
+          "bytes_per_op": 180743,
+          "allocs_per_op": 3813
+        },
+        {
+          "name": "BenchmarkEmojiNameScanHistory/custom/posts=1",
+          "ns_per_op": 409190.0,
+          "bytes_per_op": 17211,
+          "allocs_per_op": 309
+        },
+        {
+          "name": "BenchmarkEmojiNameScanHistory/custom/posts=60",
+          "ns_per_op": 1076068.0,
+          "bytes_per_op": 172094,
+          "allocs_per_op": 3874
+        },
+        {
+          "name": "BenchmarkEmojiNameScanHistory/dense/posts=1",
+          "ns_per_op": 719903.0,
+          "bytes_per_op": 92636,
+          "allocs_per_op": 1519
+        },
+        {
+          "name": "BenchmarkEmojiNameScanHistory/dense/posts=60",
+          "ns_per_op": 11235867.0,
+          "bytes_per_op": 4699505,
+          "allocs_per_op": 76414
+        },
+        {
+          "name": "BenchmarkEmojiNameScanHistory/invalid/posts=1",
+          "ns_per_op": 617508.0,
+          "bytes_per_op": 313511,
+          "allocs_per_op": 2690
+        },
+        {
+          "name": "BenchmarkEmojiNameScanHistory/invalid/posts=60",
+          "ns_per_op": 9597133.0,
+          "bytes_per_op": 17965751,
+          "allocs_per_op": 146736
+        }
+      ],
+      "raw_log_sha256": "112cc80392f6a512848b63c9ff4a4e682ba828af11b7f626f089cb513ab86fd1"
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "group": "helper",
+      "command": "go test -p 1 ./channels/app -run '^$' -bench '^BenchmarkEmojiNameScan$' -benchtime=300ms -count=1 -timeout=10m -json -overlay /tmp/mattermax-emoji-scan-o2jtn12r/overlay.json",
+      "benchmarks": [
+        {
+          "name": "BenchmarkEmojiNameScan/plain",
+          "ns_per_op": 27.33,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        },
+        {
+          "name": "BenchmarkEmojiNameScan/link",
+          "ns_per_op": 46.9,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        },
+        {
+          "name": "BenchmarkEmojiNameScan/emoji",
+          "ns_per_op": 459.3,
+          "bytes_per_op": 208,
+          "allocs_per_op": 4
+        },
+        {
+          "name": "BenchmarkEmojiNameScan/long_plain",
+          "ns_per_op": 254.1,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        },
+        {
+          "name": "BenchmarkEmojiNameScan/dense",
+          "ns_per_op": 33187.0,
+          "bytes_per_op": 15011,
+          "allocs_per_op": 206
+        },
+        {
+          "name": "BenchmarkEmojiNameScan/invalid",
+          "ns_per_op": 47015.0,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        }
+      ],
+      "raw_log_sha256": "d3726fcad1d1f385b8d3f153a424d538380adfd4121a374ac20c26a271658ee9"
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "group": "history",
+      "command": "go test -p 1 ./channels/app -run '^$' -bench '^BenchmarkEmojiNameScanHistory$' -benchtime=300x -count=1 -timeout=10m -json -overlay /tmp/mattermax-emoji-scan-o2jtn12r/overlay.json",
+      "benchmarks": [
+        {
+          "name": "BenchmarkEmojiNameScanHistory/plain/posts=1",
+          "ns_per_op": 400023.0,
+          "bytes_per_op": 16504,
+          "allocs_per_op": 285
+        },
+        {
+          "name": "BenchmarkEmojiNameScanHistory/plain/posts=60",
+          "ns_per_op": 815324.0,
+          "bytes_per_op": 128909,
+          "allocs_per_op": 2373
+        },
+        {
+          "name": "BenchmarkEmojiNameScanHistory/system/posts=1",
+          "ns_per_op": 439346.0,
+          "bytes_per_op": 17452,
+          "allocs_per_op": 310
+        },
+        {
+          "name": "BenchmarkEmojiNameScanHistory/system/posts=60",
+          "ns_per_op": 1064117.0,
+          "bytes_per_op": 186492,
+          "allocs_per_op": 3873
+        },
+        {
+          "name": "BenchmarkEmojiNameScanHistory/custom/posts=1",
+          "ns_per_op": 411102.0,
+          "bytes_per_op": 17235,
+          "allocs_per_op": 311
+        },
+        {
+          "name": "BenchmarkEmojiNameScanHistory/custom/posts=60",
+          "ns_per_op": 1150701.0,
+          "bytes_per_op": 180767,
+          "allocs_per_op": 3934
+        },
+        {
+          "name": "BenchmarkEmojiNameScanHistory/dense/posts=1",
+          "ns_per_op": 739992.0,
+          "bytes_per_op": 98184,
+          "allocs_per_op": 1716
+        },
+        {
+          "name": "BenchmarkEmojiNameScanHistory/dense/posts=60",
+          "ns_per_op": 12391724.0,
+          "bytes_per_op": 5040928,
+          "allocs_per_op": 88235
+        },
+        {
+          "name": "BenchmarkEmojiNameScanHistory/invalid/posts=1",
+          "ns_per_op": 639901.0,
+          "bytes_per_op": 313636,
+          "allocs_per_op": 2690
+        },
+        {
+          "name": "BenchmarkEmojiNameScanHistory/invalid/posts=60",
+          "ns_per_op": 10069797.0,
+          "bytes_per_op": 17966387,
+          "allocs_per_op": 146736
+        }
+      ],
+      "raw_log_sha256": "6327915ace2acc0d9d698e176276a51a3c823a092f1498b479f265ed78a8b3b6"
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "group": "helper",
+      "command": "go test -p 1 ./channels/app -run '^$' -bench '^BenchmarkEmojiNameScan$' -benchtime=300ms -count=1 -timeout=10m -json -overlay /tmp/mattermax-emoji-scan-o2jtn12r/overlay.json",
+      "benchmarks": [
+        {
+          "name": "BenchmarkEmojiNameScan/plain",
+          "ns_per_op": 27.23,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        },
+        {
+          "name": "BenchmarkEmojiNameScan/link",
+          "ns_per_op": 47.46,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        },
+        {
+          "name": "BenchmarkEmojiNameScan/emoji",
+          "ns_per_op": 471.5,
+          "bytes_per_op": 208,
+          "allocs_per_op": 4
+        },
+        {
+          "name": "BenchmarkEmojiNameScan/long_plain",
+          "ns_per_op": 255.2,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        },
+        {
+          "name": "BenchmarkEmojiNameScan/dense",
+          "ns_per_op": 34037.0,
+          "bytes_per_op": 15011,
+          "allocs_per_op": 206
+        },
+        {
+          "name": "BenchmarkEmojiNameScan/invalid",
+          "ns_per_op": 48081.0,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        }
+      ],
+      "raw_log_sha256": "68dc80a8dace19146fe74d62ecdc96b7710bbcb02e749647914c7c9742ad712a"
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "group": "history",
+      "command": "go test -p 1 ./channels/app -run '^$' -bench '^BenchmarkEmojiNameScanHistory$' -benchtime=300x -count=1 -timeout=10m -json -overlay /tmp/mattermax-emoji-scan-o2jtn12r/overlay.json",
+      "benchmarks": [
+        {
+          "name": "BenchmarkEmojiNameScanHistory/plain/posts=1",
+          "ns_per_op": 337535.0,
+          "bytes_per_op": 16612,
+          "allocs_per_op": 284
+        },
+        {
+          "name": "BenchmarkEmojiNameScanHistory/plain/posts=60",
+          "ns_per_op": 792017.0,
+          "bytes_per_op": 128926,
+          "allocs_per_op": 2374
+        },
+        {
+          "name": "BenchmarkEmojiNameScanHistory/system/posts=1",
+          "ns_per_op": 394499.0,
+          "bytes_per_op": 17200,
+          "allocs_per_op": 309
+        },
+        {
+          "name": "BenchmarkEmojiNameScanHistory/system/posts=60",
+          "ns_per_op": 1056689.0,
+          "bytes_per_op": 186490,
+          "allocs_per_op": 3873
+        },
+        {
+          "name": "BenchmarkEmojiNameScanHistory/custom/posts=1",
+          "ns_per_op": 414086.0,
+          "bytes_per_op": 17356,
+          "allocs_per_op": 310
+        },
+        {
+          "name": "BenchmarkEmojiNameScanHistory/custom/posts=60",
+          "ns_per_op": 1139250.0,
+          "bytes_per_op": 180747,
+          "allocs_per_op": 3934
+        },
+        {
+          "name": "BenchmarkEmojiNameScanHistory/dense/posts=1",
+          "ns_per_op": 754193.0,
+          "bytes_per_op": 98197,
+          "allocs_per_op": 1716
+        },
+        {
+          "name": "BenchmarkEmojiNameScanHistory/dense/posts=60",
+          "ns_per_op": 12481271.0,
+          "bytes_per_op": 5041435,
+          "allocs_per_op": 88235
+        },
+        {
+          "name": "BenchmarkEmojiNameScanHistory/invalid/posts=1",
+          "ns_per_op": 611935.0,
+          "bytes_per_op": 313525,
+          "allocs_per_op": 2691
+        },
+        {
+          "name": "BenchmarkEmojiNameScanHistory/invalid/posts=60",
+          "ns_per_op": 10119450.0,
+          "bytes_per_op": 17967592,
+          "allocs_per_op": 146736
+        }
+      ],
+      "raw_log_sha256": "fb9b899b94fb43b3f61b492d0f9a677bc40b149975bcee61dd1bed7574b0c7d1"
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "group": "helper",
+      "command": "go test -p 1 ./channels/app -run '^$' -bench '^BenchmarkEmojiNameScan$' -benchtime=300ms -count=1 -timeout=10m -json",
+      "benchmarks": [
+        {
+          "name": "BenchmarkEmojiNameScan/plain",
+          "ns_per_op": 3.176,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        },
+        {
+          "name": "BenchmarkEmojiNameScan/link",
+          "ns_per_op": 7.997,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        },
+        {
+          "name": "BenchmarkEmojiNameScan/emoji",
+          "ns_per_op": 90.64,
+          "bytes_per_op": 112,
+          "allocs_per_op": 3
+        },
+        {
+          "name": "BenchmarkEmojiNameScan/long_plain",
+          "ns_per_op": 190.6,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        },
+        {
+          "name": "BenchmarkEmojiNameScan/dense",
+          "ns_per_op": 3675.0,
+          "bytes_per_op": 9328,
+          "allocs_per_op": 9
+        },
+        {
+          "name": "BenchmarkEmojiNameScan/invalid",
+          "ns_per_op": 7155.0,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        }
+      ],
+      "raw_log_sha256": "56f1b03eecb6e279df4acca1738b71b34152bb77d1eb47b72dc163cc1df1c10d"
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "group": "history",
+      "command": "go test -p 1 ./channels/app -run '^$' -bench '^BenchmarkEmojiNameScanHistory$' -benchtime=300x -count=1 -timeout=10m -json",
+      "benchmarks": [
+        {
+          "name": "BenchmarkEmojiNameScanHistory/plain/posts=1",
+          "ns_per_op": 373096.0,
+          "bytes_per_op": 16241,
+          "allocs_per_op": 284
+        },
+        {
+          "name": "BenchmarkEmojiNameScanHistory/plain/posts=60",
+          "ns_per_op": 786699.0,
+          "bytes_per_op": 128818,
+          "allocs_per_op": 2374
+        },
+        {
+          "name": "BenchmarkEmojiNameScanHistory/system/posts=1",
+          "ns_per_op": 409646.0,
+          "bytes_per_op": 17352,
+          "allocs_per_op": 308
+        },
+        {
+          "name": "BenchmarkEmojiNameScanHistory/system/posts=60",
+          "ns_per_op": 1013995.0,
+          "bytes_per_op": 180730,
+          "allocs_per_op": 3813
+        },
+        {
+          "name": "BenchmarkEmojiNameScanHistory/custom/posts=1",
+          "ns_per_op": 436483.0,
+          "bytes_per_op": 17211,
+          "allocs_per_op": 310
+        },
+        {
+          "name": "BenchmarkEmojiNameScanHistory/custom/posts=60",
+          "ns_per_op": 1107113.0,
+          "bytes_per_op": 171969,
+          "allocs_per_op": 3873
+        },
+        {
+          "name": "BenchmarkEmojiNameScanHistory/dense/posts=1",
+          "ns_per_op": 705153.0,
+          "bytes_per_op": 92501,
+          "allocs_per_op": 1518
+        },
+        {
+          "name": "BenchmarkEmojiNameScanHistory/dense/posts=60",
+          "ns_per_op": 11524982.0,
+          "bytes_per_op": 4699497,
+          "allocs_per_op": 76414
+        },
+        {
+          "name": "BenchmarkEmojiNameScanHistory/invalid/posts=1",
+          "ns_per_op": 661736.0,
+          "bytes_per_op": 313644,
+          "allocs_per_op": 2691
+        },
+        {
+          "name": "BenchmarkEmojiNameScanHistory/invalid/posts=60",
+          "ns_per_op": 9917083.0,
+          "bytes_per_op": 17964499,
+          "allocs_per_op": 146736
+        }
+      ],
+      "raw_log_sha256": "047c1577702ac04518ac2541c5a9d31b1bb10fed39fbead45a7dbe7c86a94f62"
+    }
+  ],
+  "scope": "Standalone change over the original 38-patch source. Ordered stored history pages with warm emoji caches and priority reads enabled. No reactions, files, image proxy or network previews. Helper timings are not whole-server throughput. Before uses a Go overlay for the original production file; test file is identical."
+}
