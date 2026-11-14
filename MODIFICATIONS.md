@@ -519,3 +519,18 @@ and channels keep their names. Gates removed: `createChannel` in
 `PluginAPI.CreateChannel` in `app/plugin_api.go`, the webapp selector
 `isAnonymousURLEnabled` that hides the URL editors, and the System Console
 toggle's Enterprise Advanced check.
+
+### markdown-image-scan.patch
+
+2026-11-14. Skips Markdown image parsing for text without a literal exclamation
+mark, which both inline and reference image syntax require. Keeps the existing
+empty-slice result and the full parser/domain checks for all other inputs.
+Adds encoded/escaped punctuation, code and image-reference regressions, plus
+paired real history-page benchmarks with punctuation and image controls.
+Existing patches and contributor credits remain unchanged.
+[Measured results](docs/benchmarks/markdown-image-scan/README.md).
+
+2026-11-14. Corrects the benchmark fixture to populate and validate history
+order, including priority and acknowledgement reads. The new timings supersede
+the earlier incomplete fixture. Production code and regression tests are
+unchanged.

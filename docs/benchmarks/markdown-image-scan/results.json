@@ -1,0 +1,478 @@
+{
+  "status": "passed",
+  "method": "Real App.PreparePostListForClient over 60 stored posts with default priority/acknowledgement reads. Same benchmark in both variants; baseline restores only post_metadata.go with a Go overlay. Cases use short text, prose, formatting, punctuation and cached inline/reference images. Setup and image warming are outside the timer. Timed loops validate image counts and dimensions. Image cases reject any network fetch during timing. Three alternating-order paired processes by default.",
+  "baseline_workspace_sha": "c9dbbcc480b242f7349cb7f4e9dcb6ea35cf6404",
+  "current_workspace_sha": "3a2084da74391f5b1cfb07e2767b3cd2ea47825d",
+  "source_sha256": {
+    "before": "7c1df926962309717a8bbb013c12f9bd18ca1882da213f4346ae370be66340b7",
+    "after": "70eb841a8d282e7deef203ed74b399b6807bbb4d86889fda0f870386331fbcfa",
+    "benchmark_test": "f654347fb26a5ecb6d293ba0949d2cb0710c67721234415e18c6a6e8fe4c64c2"
+  },
+  "environment": {
+    "platform": "Linux-6.18.55-cachyos-x86_64-with-glibc2.44",
+    "go": "go version go1.26.10 linux/amd64",
+    "cpu": "13th Gen Intel(R) Core(TM) i7-1355U"
+  },
+  "settings": {
+    "trials": 3,
+    "duration": "1s"
+  },
+  "samples": [
+    {
+      "trial": 0,
+      "variant": "before",
+      "benchmarks": [
+        {
+          "case": "short",
+          "iterations": 1473,
+          "ns_per_op": 797773.0,
+          "bytes_per_op": 163509.0,
+          "allocations_per_op": 3331.0,
+          "raw": "BenchmarkMarkdownImageHistory/short-12         \t    1473\t    797773 ns/op\t  163509 B/op\t    3331 allocs/op"
+        },
+        {
+          "case": "prose",
+          "iterations": 169,
+          "ns_per_op": 6825297.0,
+          "bytes_per_op": 13824740.0,
+          "allocations_per_op": 63577.0,
+          "raw": "BenchmarkMarkdownImageHistory/prose-12         \t     169\t   6825297 ns/op\t13824740 B/op\t   63577 allocs/op"
+        },
+        {
+          "case": "formatting",
+          "iterations": 122,
+          "ns_per_op": 10070333.0,
+          "bytes_per_op": 7156147.0,
+          "allocations_per_op": 159814.0,
+          "raw": "BenchmarkMarkdownImageHistory/formatting-12    \t     122\t  10070333 ns/op\t 7156147 B/op\t  159814 allocs/op"
+        },
+        {
+          "case": "bang_control",
+          "iterations": 1434,
+          "ns_per_op": 754450.0,
+          "bytes_per_op": 163506.0,
+          "allocations_per_op": 3331.0,
+          "raw": "BenchmarkMarkdownImageHistory/bang_control-12  \t    1434\t    754450 ns/op\t  163506 B/op\t    3331 allocs/op"
+        },
+        {
+          "case": "inline_image",
+          "iterations": 306,
+          "ns_per_op": 3866541.0,
+          "bytes_per_op": 4790934.0,
+          "allocations_per_op": 56974.0,
+          "raw": "BenchmarkMarkdownImageHistory/inline_image-12  \t     306\t   3866541 ns/op\t 4790934 B/op\t   56974 allocs/op"
+        },
+        {
+          "case": "reference_image",
+          "iterations": 308,
+          "ns_per_op": 3656727.0,
+          "bytes_per_op": 4848986.0,
+          "allocations_per_op": 58774.0,
+          "raw": "BenchmarkMarkdownImageHistory/reference_image-12         \t     308\t   3656727 ns/op\t 4848986 B/op\t   58774 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "benchmarks": [
+        {
+          "case": "short",
+          "iterations": 1632,
+          "ns_per_op": 676536.0,
+          "bytes_per_op": 125960.0,
+          "allocations_per_op": 2131.0,
+          "raw": "BenchmarkMarkdownImageHistory/short-12         \t    1632\t    676536 ns/op\t  125960 B/op\t    2131 allocs/op"
+        },
+        {
+          "case": "prose",
+          "iterations": 289,
+          "ns_per_op": 3802002.0,
+          "bytes_per_op": 6956365.0,
+          "allocations_per_op": 32254.0,
+          "raw": "BenchmarkMarkdownImageHistory/prose-12         \t     289\t   3802002 ns/op\t 6956365 B/op\t   32254 allocs/op"
+        },
+        {
+          "case": "formatting",
+          "iterations": 217,
+          "ns_per_op": 5603351.0,
+          "bytes_per_op": 3623500.0,
+          "allocations_per_op": 80373.0,
+          "raw": "BenchmarkMarkdownImageHistory/formatting-12    \t     217\t   5603351 ns/op\t 3623500 B/op\t   80373 allocs/op"
+        },
+        {
+          "case": "bang_control",
+          "iterations": 1394,
+          "ns_per_op": 724213.0,
+          "bytes_per_op": 163535.0,
+          "allocations_per_op": 3331.0,
+          "raw": "BenchmarkMarkdownImageHistory/bang_control-12  \t    1394\t    724213 ns/op\t  163535 B/op\t    3331 allocs/op"
+        },
+        {
+          "case": "inline_image",
+          "iterations": 308,
+          "ns_per_op": 3798749.0,
+          "bytes_per_op": 4790598.0,
+          "allocations_per_op": 56974.0,
+          "raw": "BenchmarkMarkdownImageHistory/inline_image-12  \t     308\t   3798749 ns/op\t 4790598 B/op\t   56974 allocs/op"
+        },
+        {
+          "case": "reference_image",
+          "iterations": 298,
+          "ns_per_op": 4111136.0,
+          "bytes_per_op": 4848797.0,
+          "allocations_per_op": 58774.0,
+          "raw": "BenchmarkMarkdownImageHistory/reference_image-12         \t     298\t   4111136 ns/op\t 4848797 B/op\t   58774 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "benchmarks": [
+        {
+          "case": "short",
+          "iterations": 1593,
+          "ns_per_op": 683770.0,
+          "bytes_per_op": 125998.0,
+          "allocations_per_op": 2131.0,
+          "raw": "BenchmarkMarkdownImageHistory/short-12         \t    1593\t    683770 ns/op\t  125998 B/op\t    2131 allocs/op"
+        },
+        {
+          "case": "prose",
+          "iterations": 284,
+          "ns_per_op": 3902161.0,
+          "bytes_per_op": 6957708.0,
+          "allocations_per_op": 32255.0,
+          "raw": "BenchmarkMarkdownImageHistory/prose-12         \t     284\t   3902161 ns/op\t 6957708 B/op\t   32255 allocs/op"
+        },
+        {
+          "case": "formatting",
+          "iterations": 218,
+          "ns_per_op": 5445262.0,
+          "bytes_per_op": 3624174.0,
+          "allocations_per_op": 80373.0,
+          "raw": "BenchmarkMarkdownImageHistory/formatting-12    \t     218\t   5445262 ns/op\t 3624174 B/op\t   80373 allocs/op"
+        },
+        {
+          "case": "bang_control",
+          "iterations": 1392,
+          "ns_per_op": 797493.0,
+          "bytes_per_op": 163428.0,
+          "allocations_per_op": 3332.0,
+          "raw": "BenchmarkMarkdownImageHistory/bang_control-12  \t    1392\t    797493 ns/op\t  163428 B/op\t    3332 allocs/op"
+        },
+        {
+          "case": "inline_image",
+          "iterations": 289,
+          "ns_per_op": 3862621.0,
+          "bytes_per_op": 4791272.0,
+          "allocations_per_op": 56974.0,
+          "raw": "BenchmarkMarkdownImageHistory/inline_image-12  \t     289\t   3862621 ns/op\t 4791272 B/op\t   56974 allocs/op"
+        },
+        {
+          "case": "reference_image",
+          "iterations": 291,
+          "ns_per_op": 3980337.0,
+          "bytes_per_op": 4848829.0,
+          "allocations_per_op": 58774.0,
+          "raw": "BenchmarkMarkdownImageHistory/reference_image-12         \t     291\t   3980337 ns/op\t 4848829 B/op\t   58774 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "benchmarks": [
+        {
+          "case": "short",
+          "iterations": 1676,
+          "ns_per_op": 648558.0,
+          "bytes_per_op": 163385.0,
+          "allocations_per_op": 3332.0,
+          "raw": "BenchmarkMarkdownImageHistory/short-12         \t    1676\t    648558 ns/op\t  163385 B/op\t    3332 allocs/op"
+        },
+        {
+          "case": "prose",
+          "iterations": 166,
+          "ns_per_op": 7501038.0,
+          "bytes_per_op": 13828609.0,
+          "allocations_per_op": 63577.0,
+          "raw": "BenchmarkMarkdownImageHistory/prose-12         \t     166\t   7501038 ns/op\t13828609 B/op\t   63577 allocs/op"
+        },
+        {
+          "case": "formatting",
+          "iterations": 128,
+          "ns_per_op": 9595000.0,
+          "bytes_per_op": 7156946.0,
+          "allocations_per_op": 159814.0,
+          "raw": "BenchmarkMarkdownImageHistory/formatting-12    \t     128\t   9595000 ns/op\t 7156946 B/op\t  159814 allocs/op"
+        },
+        {
+          "case": "bang_control",
+          "iterations": 1538,
+          "ns_per_op": 682302.0,
+          "bytes_per_op": 163456.0,
+          "allocations_per_op": 3331.0,
+          "raw": "BenchmarkMarkdownImageHistory/bang_control-12  \t    1538\t    682302 ns/op\t  163456 B/op\t    3331 allocs/op"
+        },
+        {
+          "case": "inline_image",
+          "iterations": 312,
+          "ns_per_op": 3697013.0,
+          "bytes_per_op": 4790329.0,
+          "allocations_per_op": 56974.0,
+          "raw": "BenchmarkMarkdownImageHistory/inline_image-12  \t     312\t   3697013 ns/op\t 4790329 B/op\t   56974 allocs/op"
+        },
+        {
+          "case": "reference_image",
+          "iterations": 308,
+          "ns_per_op": 3885957.0,
+          "bytes_per_op": 4848234.0,
+          "allocations_per_op": 58774.0,
+          "raw": "BenchmarkMarkdownImageHistory/reference_image-12         \t     308\t   3885957 ns/op\t 4848234 B/op\t   58774 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "benchmarks": [
+        {
+          "case": "short",
+          "iterations": 1345,
+          "ns_per_op": 810430.0,
+          "bytes_per_op": 163480.0,
+          "allocations_per_op": 3332.0,
+          "raw": "BenchmarkMarkdownImageHistory/short-12         \t    1345\t    810430 ns/op\t  163480 B/op\t    3332 allocs/op"
+        },
+        {
+          "case": "prose",
+          "iterations": 169,
+          "ns_per_op": 7238887.0,
+          "bytes_per_op": 13826023.0,
+          "allocations_per_op": 63577.0,
+          "raw": "BenchmarkMarkdownImageHistory/prose-12         \t     169\t   7238887 ns/op\t13826023 B/op\t   63577 allocs/op"
+        },
+        {
+          "case": "formatting",
+          "iterations": 122,
+          "ns_per_op": 9628944.0,
+          "bytes_per_op": 7155244.0,
+          "allocations_per_op": 159814.0,
+          "raw": "BenchmarkMarkdownImageHistory/formatting-12    \t     122\t   9628944 ns/op\t 7155244 B/op\t  159814 allocs/op"
+        },
+        {
+          "case": "bang_control",
+          "iterations": 1470,
+          "ns_per_op": 804888.0,
+          "bytes_per_op": 163442.0,
+          "allocations_per_op": 3331.0,
+          "raw": "BenchmarkMarkdownImageHistory/bang_control-12  \t    1470\t    804888 ns/op\t  163442 B/op\t    3331 allocs/op"
+        },
+        {
+          "case": "inline_image",
+          "iterations": 307,
+          "ns_per_op": 3752222.0,
+          "bytes_per_op": 4791261.0,
+          "allocations_per_op": 56974.0,
+          "raw": "BenchmarkMarkdownImageHistory/inline_image-12  \t     307\t   3752222 ns/op\t 4791261 B/op\t   56974 allocs/op"
+        },
+        {
+          "case": "reference_image",
+          "iterations": 313,
+          "ns_per_op": 3653033.0,
+          "bytes_per_op": 4847062.0,
+          "allocations_per_op": 58774.0,
+          "raw": "BenchmarkMarkdownImageHistory/reference_image-12         \t     313\t   3653033 ns/op\t 4847062 B/op\t   58774 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "benchmarks": [
+        {
+          "case": "short",
+          "iterations": 1699,
+          "ns_per_op": 703738.0,
+          "bytes_per_op": 126030.0,
+          "allocations_per_op": 2132.0,
+          "raw": "BenchmarkMarkdownImageHistory/short-12         \t    1699\t    703738 ns/op\t  126030 B/op\t    2132 allocs/op"
+        },
+        {
+          "case": "prose",
+          "iterations": 300,
+          "ns_per_op": 3847046.0,
+          "bytes_per_op": 6955413.0,
+          "allocations_per_op": 32254.0,
+          "raw": "BenchmarkMarkdownImageHistory/prose-12         \t     300\t   3847046 ns/op\t 6955413 B/op\t   32254 allocs/op"
+        },
+        {
+          "case": "formatting",
+          "iterations": 214,
+          "ns_per_op": 5377986.0,
+          "bytes_per_op": 3622750.0,
+          "allocations_per_op": 80373.0,
+          "raw": "BenchmarkMarkdownImageHistory/formatting-12    \t     214\t   5377986 ns/op\t 3622750 B/op\t   80373 allocs/op"
+        },
+        {
+          "case": "bang_control",
+          "iterations": 1386,
+          "ns_per_op": 820707.0,
+          "bytes_per_op": 163478.0,
+          "allocations_per_op": 3331.0,
+          "raw": "BenchmarkMarkdownImageHistory/bang_control-12  \t    1386\t    820707 ns/op\t  163478 B/op\t    3331 allocs/op"
+        },
+        {
+          "case": "inline_image",
+          "iterations": 290,
+          "ns_per_op": 3732357.0,
+          "bytes_per_op": 4790720.0,
+          "allocations_per_op": 56974.0,
+          "raw": "BenchmarkMarkdownImageHistory/inline_image-12  \t     290\t   3732357 ns/op\t 4790720 B/op\t   56974 allocs/op"
+        },
+        {
+          "case": "reference_image",
+          "iterations": 309,
+          "ns_per_op": 3861238.0,
+          "bytes_per_op": 4848474.0,
+          "allocations_per_op": 58774.0,
+          "raw": "BenchmarkMarkdownImageHistory/reference_image-12         \t     309\t   3861238 ns/op\t 4848474 B/op\t   58774 allocs/op"
+        }
+      ]
+    }
+  ],
+  "summary": [
+    {
+      "case": "short",
+      "before": {
+        "ns_per_op": 797773.0,
+        "bytes_per_op": 163480.0,
+        "allocations_per_op": 3332.0,
+        "ns_per_op_range": [
+          648558.0,
+          810430.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 683770.0,
+        "bytes_per_op": 125998.0,
+        "allocations_per_op": 2131.0,
+        "ns_per_op_range": [
+          676536.0,
+          703738.0
+        ]
+      }
+    },
+    {
+      "case": "prose",
+      "before": {
+        "ns_per_op": 7238887.0,
+        "bytes_per_op": 13826023.0,
+        "allocations_per_op": 63577.0,
+        "ns_per_op_range": [
+          6825297.0,
+          7501038.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 3847046.0,
+        "bytes_per_op": 6956365.0,
+        "allocations_per_op": 32254.0,
+        "ns_per_op_range": [
+          3802002.0,
+          3902161.0
+        ]
+      }
+    },
+    {
+      "case": "formatting",
+      "before": {
+        "ns_per_op": 9628944.0,
+        "bytes_per_op": 7156147.0,
+        "allocations_per_op": 159814.0,
+        "ns_per_op_range": [
+          9595000.0,
+          10070333.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 5445262.0,
+        "bytes_per_op": 3623500.0,
+        "allocations_per_op": 80373.0,
+        "ns_per_op_range": [
+          5377986.0,
+          5603351.0
+        ]
+      }
+    },
+    {
+      "case": "bang_control",
+      "before": {
+        "ns_per_op": 754450.0,
+        "bytes_per_op": 163456.0,
+        "allocations_per_op": 3331.0,
+        "ns_per_op_range": [
+          682302.0,
+          804888.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 797493.0,
+        "bytes_per_op": 163478.0,
+        "allocations_per_op": 3331.0,
+        "ns_per_op_range": [
+          724213.0,
+          820707.0
+        ]
+      }
+    },
+    {
+      "case": "inline_image",
+      "before": {
+        "ns_per_op": 3752222.0,
+        "bytes_per_op": 4790934.0,
+        "allocations_per_op": 56974.0,
+        "ns_per_op_range": [
+          3697013.0,
+          3866541.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 3798749.0,
+        "bytes_per_op": 4790720.0,
+        "allocations_per_op": 56974.0,
+        "ns_per_op_range": [
+          3732357.0,
+          3862621.0
+        ]
+      }
+    },
+    {
+      "case": "reference_image",
+      "before": {
+        "ns_per_op": 3656727.0,
+        "bytes_per_op": 4848234.0,
+        "allocations_per_op": 58774.0,
+        "ns_per_op_range": [
+          3653033.0,
+          3885957.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 3980337.0,
+        "bytes_per_op": 4848797.0,
+        "allocations_per_op": 58774.0,
+        "ns_per_op_range": [
+          3861238.0,
+          4111136.0
+        ]
+      }
+    }
+  ],
+  "measurement_revision": {
+    "ordered_history": true,
+    "note": "Measurement correction: these runs populate and validate PostList.Order, so default priority and acknowledgement reads execute. They supersede the earlier fixtures, which omitted Order."
+  }
+}

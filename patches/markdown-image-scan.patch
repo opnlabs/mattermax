@@ -1,0 +1,152 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: rhnvrm <hello@rohanverma.net>
+Date: Sat, 14 Nov 2026 14:13:13 +0530
+Subject: [PATCH] perf: skip image parsing for text without image markers
+
+Inline and reference Markdown images require a literal exclamation mark.
+Return the existing empty result before parsing text without that marker.
+Keep the full parser and preview domain checks for all other inputs.
+
+Add syntax regressions for encoded and escaped punctuation, code and image
+references, plus real history preparation benchmarks with image controls.
+
+Mattermax-Patch: markdown-image-scan.patch
+---
+ server/channels/app/post_image_scan_test.go | 112 ++++++++++++++++++++
+ server/channels/app/post_metadata.go        |   4 +
+ 2 files changed, 116 insertions(+)
+ create mode 100644 server/channels/app/post_image_scan_test.go
+
+diff --git a/server/channels/app/post_image_scan_test.go b/server/channels/app/post_image_scan_test.go
+new file mode 100644
+index 000000000000..fcccf80ea80a
+--- /dev/null
++++ b/server/channels/app/post_image_scan_test.go
+@@ -0,0 +1,112 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++package app
++
++import (
++	"net/http"
++	"net/http/httptest"
++	"strings"
++	"sync/atomic"
++	"testing"
++
++	"github.com/mattermost/mattermost/server/public/model"
++	"github.com/mattermost/mattermost/server/v8/channels/utils/testutils"
++	"github.com/stretchr/testify/require"
++)
++
++func TestMarkdownImageScanSyntax(t *testing.T) {
++	th := Setup(t)
++	for _, tc := range []struct {
++		name, text string
++		images     []string
++	}{
++		{"empty", "", []string{}},
++		{"plain", "A plain message with formatting **and emphasis**.", []string{}},
++		{"link only", "[logo](https://example.com/logo.png)", []string{}},
++		{"html image", `<img src="https://example.com/logo.png">`, []string{}},
++		{"named entity", "&excl;[logo](https://example.com/logo.png)", []string{}},
++		{"numeric entity", "&#33;[logo](https://example.com/logo.png)", []string{}},
++		{"unicode punctuation", "！[logo](https://example.com/logo.png)", []string{}},
++		{"escaped marker", `\![logo](https://example.com/logo.png)`, []string{}},
++		{"code", "`![logo](https://example.com/logo.png)`", []string{}},
++		{"inline", "![logo](https://example.com/logo.png)", []string{"https://example.com/logo.png"}},
++		{"reference", "![logo][image]\n\n[image]: https://example.com/logo.png", []string{"https://example.com/logo.png"}},
++		{"shortcut reference", "![logo]\n\n[logo]: https://example.com/logo.png", []string{"https://example.com/logo.png"}},
++	} {
++		t.Run(tc.name, func(t *testing.T) { require.Equal(t, tc.images, th.App.getImages(th.Context, tc.text)) })
++	}
++}
++
++// BenchmarkMarkdownImageHistory prepares real stored pages with default priority
++// reads. Image cases warm the link metadata cache before timing.
++func BenchmarkMarkdownImageHistory(b *testing.B) {
++	th := Setup(b).InitBasic(b)
++	th.App.UpdateConfig(func(cfg *model.Config) {
++		*cfg.ServiceSettings.EnableLinkPreviews = false
++		*cfg.ServiceSettings.AllowedUntrustedInternalConnections = "127.0.0.1"
++	})
++	image, err := testutils.ReadTestFile("test.png")
++	if err != nil {
++		b.Fatal(err)
++	}
++	var fetches atomic.Int64
++	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		fetches.Add(1)
++		w.Header().Set("Content-Type", "image/png")
++		_, _ = w.Write(image)
++	}))
++	defer server.Close()
++	imageURL := server.URL + "/image.png"
++	for _, tc := range []struct {
++		name, message string
++		images        int
++	}{
++		{"short", "The deploy is ready for review.", 0},
++		{"prose", strings.Repeat("The service is healthy and the next deploy is ready for review.\n", 50), 0},
++		{"formatting", strings.Repeat("- **Service** is healthy with `stable` memory.\n", 50), 0},
++		{"bang_control", "The deploy is ready for review!", 0},
++		{"inline_image", "![status](" + imageURL + ")", 1},
++		{"reference_image", "![status][image]\n\n[image]: " + imageURL, 1},
++	} {
++		b.Run(tc.name, func(b *testing.B) {
++			list := model.NewPostList()
++			for range 60 {
++				post, err := th.App.Srv().Store().Post().Save(th.Context, &model.Post{ChannelId: th.BasicChannel.Id, UserId: th.BasicUser.Id, Message: tc.message})
++				if err != nil {
++					b.Fatal(err)
++				}
++				list.AddPost(post)
++				list.AddOrder(post.Id)
++			}
++			check := func(result *model.PostList) {
++				if len(result.Order) != 60 {
++					b.Fatal("incorrect history order")
++				}
++				for id := range list.Posts {
++					post := result.Posts[id]
++					if post == nil || post.Metadata == nil || len(post.Metadata.Images) != tc.images {
++						b.Fatal("incorrect image metadata")
++					}
++					if tc.images > 0 {
++						dims := post.Metadata.Images[imageURL]
++						if dims == nil || dims.Width != 408 || dims.Height != 336 {
++							b.Fatal("incorrect image dimensions")
++						}
++					}
++				}
++			}
++			check(th.App.PreparePostListForClient(th.Context, list))
++			warmed := fetches.Load()
++			b.ReportAllocs()
++			b.ResetTimer()
++			for range b.N {
++				check(th.App.PreparePostListForClient(th.Context, list))
++			}
++			b.StopTimer()
++			if fetches.Load() != warmed {
++				b.Fatal("unexpected image fetch during warm benchmark")
++			}
++		})
++	}
++}
+diff --git a/server/channels/app/post_metadata.go b/server/channels/app/post_metadata.go
+index 8021a3f38709..d7742b0b574c 100644
+--- a/server/channels/app/post_metadata.go
++++ b/server/channels/app/post_metadata.go
+@@ -855,6 +855,10 @@ func (a *App) getFirstLink(rctx request.CTX, str string) string {
+ // images. It does not return plain autolinks or Markdown links of the form [text](url).
+ func (a *App) getImages(rctx request.CTX, str string) []string {
+ 	images := []string{}
++	// Both inline and reference images require a literal exclamation mark.
++	if !strings.Contains(str, "!") {
++		return images
++	}
+ 	markdown.Inspect(str, func(blockOrInline any) bool {
+ 		switch v := blockOrInline.(type) {
+ 		case *markdown.InlineImage:
