@@ -1,0 +1,373 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: rhnvrm <hello@rohanverma.net>
+Date: Sat, 14 Nov 2026 12:08:00 +0530
+Subject: [PATCH] perf: read thread archive activity without post hydration
+
+Replace full post and thread reads with one timestamp projection over the existing primary keys. Avoid counting replies and decoding post/participant payloads when only last activity is needed. Preserve missing-root handling, database errors and the later-of-root-and-reply rule.
+
+Builds on Karan Sharma (mr-karan) and opnlabs/mattermax#22. The original auto-archive patch and author credit remain unchanged.
+
+Mattermax-Patch: thread-activity-lookup.patch
+---
+ server/channels/app/channel_posting_rules.go  |  12 +-
+ .../app/channel_posting_rules_test.go         |  16 ++-
+ .../channels/store/retrylayer/retrylayer.go   |  21 +++
+ server/channels/store/sqlstore/post_store.go  |  18 +++
+ .../store/sqlstore/post_store_test.go         | 129 ++++++++++++++++++
+ server/channels/store/store.go                |   1 +
+ .../store/storetest/mocks/PostStore.go        |  28 ++++
+ .../channels/store/timerlayer/timerlayer.go   |  16 +++
+ 8 files changed, 228 insertions(+), 13 deletions(-)
+
+diff --git a/server/channels/app/channel_posting_rules.go b/server/channels/app/channel_posting_rules.go
+index 7d650d611837..c1105317d051 100644
+--- a/server/channels/app/channel_posting_rules.go
++++ b/server/channels/app/channel_posting_rules.go
+@@ -120,7 +120,7 @@ func (a *App) checkChannelPostingRules(rctx request.CTX, post *model.Post, chann
+ }
+ 
+ func (a *App) checkThreadArchived(rctx request.CTX, rootID string, archiveDays int) *model.AppError {
+-	root, err := a.Srv().Store().Post().GetSingle(rctx, rootID, false)
++	lastActivityAt, err := a.Srv().Store().Post().GetThreadLastActivityAt(rctx, rootID)
+ 	if err != nil {
+ 		var nfErr *store.ErrNotFound
+ 		if errors.As(err, &nfErr) {
+@@ -129,16 +129,6 @@ func (a *App) checkThreadArchived(rctx request.CTX, rootID string, archiveDays i
+ 		return model.NewAppError("checkThreadArchived", "app.channel_posting_rules.get.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
+ 	}
+ 
+-	thread, err := a.Srv().Store().Thread().Get(rootID)
+-	if err != nil {
+-		return model.NewAppError("checkThreadArchived", "app.channel_posting_rules.get.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
+-	}
+-
+-	lastActivityAt := root.CreateAt
+-	if thread != nil {
+-		lastActivityAt = max(lastActivityAt, thread.LastReplyAt)
+-	}
+-
+ 	if model.GetMillis()-lastActivityAt < int64(archiveDays)*24*time.Hour.Milliseconds() {
+ 		return nil
+ 	}
+diff --git a/server/channels/app/channel_posting_rules_test.go b/server/channels/app/channel_posting_rules_test.go
+index dd7bca7c1d0e..e7cd4c164335 100644
+--- a/server/channels/app/channel_posting_rules_test.go
++++ b/server/channels/app/channel_posting_rules_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"github.com/stretchr/testify/mock"
+ 	"github.com/stretchr/testify/require"
+ 
++	"github.com/mattermost/mattermost/server/public/model"
+ 	"github.com/mattermost/mattermost/server/v8/channels/store"
+ 	"github.com/mattermost/mattermost/server/v8/channels/store/storetest/mocks"
+ )
+@@ -20,8 +21,10 @@ func TestCheckThreadArchivedRootLookup(t *testing.T) {
+ 	th := SetupWithStoreMock(t)
+ 
+ 	mockPostStore := mocks.PostStore{}
+-	mockPostStore.On("GetSingle", mock.Anything, "missing", false).Return(nil, store.NewErrNotFound("Post", "missing"))
+-	mockPostStore.On("GetSingle", mock.Anything, "unreachable", false).Return(nil, errors.New("connection refused"))
++	mockPostStore.On("GetThreadLastActivityAt", mock.Anything, "missing").Return(int64(0), store.NewErrNotFound("Post", "missing"))
++	mockPostStore.On("GetThreadLastActivityAt", mock.Anything, "unreachable").Return(int64(0), errors.New("connection refused"))
++	mockPostStore.On("GetThreadLastActivityAt", mock.Anything, "recent").Return(model.GetMillis(), nil)
++	mockPostStore.On("GetThreadLastActivityAt", mock.Anything, "old").Return(model.GetMillis()-2*24*60*60*1000, nil)
+ 	th.App.Srv().Store().(*mocks.Store).On("Post").Return(&mockPostStore)
+ 
+ 	t.Run("a deleted root lets the reply through", func(t *testing.T) {
+@@ -33,4 +36,13 @@ func TestCheckThreadArchivedRootLookup(t *testing.T) {
+ 		require.NotNil(t, appErr)
+ 		require.Equal(t, http.StatusInternalServerError, appErr.StatusCode)
+ 	})
++	t.Run("recent activity is open", func(t *testing.T) {
++		require.Nil(t, th.App.checkThreadArchived(th.Context, "recent", 1))
++	})
++	t.Run("idle activity is archived", func(t *testing.T) {
++		err := th.App.checkThreadArchived(th.Context, "old", 1)
++		require.NotNil(t, err)
++		require.Equal(t, "api.post.create_post.thread_archived.app_error", err.Id)
++		require.Equal(t, http.StatusForbidden, err.StatusCode)
++	})
+ }
+diff --git a/server/channels/store/retrylayer/retrylayer.go b/server/channels/store/retrylayer/retrylayer.go
+index 468cfba8d54e..9e80ac90364c 100644
+--- a/server/channels/store/retrylayer/retrylayer.go
++++ b/server/channels/store/retrylayer/retrylayer.go
+@@ -9628,6 +9628,27 @@ func (s *RetryLayerPostStore) GetSingle(rctx request.CTX, id string, inclDeleted
+ 
+ }
+ 
++func (s *RetryLayerPostStore) GetThreadLastActivityAt(rctx request.CTX, rootID string) (int64, error) {
++
++	tries := 0
++	for {
++		result, err := s.PostStore.GetThreadLastActivityAt(rctx, rootID)
++		if err == nil {
++			return result, nil
++		}
++		if !isRepeatableError(err) {
++			return result, err
++		}
++		tries++
++		if tries >= 3 {
++			err = errors.Wrap(err, "giving up after 3 consecutive repeatable transaction failures")
++			return result, err
++		}
++		timepkg.Sleep(100 * timepkg.Millisecond)
++	}
++
++}
++
+ func (s *RetryLayerPostStore) GetVisiblePostIdAroundTime(channelID string, timestamp int64, before bool, collapsedThreads bool, userID string, excludeMembershipSystemPosts bool) (string, error) {
+ 
+ 	tries := 0
+diff --git a/server/channels/store/sqlstore/post_store.go b/server/channels/store/sqlstore/post_store.go
+index 3661472298b3..d2d72764892a 100644
+--- a/server/channels/store/sqlstore/post_store.go
++++ b/server/channels/store/sqlstore/post_store.go
+@@ -965,6 +965,24 @@ func (s *SqlPostStore) GetSingle(rctx request.CTX, id string, inclDeleted bool)
+ 	return &post, nil
+ }
+ 
++// GetThreadLastActivityAt reads only the timestamps needed for auto-archive.
++// Avoid hydrating the post, counting replies or decoding thread participants.
++func (s *SqlPostStore) GetThreadLastActivityAt(rctx request.CTX, rootID string) (int64, error) {
++	query := s.getQueryBuilder().
++		Select("GREATEST(Posts.CreateAt, COALESCE(Threads.LastReplyAt, 0))").
++		From("Posts").
++		LeftJoin("Threads ON Threads.PostId = Posts.Id").
++		Where(sq.Eq{"Posts.Id": rootID, "Posts.DeleteAt": 0})
++	var lastActivityAt int64
++	if err := s.DBXFromContext(rctx.Context()).GetBuilder(&lastActivityAt, query); err != nil {
++		if err == sql.ErrNoRows {
++			return 0, store.NewErrNotFound("Post", rootID)
++		}
++		return 0, errors.Wrapf(err, "failed to get thread activity for post id=%s", rootID)
++	}
++	return lastActivityAt, nil
++}
++
+ type etagPosts struct {
+ 	Id       string
+ 	UpdateAt int64
+diff --git a/server/channels/store/sqlstore/post_store_test.go b/server/channels/store/sqlstore/post_store_test.go
+index 533e4162c0f2..5c4b81a26e59 100644
+--- a/server/channels/store/sqlstore/post_store_test.go
++++ b/server/channels/store/sqlstore/post_store_test.go
+@@ -5,6 +5,9 @@ package sqlstore
+ 
+ import (
+ 	"fmt"
++	"github.com/mattermost/mattermost/server/public/shared/request"
++	"github.com/mattermost/mattermost/server/v8/channels/store"
++	"strings"
+ 	"testing"
+ 
+ 	"github.com/stretchr/testify/assert"
+@@ -58,3 +61,129 @@ func TestDetermineMaxPostSize(t *testing.T) {
+ 		})
+ 	}
+ }
++
++func TestThreadLastActivityLookup(t *testing.T) {
++	StoreTest(t, func(t *testing.T, rctx request.CTX, ss store.Store) {
++		channel, err := ss.Channel().Save(rctx, &model.Channel{TeamId: model.NewId(), Name: "activity-" + model.NewId(), DisplayName: "Activity test", Type: model.ChannelTypeOpen}, -1)
++		require.NoError(t, err)
++		root, err := ss.Post().Save(rctx, &model.Post{ChannelId: channel.Id, UserId: model.NewId(), Message: "activity root"})
++		require.NoError(t, err)
++		sqlStore := ss.(*SqlStore)
++		lookup := func(want int64) {
++			t.Helper()
++			got, err := ss.Post().GetThreadLastActivityAt(rctx, root.Id)
++			require.NoError(t, err)
++			require.Equal(t, want, got)
++		}
++		lookup(root.CreateAt) // No Threads row yet.
++		reply, err := ss.Post().Save(rctx, &model.Post{ChannelId: root.ChannelId, UserId: root.UserId, RootId: root.Id, Message: "recent reply", CreateAt: root.CreateAt + 1000})
++		require.NoError(t, err)
++		lookup(reply.CreateAt)
++		_, err = sqlStore.GetMaster().Exec("UPDATE Threads SET LastReplyAt=? WHERE PostId=?", root.CreateAt-1000, root.Id)
++		require.NoError(t, err)
++		lookup(root.CreateAt) // Imported metadata may precede the root.
++		_, err = sqlStore.GetMaster().Exec("UPDATE Threads SET LastReplyAt=? WHERE PostId=?", reply.CreateAt, root.Id)
++		require.NoError(t, err)
++		require.NoError(t, ss.Post().Delete(rctx, reply.Id, model.GetMillis(), root.UserId))
++		// Deletion can recompute metadata; use the existing read path as oracle.
++		legacyRoot, err := ss.Post().GetSingle(rctx, root.Id, false)
++		require.NoError(t, err)
++		thread, err := ss.Thread().Get(root.Id)
++		require.NoError(t, err)
++		want := legacyRoot.CreateAt
++		if thread != nil {
++			want = max(want, thread.LastReplyAt)
++		}
++		lookup(want)
++		_, err = ss.Post().GetThreadLastActivityAt(rctx, model.NewId())
++		var notFound *store.ErrNotFound
++		require.ErrorAs(t, err, &notFound)
++		require.NoError(t, ss.Post().Delete(rctx, root.Id, model.GetMillis(), root.UserId))
++		_, err = ss.Post().GetThreadLastActivityAt(rctx, root.Id)
++		require.ErrorAs(t, err, &notFound)
++	})
++}
++
++// BenchmarkThreadActivityLookup compares the two store paths used to decide
++// auto-archive, including database/driver cost but excluding HTTP and posting.
++func BenchmarkThreadActivityLookup(b *testing.B) {
++	if len(storeTypes) == 0 {
++		b.Fatal("PostgreSQL store is required")
++	}
++	for _, st := range storeTypes {
++		b.Run(st.Name, func(b *testing.B) {
++			for _, replies := range []int{0, 1000, 10000} {
++				b.Run(fmt.Sprintf("replies=%d", replies), func(b *testing.B) {
++					rctx := request.TestContext(b)
++					channel, err := st.Store.Channel().Save(rctx, &model.Channel{TeamId: model.NewId(), Name: "activity-" + model.NewId(), DisplayName: "Activity benchmark", Type: model.ChannelTypeOpen}, -1)
++					if err != nil {
++						b.Fatal(err)
++					}
++					root, err := st.Store.Post().Save(rctx, &model.Post{ChannelId: channel.Id, UserId: model.NewId(), Message: strings.Repeat("root message ", 100)})
++					if err != nil {
++						b.Fatal(err)
++					}
++					b.Cleanup(func() {
++						if _, err := st.SqlStore.GetMaster().Exec("DELETE FROM Channels WHERE Id=?", channel.Id); err != nil {
++							b.Error(err)
++						}
++						if _, err := st.SqlStore.GetMaster().Exec("DELETE FROM Posts WHERE Id=? OR RootId=?", root.Id, root.Id); err != nil {
++							b.Error(err)
++						}
++						if _, err := st.SqlStore.GetMaster().Exec("DELETE FROM Threads WHERE PostId=?", root.Id); err != nil {
++							b.Error(err)
++						}
++					})
++					expected := root.CreateAt
++					if replies > 0 {
++						// Seed outside timing; preserve current full-table indexes. Participant
++						// data is representative only of this synthetic test, not a real channel.
++						_, err = st.SqlStore.GetMaster().Exec(`INSERT INTO Posts(Id,RootId,ChannelId,UserId,CreateAt,UpdateAt,DeleteAt,Message,Type,Props,Hashtags,Filenames,FileIds,RemoteId)
++       SELECT substr(md5(? || n::text),1,26),?,?,?,CAST(? AS bigint)+n,CAST(? AS bigint)+n,0,'benchmark reply','','{}','','','[]','' FROM generate_series(1,?) n`, root.Id, root.Id, root.ChannelId, root.UserId, root.CreateAt, root.CreateAt, replies)
++						if err != nil {
++							b.Fatal(err)
++						}
++						expected += int64(replies)
++						_, err = st.SqlStore.GetMaster().Exec(`INSERT INTO Threads(PostId,ChannelId,ReplyCount,LastReplyAt,Participants,ThreadTeamId) VALUES(?,?,?,?,?,'')`, root.Id, root.ChannelId, replies, expected, model.StringArray{root.UserId})
++						if err != nil {
++							b.Fatal(err)
++						}
++					}
++					for _, variant := range []string{"legacy", "scalar"} {
++						b.Run(variant, func(b *testing.B) {
++							lookup := func() (int64, error) {
++								if variant == "scalar" {
++									return st.Store.Post().GetThreadLastActivityAt(rctx, root.Id)
++								}
++								post, err := st.Store.Post().GetSingle(rctx, root.Id, false)
++								if err != nil {
++									return 0, err
++								}
++								thread, err := st.Store.Thread().Get(root.Id)
++								if err != nil {
++									return 0, err
++								}
++								if thread != nil {
++									return max(post.CreateAt, thread.LastReplyAt), nil
++								}
++								return post.CreateAt, nil
++							}
++							got, err := lookup()
++							if err != nil || got != expected {
++								b.Fatalf("activity=%d want=%d error=%v", got, expected, err)
++							}
++							b.ReportAllocs()
++							b.ResetTimer()
++							for i := 0; i < b.N; i++ {
++								got, err := lookup()
++								if err != nil || got != expected {
++									b.Fatalf("activity=%d want=%d error=%v", got, expected, err)
++								}
++							}
++						})
++					}
++				})
++			}
++		})
++	}
++}
+diff --git a/server/channels/store/store.go b/server/channels/store/store.go
+index c117ffd453f4..26b9533dcf32 100644
+--- a/server/channels/store/store.go
++++ b/server/channels/store/store.go
+@@ -394,6 +394,7 @@ type PostStore interface {
+ 	Update(rctx request.CTX, newPost *model.Post, oldPost *model.Post) (*model.Post, error)
+ 	Get(rctx request.CTX, id string, opts model.GetPostsOptions, userID string, sanitizeOptions map[string]bool) (*model.PostList, error)
+ 	GetSingle(rctx request.CTX, id string, inclDeleted bool) (*model.Post, error)
++	GetThreadLastActivityAt(rctx request.CTX, rootID string) (int64, error)
+ 	Delete(rctx request.CTX, postID string, timestamp int64, deleteByID string) error
+ 	PermanentDelete(rctx request.CTX, postID string) error
+ 	PermanentDeleteByUser(rctx request.CTX, userID string) error
+diff --git a/server/channels/store/storetest/mocks/PostStore.go b/server/channels/store/storetest/mocks/PostStore.go
+index dcb5b19f4807..dbacda7c1e52 100644
+--- a/server/channels/store/storetest/mocks/PostStore.go
++++ b/server/channels/store/storetest/mocks/PostStore.go
+@@ -1136,6 +1136,34 @@ func (_m *PostStore) GetSingle(rctx request.CTX, id string, inclDeleted bool) (*
+ 	return r0, r1
+ }
+ 
++// GetThreadLastActivityAt provides a mock function with given fields: rctx, rootID
++func (_m *PostStore) GetThreadLastActivityAt(rctx request.CTX, rootID string) (int64, error) {
++	ret := _m.Called(rctx, rootID)
++
++	if len(ret) == 0 {
++		panic("no return value specified for GetThreadLastActivityAt")
++	}
++
++	var r0 int64
++	var r1 error
++	if rf, ok := ret.Get(0).(func(request.CTX, string) (int64, error)); ok {
++		return rf(rctx, rootID)
++	}
++	if rf, ok := ret.Get(0).(func(request.CTX, string) int64); ok {
++		r0 = rf(rctx, rootID)
++	} else {
++		r0 = ret.Get(0).(int64)
++	}
++
++	if rf, ok := ret.Get(1).(func(request.CTX, string) error); ok {
++		r1 = rf(rctx, rootID)
++	} else {
++		r1 = ret.Error(1)
++	}
++
++	return r0, r1
++}
++
+ // GetVisiblePostIdAroundTime provides a mock function with given fields: channelID, timestamp, before, collapsedThreads, userID, excludeMembershipSystemPosts
+ func (_m *PostStore) GetVisiblePostIdAroundTime(channelID string, timestamp int64, before bool, collapsedThreads bool, userID string, excludeMembershipSystemPosts bool) (string, error) {
+ 	ret := _m.Called(channelID, timestamp, before, collapsedThreads, userID, excludeMembershipSystemPosts)
+diff --git a/server/channels/store/timerlayer/timerlayer.go b/server/channels/store/timerlayer/timerlayer.go
+index 46d600e1e0c6..7834fdd27d47 100644
+--- a/server/channels/store/timerlayer/timerlayer.go
++++ b/server/channels/store/timerlayer/timerlayer.go
+@@ -7753,6 +7753,22 @@ func (s *TimerLayerPostStore) GetSingle(rctx request.CTX, id string, inclDeleted
+ 	return result, err
+ }
+ 
++func (s *TimerLayerPostStore) GetThreadLastActivityAt(rctx request.CTX, rootID string) (int64, error) {
++	start := time.Now()
++
++	result, err := s.PostStore.GetThreadLastActivityAt(rctx, rootID)
++
++	elapsed := float64(time.Since(start)) / float64(time.Second)
++	if s.Root.Metrics != nil {
++		success := "false"
++		if err == nil {
++			success = "true"
++		}
++		s.Root.Metrics.ObserveStoreMethodDuration("PostStore.GetThreadLastActivityAt", success, elapsed)
++	}
++	return result, err
++}
++
+ func (s *TimerLayerPostStore) GetVisiblePostIdAroundTime(channelID string, timestamp int64, before bool, collapsedThreads bool, userID string, excludeMembershipSystemPosts bool) (string, error) {
+ 	start := time.Now()
+ 

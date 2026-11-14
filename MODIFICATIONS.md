@@ -519,3 +519,13 @@ and channels keep their names. Gates removed: `createChannel` in
 `PluginAPI.CreateChannel` in `app/plugin_api.go`, the webapp selector
 `isAnonymousURLEnabled` that hides the URL editors, and the System Console
 toggle's Enterprise Advanced check.
+
+### thread-activity-lookup.patch
+
+2026-11-14. Reads only root creation and thread last-reply timestamps for
+auto-archive in one query over existing primary keys. Avoids full post and
+participant decoding and the unrelated reply-count aggregate. Missing/deleted
+roots, missing metadata and error handling retain their existing policy. Adds
+store/app regressions and a reproducible SQL-store benchmark. This complements
+Karan Sharma's thread auto-archive work; existing patches and authorship remain
+unchanged. [Measured results](docs/benchmarks/thread-activity/README.md).

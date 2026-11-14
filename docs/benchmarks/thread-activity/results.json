@@ -1,0 +1,267 @@
+{
+  "status": "passed",
+  "method": "Same real SQL store and full migrated schema, legacy GetSingle plus Thread.Get versus scalar GetThreadLastActivityAt. Synthetic thread fixtures with 0, 1000 and 10000 replies. Timed loops include PostgreSQL/driver costs but exclude HTTP, post insertion and policy authorization. Alternating-order paired processes; median ns/op across trials.",
+  "workspace_sha": "9d3c5b5b3d1fe3b2d8b0b55061248a4931b7c75f",
+  "source_sha256": {
+    "channels/store/sqlstore/post_store.go": "f8b4458fd43237840fbdb00f1dfa40e810785770f69cd4790cd07b4a141adfd1",
+    "channels/store/sqlstore/thread_store.go": "d0fc1c28f67706250968abd4f221dcefb295b5e2bfbf87e94599e751dade3218",
+    "channels/store/sqlstore/post_store_test.go": "1199cd5477ae15fdd8707954088d0e22197b94ef7ec7e014bc931042b4dbf70c",
+    "channels/app/channel_posting_rules.go": "69030e71c06420f55893ce1277b73f8ca2033412782ec0244449872c11431674"
+  },
+  "environment": {
+    "platform": "Linux-6.18.55-cachyos-x86_64-with-glibc2.44",
+    "go": "go version go1.26.10 linux/amd64",
+    "cpu": "13th Gen Intel(R) Core(TM) i7-1355U"
+  },
+  "settings": {
+    "iterations": 500,
+    "trials": 3
+  },
+  "samples": [
+    {
+      "trial": 0,
+      "variant": "legacy",
+      "benchmarks": [
+        {
+          "replies": 0,
+          "iterations": 500,
+          "ns_per_op": 667423.0,
+          "bytes_per_op": 25536.0,
+          "allocations_per_op": 293.0,
+          "raw": "BenchmarkThreadActivityLookup/PostgreSQL/replies=0/legacy-12  \t     500\t    667423 ns/op\t   25536 B/op\t     293 allocs/op"
+        },
+        {
+          "replies": 1000,
+          "iterations": 500,
+          "ns_per_op": 933707.0,
+          "bytes_per_op": 25855.0,
+          "allocations_per_op": 305.0,
+          "raw": "BenchmarkThreadActivityLookup/PostgreSQL/replies=1000/legacy-12         \t     500\t    933707 ns/op\t   25855 B/op\t     305 allocs/op"
+        },
+        {
+          "replies": 10000,
+          "iterations": 500,
+          "ns_per_op": 1117243.0,
+          "bytes_per_op": 25874.0,
+          "allocations_per_op": 305.0,
+          "raw": "BenchmarkThreadActivityLookup/PostgreSQL/replies=10000/legacy-12        \t     500\t   1117243 ns/op\t   25874 B/op\t     305 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 0,
+      "variant": "scalar",
+      "benchmarks": [
+        {
+          "replies": 0,
+          "iterations": 500,
+          "ns_per_op": 307890.0,
+          "bytes_per_op": 6960.0,
+          "allocations_per_op": 118.0,
+          "raw": "BenchmarkThreadActivityLookup/PostgreSQL/replies=0/scalar-12  \t     500\t    307890 ns/op\t    6960 B/op\t     118 allocs/op"
+        },
+        {
+          "replies": 1000,
+          "iterations": 500,
+          "ns_per_op": 424689.0,
+          "bytes_per_op": 6978.0,
+          "allocations_per_op": 118.0,
+          "raw": "BenchmarkThreadActivityLookup/PostgreSQL/replies=1000/scalar-12         \t     500\t    424689 ns/op\t    6978 B/op\t     118 allocs/op"
+        },
+        {
+          "replies": 10000,
+          "iterations": 500,
+          "ns_per_op": 267541.0,
+          "bytes_per_op": 6942.0,
+          "allocations_per_op": 118.0,
+          "raw": "BenchmarkThreadActivityLookup/PostgreSQL/replies=10000/scalar-12        \t     500\t    267541 ns/op\t    6942 B/op\t     118 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 1,
+      "variant": "scalar",
+      "benchmarks": [
+        {
+          "replies": 0,
+          "iterations": 500,
+          "ns_per_op": 290568.0,
+          "bytes_per_op": 6946.0,
+          "allocations_per_op": 118.0,
+          "raw": "BenchmarkThreadActivityLookup/PostgreSQL/replies=0/scalar-12  \t     500\t    290568 ns/op\t    6946 B/op\t     118 allocs/op"
+        },
+        {
+          "replies": 1000,
+          "iterations": 500,
+          "ns_per_op": 408668.0,
+          "bytes_per_op": 6929.0,
+          "allocations_per_op": 118.0,
+          "raw": "BenchmarkThreadActivityLookup/PostgreSQL/replies=1000/scalar-12         \t     500\t    408668 ns/op\t    6929 B/op\t     118 allocs/op"
+        },
+        {
+          "replies": 10000,
+          "iterations": 500,
+          "ns_per_op": 311232.0,
+          "bytes_per_op": 6951.0,
+          "allocations_per_op": 118.0,
+          "raw": "BenchmarkThreadActivityLookup/PostgreSQL/replies=10000/scalar-12        \t     500\t    311232 ns/op\t    6951 B/op\t     118 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 1,
+      "variant": "legacy",
+      "benchmarks": [
+        {
+          "replies": 0,
+          "iterations": 500,
+          "ns_per_op": 622348.0,
+          "bytes_per_op": 25511.0,
+          "allocations_per_op": 293.0,
+          "raw": "BenchmarkThreadActivityLookup/PostgreSQL/replies=0/legacy-12  \t     500\t    622348 ns/op\t   25511 B/op\t     293 allocs/op"
+        },
+        {
+          "replies": 1000,
+          "iterations": 500,
+          "ns_per_op": 725753.0,
+          "bytes_per_op": 25873.0,
+          "allocations_per_op": 305.0,
+          "raw": "BenchmarkThreadActivityLookup/PostgreSQL/replies=1000/legacy-12         \t     500\t    725753 ns/op\t   25873 B/op\t     305 allocs/op"
+        },
+        {
+          "replies": 10000,
+          "iterations": 500,
+          "ns_per_op": 1093491.0,
+          "bytes_per_op": 25851.0,
+          "allocations_per_op": 305.0,
+          "raw": "BenchmarkThreadActivityLookup/PostgreSQL/replies=10000/legacy-12        \t     500\t   1093491 ns/op\t   25851 B/op\t     305 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 2,
+      "variant": "legacy",
+      "benchmarks": [
+        {
+          "replies": 0,
+          "iterations": 500,
+          "ns_per_op": 534807.0,
+          "bytes_per_op": 25534.0,
+          "allocations_per_op": 293.0,
+          "raw": "BenchmarkThreadActivityLookup/PostgreSQL/replies=0/legacy-12  \t     500\t    534807 ns/op\t   25534 B/op\t     293 allocs/op"
+        },
+        {
+          "replies": 1000,
+          "iterations": 500,
+          "ns_per_op": 632225.0,
+          "bytes_per_op": 25892.0,
+          "allocations_per_op": 305.0,
+          "raw": "BenchmarkThreadActivityLookup/PostgreSQL/replies=1000/legacy-12         \t     500\t    632225 ns/op\t   25892 B/op\t     305 allocs/op"
+        },
+        {
+          "replies": 10000,
+          "iterations": 500,
+          "ns_per_op": 1101264.0,
+          "bytes_per_op": 25865.0,
+          "allocations_per_op": 305.0,
+          "raw": "BenchmarkThreadActivityLookup/PostgreSQL/replies=10000/legacy-12        \t     500\t   1101264 ns/op\t   25865 B/op\t     305 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 2,
+      "variant": "scalar",
+      "benchmarks": [
+        {
+          "replies": 0,
+          "iterations": 500,
+          "ns_per_op": 315154.0,
+          "bytes_per_op": 6949.0,
+          "allocations_per_op": 118.0,
+          "raw": "BenchmarkThreadActivityLookup/PostgreSQL/replies=0/scalar-12  \t     500\t    315154 ns/op\t    6949 B/op\t     118 allocs/op"
+        },
+        {
+          "replies": 1000,
+          "iterations": 500,
+          "ns_per_op": 418916.0,
+          "bytes_per_op": 6944.0,
+          "allocations_per_op": 118.0,
+          "raw": "BenchmarkThreadActivityLookup/PostgreSQL/replies=1000/scalar-12         \t     500\t    418916 ns/op\t    6944 B/op\t     118 allocs/op"
+        },
+        {
+          "replies": 10000,
+          "iterations": 500,
+          "ns_per_op": 239626.0,
+          "bytes_per_op": 6957.0,
+          "allocations_per_op": 118.0,
+          "raw": "BenchmarkThreadActivityLookup/PostgreSQL/replies=10000/scalar-12        \t     500\t    239626 ns/op\t    6957 B/op\t     118 allocs/op"
+        }
+      ]
+    }
+  ],
+  "summary": [
+    {
+      "replies": 0,
+      "legacy": {
+        "ns_per_op": 622348.0,
+        "bytes_per_op": 25534.0,
+        "allocations_per_op": 293.0,
+        "ns_per_op_range": [
+          534807.0,
+          667423.0
+        ]
+      },
+      "scalar": {
+        "ns_per_op": 307890.0,
+        "bytes_per_op": 6949.0,
+        "allocations_per_op": 118.0,
+        "ns_per_op_range": [
+          290568.0,
+          315154.0
+        ]
+      }
+    },
+    {
+      "replies": 1000,
+      "legacy": {
+        "ns_per_op": 725753.0,
+        "bytes_per_op": 25873.0,
+        "allocations_per_op": 305.0,
+        "ns_per_op_range": [
+          632225.0,
+          933707.0
+        ]
+      },
+      "scalar": {
+        "ns_per_op": 418916.0,
+        "bytes_per_op": 6944.0,
+        "allocations_per_op": 118.0,
+        "ns_per_op_range": [
+          408668.0,
+          424689.0
+        ]
+      }
+    },
+    {
+      "replies": 10000,
+      "legacy": {
+        "ns_per_op": 1101264.0,
+        "bytes_per_op": 25865.0,
+        "allocations_per_op": 305.0,
+        "ns_per_op_range": [
+          1093491.0,
+          1117243.0
+        ]
+      },
+      "scalar": {
+        "ns_per_op": 267541.0,
+        "bytes_per_op": 6951.0,
+        "allocations_per_op": 118.0,
+        "ns_per_op_range": [
+          239626.0,
+          311232.0
+        ]
+      }
+    }
+  ]
+}
