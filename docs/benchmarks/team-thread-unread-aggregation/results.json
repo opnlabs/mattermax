@@ -1,0 +1,1232 @@
+{
+  "scope": "Standalone contribution over the original 38-patch baseline. Three alternating-order pairs by default; fixed iteration counts and identical fixtures/output checks.",
+  "source_workspace_sha": "a2974e86b27f890ead59f0f5bff4b7c1b900bb78",
+  "source_tree_sha": "bb75985b51a751f278416311cc3c9c1049f8b0ca",
+  "baseline_source_sha": "c9dbbcc480b242f7349cb7f4e9dcb6ea35cf6404",
+  "production_file": "server/channels/store/sqlstore/thread_store.go",
+  "before_sha256": "d0fc1c28f67706250968abd4f221dcefb295b5e2bfbf87e94599e751dade3218",
+  "after_sha256": "64ee6429696b1dd39f8dc8b3dc696ba5278cffa535c1db4e087c59c3e350299d",
+  "go_version": "go version go1.26.10 linux/amd64",
+  "platform": "Linux-6.18.55-cachyos-x86_64-with-glibc2.44",
+  "GOMAXPROCS": "4",
+  "database_pool": {
+    "max_open": 8,
+    "max_idle": 8,
+    "one_pool_for_reads_and_writes": true
+  },
+  "parallel_workers": "GOMAXPROCS, testing.B.RunParallel default parallelism",
+  "trials": 3,
+  "iterations": 1000,
+  "rows": [
+    {
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=0/urgent=false/parallel",
+      "before": {
+        "ns/op": {
+          "median": 164467.0,
+          "min": 164132.0,
+          "max": 165010.0
+        },
+        "B/op": {
+          "median": 31512,
+          "min": 31508,
+          "max": 31513
+        },
+        "allocs/op": {
+          "median": 367,
+          "min": 367,
+          "max": 367
+        }
+      },
+      "after": {
+        "ns/op": {
+          "median": 141734.0,
+          "min": 138369.0,
+          "max": 142523.0
+        },
+        "B/op": {
+          "median": 17524,
+          "min": 17519,
+          "max": 17530
+        },
+        "allocs/op": {
+          "median": 200,
+          "min": 200,
+          "max": 200
+        }
+      }
+    },
+    {
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=0/urgent=false/serial",
+      "before": {
+        "ns/op": {
+          "median": 591600.0,
+          "min": 588035.0,
+          "max": 606170.0
+        },
+        "B/op": {
+          "median": 31281,
+          "min": 31273,
+          "max": 31286
+        },
+        "allocs/op": {
+          "median": 366,
+          "min": 366,
+          "max": 366
+        }
+      },
+      "after": {
+        "ns/op": {
+          "median": 520212.0,
+          "min": 489084.0,
+          "max": 521697.0
+        },
+        "B/op": {
+          "median": 17424,
+          "min": 17424,
+          "max": 17427
+        },
+        "allocs/op": {
+          "median": 200,
+          "min": 200,
+          "max": 200
+        }
+      }
+    },
+    {
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=0/urgent=true/parallel",
+      "before": {
+        "ns/op": {
+          "median": 234153.0,
+          "min": 228036.0,
+          "max": 243590.0
+        },
+        "B/op": {
+          "median": 48187,
+          "min": 48173,
+          "max": 48187
+        },
+        "allocs/op": {
+          "median": 568,
+          "min": 567,
+          "max": 568
+        }
+      },
+      "after": {
+        "ns/op": {
+          "median": 171086.0,
+          "min": 169527.0,
+          "max": 171150.0
+        },
+        "B/op": {
+          "median": 20017,
+          "min": 20016,
+          "max": 20020
+        },
+        "allocs/op": {
+          "median": 215,
+          "min": 215,
+          "max": 215
+        }
+      }
+    },
+    {
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=0/urgent=true/serial",
+      "before": {
+        "ns/op": {
+          "median": 727804.0,
+          "min": 717526.0,
+          "max": 728328.0
+        },
+        "B/op": {
+          "median": 47869,
+          "min": 47869,
+          "max": 47872
+        },
+        "allocs/op": {
+          "median": 561,
+          "min": 561,
+          "max": 561
+        }
+      },
+      "after": {
+        "ns/op": {
+          "median": 559860.0,
+          "min": 395797.0,
+          "max": 642510.0
+        },
+        "B/op": {
+          "median": 20014,
+          "min": 20010,
+          "max": 20019
+        },
+        "allocs/op": {
+          "median": 215,
+          "min": 215,
+          "max": 215
+        }
+      }
+    },
+    {
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=10/urgent=false/parallel",
+      "before": {
+        "ns/op": {
+          "median": 168765.0,
+          "min": 168189.0,
+          "max": 179252.0
+        },
+        "B/op": {
+          "median": 31787,
+          "min": 31786,
+          "max": 31790
+        },
+        "allocs/op": {
+          "median": 379,
+          "min": 379,
+          "max": 380
+        }
+      },
+      "after": {
+        "ns/op": {
+          "median": 153695.0,
+          "min": 152223.0,
+          "max": 155201.0
+        },
+        "B/op": {
+          "median": 17892,
+          "min": 17892,
+          "max": 17893
+        },
+        "allocs/op": {
+          "median": 209,
+          "min": 209,
+          "max": 209
+        }
+      }
+    },
+    {
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=10/urgent=false/serial",
+      "before": {
+        "ns/op": {
+          "median": 666740.0,
+          "min": 660798.0,
+          "max": 669303.0
+        },
+        "B/op": {
+          "median": 31789,
+          "min": 31789,
+          "max": 31790
+        },
+        "allocs/op": {
+          "median": 380,
+          "min": 379,
+          "max": 380
+        }
+      },
+      "after": {
+        "ns/op": {
+          "median": 471522.0,
+          "min": 378573.0,
+          "max": 570965.0
+        },
+        "B/op": {
+          "median": 17890,
+          "min": 17890,
+          "max": 17891
+        },
+        "allocs/op": {
+          "median": 209,
+          "min": 209,
+          "max": 209
+        }
+      }
+    },
+    {
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=10/urgent=true/parallel",
+      "before": {
+        "ns/op": {
+          "median": 261279.0,
+          "min": 250794.0,
+          "max": 270893.0
+        },
+        "B/op": {
+          "median": 48887,
+          "min": 48879,
+          "max": 48899
+        },
+        "allocs/op": {
+          "median": 588,
+          "min": 588,
+          "max": 588
+        }
+      },
+      "after": {
+        "ns/op": {
+          "median": 194143.0,
+          "min": 189548.0,
+          "max": 195196.0
+        },
+        "B/op": {
+          "median": 20533,
+          "min": 20533,
+          "max": 20534
+        },
+        "allocs/op": {
+          "median": 225,
+          "min": 225,
+          "max": 225
+        }
+      }
+    },
+    {
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=10/urgent=true/serial",
+      "before": {
+        "ns/op": {
+          "median": 800354.0,
+          "min": 795085.0,
+          "max": 818499.0
+        },
+        "B/op": {
+          "median": 48572,
+          "min": 48562,
+          "max": 48573
+        },
+        "allocs/op": {
+          "median": 581,
+          "min": 581,
+          "max": 581
+        }
+      },
+      "after": {
+        "ns/op": {
+          "median": 607371.0,
+          "min": 565811.0,
+          "max": 740313.0
+        },
+        "B/op": {
+          "median": 20531,
+          "min": 20529,
+          "max": 20534
+        },
+        "allocs/op": {
+          "median": 225,
+          "min": 225,
+          "max": 225
+        }
+      }
+    },
+    {
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=1000/urgent=false/parallel",
+      "before": {
+        "ns/op": {
+          "median": 827292.0,
+          "min": 791202.0,
+          "max": 865178.0
+        },
+        "B/op": {
+          "median": 31795,
+          "min": 31794,
+          "max": 31796
+        },
+        "allocs/op": {
+          "median": 381,
+          "min": 380,
+          "max": 381
+        }
+      },
+      "after": {
+        "ns/op": {
+          "median": 718051.0,
+          "min": 714556.0,
+          "max": 722784.0
+        },
+        "B/op": {
+          "median": 17907,
+          "min": 17904,
+          "max": 17908
+        },
+        "allocs/op": {
+          "median": 210,
+          "min": 210,
+          "max": 210
+        }
+      }
+    },
+    {
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=1000/urgent=false/serial",
+      "before": {
+        "ns/op": {
+          "median": 3039900.0,
+          "min": 3021005.0,
+          "max": 3075223.0
+        },
+        "B/op": {
+          "median": 31793,
+          "min": 31792,
+          "max": 31795
+        },
+        "allocs/op": {
+          "median": 380,
+          "min": 380,
+          "max": 380
+        }
+      },
+      "after": {
+        "ns/op": {
+          "median": 2547562.0,
+          "min": 2131546.0,
+          "max": 2803458.0
+        },
+        "B/op": {
+          "median": 17914,
+          "min": 17906,
+          "max": 17916
+        },
+        "allocs/op": {
+          "median": 210,
+          "min": 210,
+          "max": 210
+        }
+      }
+    },
+    {
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=1000/urgent=true/parallel",
+      "before": {
+        "ns/op": {
+          "median": 1382738.0,
+          "min": 1337271.0,
+          "max": 1414791.0
+        },
+        "B/op": {
+          "median": 48870,
+          "min": 48866,
+          "max": 48874
+        },
+        "allocs/op": {
+          "median": 589,
+          "min": 589,
+          "max": 589
+        }
+      },
+      "after": {
+        "ns/op": {
+          "median": 1098427.0,
+          "min": 1095548.0,
+          "max": 1107760.0
+        },
+        "B/op": {
+          "median": 20540,
+          "min": 20533,
+          "max": 20543
+        },
+        "allocs/op": {
+          "median": 227,
+          "min": 227,
+          "max": 227
+        }
+      }
+    },
+    {
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=1000/urgent=true/serial",
+      "before": {
+        "ns/op": {
+          "median": 4294517.0,
+          "min": 4251578.0,
+          "max": 4318109.0
+        },
+        "B/op": {
+          "median": 48581,
+          "min": 48580,
+          "max": 48591
+        },
+        "allocs/op": {
+          "median": 583,
+          "min": 583,
+          "max": 583
+        }
+      },
+      "after": {
+        "ns/op": {
+          "median": 2930703.0,
+          "min": 2817088.0,
+          "max": 2935626.0
+        },
+        "B/op": {
+          "median": 20531,
+          "min": 20530,
+          "max": 20532
+        },
+        "allocs/op": {
+          "median": 227,
+          "min": 227,
+          "max": 227
+        }
+      }
+    }
+  ],
+  "samples": [
+    {
+      "trial": 0,
+      "variant": "before",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=0/urgent=false/serial",
+      "iterations": 1000,
+      "ns/op": 591600.0,
+      "B/op": 31273,
+      "allocs/op": 366
+    },
+    {
+      "trial": 0,
+      "variant": "before",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=0/urgent=false/parallel",
+      "iterations": 1000,
+      "ns/op": 164467.0,
+      "B/op": 31512,
+      "allocs/op": 367
+    },
+    {
+      "trial": 0,
+      "variant": "before",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=0/urgent=true/serial",
+      "iterations": 1000,
+      "ns/op": 728328.0,
+      "B/op": 47869,
+      "allocs/op": 561
+    },
+    {
+      "trial": 0,
+      "variant": "before",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=0/urgent=true/parallel",
+      "iterations": 1000,
+      "ns/op": 228036.0,
+      "B/op": 48187,
+      "allocs/op": 568
+    },
+    {
+      "trial": 0,
+      "variant": "before",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=10/urgent=false/serial",
+      "iterations": 1000,
+      "ns/op": 660798.0,
+      "B/op": 31789,
+      "allocs/op": 380
+    },
+    {
+      "trial": 0,
+      "variant": "before",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=10/urgent=false/parallel",
+      "iterations": 1000,
+      "ns/op": 168189.0,
+      "B/op": 31786,
+      "allocs/op": 379
+    },
+    {
+      "trial": 0,
+      "variant": "before",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=10/urgent=true/serial",
+      "iterations": 1000,
+      "ns/op": 795085.0,
+      "B/op": 48573,
+      "allocs/op": 581
+    },
+    {
+      "trial": 0,
+      "variant": "before",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=10/urgent=true/parallel",
+      "iterations": 1000,
+      "ns/op": 250794.0,
+      "B/op": 48879,
+      "allocs/op": 588
+    },
+    {
+      "trial": 0,
+      "variant": "before",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=1000/urgent=false/serial",
+      "iterations": 1000,
+      "ns/op": 3075223.0,
+      "B/op": 31795,
+      "allocs/op": 380
+    },
+    {
+      "trial": 0,
+      "variant": "before",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=1000/urgent=false/parallel",
+      "iterations": 1000,
+      "ns/op": 791202.0,
+      "B/op": 31796,
+      "allocs/op": 381
+    },
+    {
+      "trial": 0,
+      "variant": "before",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=1000/urgent=true/serial",
+      "iterations": 1000,
+      "ns/op": 4294517.0,
+      "B/op": 48581,
+      "allocs/op": 583
+    },
+    {
+      "trial": 0,
+      "variant": "before",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=1000/urgent=true/parallel",
+      "iterations": 1000,
+      "ns/op": 1337271.0,
+      "B/op": 48866,
+      "allocs/op": 589
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=0/urgent=false/serial",
+      "iterations": 1000,
+      "ns/op": 520212.0,
+      "B/op": 17427,
+      "allocs/op": 200
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=0/urgent=false/parallel",
+      "iterations": 1000,
+      "ns/op": 142523.0,
+      "B/op": 17519,
+      "allocs/op": 200
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=0/urgent=true/serial",
+      "iterations": 1000,
+      "ns/op": 395797.0,
+      "B/op": 20019,
+      "allocs/op": 215
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=0/urgent=true/parallel",
+      "iterations": 1000,
+      "ns/op": 171086.0,
+      "B/op": 20016,
+      "allocs/op": 215
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=10/urgent=false/serial",
+      "iterations": 1000,
+      "ns/op": 570965.0,
+      "B/op": 17890,
+      "allocs/op": 209
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=10/urgent=false/parallel",
+      "iterations": 1000,
+      "ns/op": 152223.0,
+      "B/op": 17892,
+      "allocs/op": 209
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=10/urgent=true/serial",
+      "iterations": 1000,
+      "ns/op": 740313.0,
+      "B/op": 20534,
+      "allocs/op": 225
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=10/urgent=true/parallel",
+      "iterations": 1000,
+      "ns/op": 194143.0,
+      "B/op": 20533,
+      "allocs/op": 225
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=1000/urgent=false/serial",
+      "iterations": 1000,
+      "ns/op": 2547562.0,
+      "B/op": 17906,
+      "allocs/op": 210
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=1000/urgent=false/parallel",
+      "iterations": 1000,
+      "ns/op": 718051.0,
+      "B/op": 17908,
+      "allocs/op": 210
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=1000/urgent=true/serial",
+      "iterations": 1000,
+      "ns/op": 2935626.0,
+      "B/op": 20532,
+      "allocs/op": 227
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=1000/urgent=true/parallel",
+      "iterations": 1000,
+      "ns/op": 1095548.0,
+      "B/op": 20540,
+      "allocs/op": 227
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=0/urgent=false/serial",
+      "iterations": 1000,
+      "ns/op": 489084.0,
+      "B/op": 17424,
+      "allocs/op": 200
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=0/urgent=false/parallel",
+      "iterations": 1000,
+      "ns/op": 141734.0,
+      "B/op": 17530,
+      "allocs/op": 200
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=0/urgent=true/serial",
+      "iterations": 1000,
+      "ns/op": 642510.0,
+      "B/op": 20010,
+      "allocs/op": 215
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=0/urgent=true/parallel",
+      "iterations": 1000,
+      "ns/op": 171150.0,
+      "B/op": 20020,
+      "allocs/op": 215
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=10/urgent=false/serial",
+      "iterations": 1000,
+      "ns/op": 378573.0,
+      "B/op": 17891,
+      "allocs/op": 209
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=10/urgent=false/parallel",
+      "iterations": 1000,
+      "ns/op": 155201.0,
+      "B/op": 17892,
+      "allocs/op": 209
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=10/urgent=true/serial",
+      "iterations": 1000,
+      "ns/op": 607371.0,
+      "B/op": 20529,
+      "allocs/op": 225
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=10/urgent=true/parallel",
+      "iterations": 1000,
+      "ns/op": 189548.0,
+      "B/op": 20534,
+      "allocs/op": 225
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=1000/urgent=false/serial",
+      "iterations": 1000,
+      "ns/op": 2803458.0,
+      "B/op": 17914,
+      "allocs/op": 210
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=1000/urgent=false/parallel",
+      "iterations": 1000,
+      "ns/op": 722784.0,
+      "B/op": 17904,
+      "allocs/op": 210
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=1000/urgent=true/serial",
+      "iterations": 1000,
+      "ns/op": 2930703.0,
+      "B/op": 20531,
+      "allocs/op": 227
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=1000/urgent=true/parallel",
+      "iterations": 1000,
+      "ns/op": 1107760.0,
+      "B/op": 20533,
+      "allocs/op": 227
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=0/urgent=false/serial",
+      "iterations": 1000,
+      "ns/op": 606170.0,
+      "B/op": 31281,
+      "allocs/op": 366
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=0/urgent=false/parallel",
+      "iterations": 1000,
+      "ns/op": 164132.0,
+      "B/op": 31513,
+      "allocs/op": 367
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=0/urgent=true/serial",
+      "iterations": 1000,
+      "ns/op": 717526.0,
+      "B/op": 47869,
+      "allocs/op": 561
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=0/urgent=true/parallel",
+      "iterations": 1000,
+      "ns/op": 234153.0,
+      "B/op": 48187,
+      "allocs/op": 568
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=10/urgent=false/serial",
+      "iterations": 1000,
+      "ns/op": 669303.0,
+      "B/op": 31790,
+      "allocs/op": 380
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=10/urgent=false/parallel",
+      "iterations": 1000,
+      "ns/op": 168765.0,
+      "B/op": 31790,
+      "allocs/op": 380
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=10/urgent=true/serial",
+      "iterations": 1000,
+      "ns/op": 800354.0,
+      "B/op": 48562,
+      "allocs/op": 581
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=10/urgent=true/parallel",
+      "iterations": 1000,
+      "ns/op": 261279.0,
+      "B/op": 48899,
+      "allocs/op": 588
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=1000/urgent=false/serial",
+      "iterations": 1000,
+      "ns/op": 3039900.0,
+      "B/op": 31792,
+      "allocs/op": 380
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=1000/urgent=false/parallel",
+      "iterations": 1000,
+      "ns/op": 827292.0,
+      "B/op": 31794,
+      "allocs/op": 381
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=1000/urgent=true/serial",
+      "iterations": 1000,
+      "ns/op": 4251578.0,
+      "B/op": 48591,
+      "allocs/op": 583
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=1000/urgent=true/parallel",
+      "iterations": 1000,
+      "ns/op": 1382738.0,
+      "B/op": 48870,
+      "allocs/op": 589
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=0/urgent=false/serial",
+      "iterations": 1000,
+      "ns/op": 588035.0,
+      "B/op": 31286,
+      "allocs/op": 366
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=0/urgent=false/parallel",
+      "iterations": 1000,
+      "ns/op": 165010.0,
+      "B/op": 31508,
+      "allocs/op": 367
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=0/urgent=true/serial",
+      "iterations": 1000,
+      "ns/op": 727804.0,
+      "B/op": 47872,
+      "allocs/op": 561
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=0/urgent=true/parallel",
+      "iterations": 1000,
+      "ns/op": 243590.0,
+      "B/op": 48173,
+      "allocs/op": 567
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=10/urgent=false/serial",
+      "iterations": 1000,
+      "ns/op": 666740.0,
+      "B/op": 31789,
+      "allocs/op": 379
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=10/urgent=false/parallel",
+      "iterations": 1000,
+      "ns/op": 179252.0,
+      "B/op": 31787,
+      "allocs/op": 379
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=10/urgent=true/serial",
+      "iterations": 1000,
+      "ns/op": 818499.0,
+      "B/op": 48572,
+      "allocs/op": 581
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=10/urgent=true/parallel",
+      "iterations": 1000,
+      "ns/op": 270893.0,
+      "B/op": 48887,
+      "allocs/op": 588
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=1000/urgent=false/serial",
+      "iterations": 1000,
+      "ns/op": 3021005.0,
+      "B/op": 31793,
+      "allocs/op": 380
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=1000/urgent=false/parallel",
+      "iterations": 1000,
+      "ns/op": 865178.0,
+      "B/op": 31795,
+      "allocs/op": 380
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=1000/urgent=true/serial",
+      "iterations": 1000,
+      "ns/op": 4318109.0,
+      "B/op": 48580,
+      "allocs/op": 583
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=1000/urgent=true/parallel",
+      "iterations": 1000,
+      "ns/op": 1414791.0,
+      "B/op": 48874,
+      "allocs/op": 589
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=0/urgent=false/serial",
+      "iterations": 1000,
+      "ns/op": 521697.0,
+      "B/op": 17424,
+      "allocs/op": 200
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=0/urgent=false/parallel",
+      "iterations": 1000,
+      "ns/op": 138369.0,
+      "B/op": 17524,
+      "allocs/op": 200
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=0/urgent=true/serial",
+      "iterations": 1000,
+      "ns/op": 559860.0,
+      "B/op": 20014,
+      "allocs/op": 215
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=0/urgent=true/parallel",
+      "iterations": 1000,
+      "ns/op": 169527.0,
+      "B/op": 20017,
+      "allocs/op": 215
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=10/urgent=false/serial",
+      "iterations": 1000,
+      "ns/op": 471522.0,
+      "B/op": 17890,
+      "allocs/op": 209
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=10/urgent=false/parallel",
+      "iterations": 1000,
+      "ns/op": 153695.0,
+      "B/op": 17893,
+      "allocs/op": 209
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=10/urgent=true/serial",
+      "iterations": 1000,
+      "ns/op": 565811.0,
+      "B/op": 20531,
+      "allocs/op": 225
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=10/urgent=true/parallel",
+      "iterations": 1000,
+      "ns/op": 195196.0,
+      "B/op": 20533,
+      "allocs/op": 225
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=1000/urgent=false/serial",
+      "iterations": 1000,
+      "ns/op": 2131546.0,
+      "B/op": 17916,
+      "allocs/op": 210
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=1000/urgent=false/parallel",
+      "iterations": 1000,
+      "ns/op": 714556.0,
+      "B/op": 17907,
+      "allocs/op": 210
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=1000/urgent=true/serial",
+      "iterations": 1000,
+      "ns/op": 2817088.0,
+      "B/op": 20530,
+      "allocs/op": 227
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "name": "BenchmarkTeamThreadUnreadAggregation/PostgreSQL/threads=1000/urgent=true/parallel",
+      "iterations": 1000,
+      "ns/op": 1098427.0,
+      "B/op": 20543,
+      "allocs/op": 227
+    }
+  ],
+  "commands": [
+    {
+      "trial": 0,
+      "variant": "before",
+      "command": [
+        "go",
+        "test",
+        "./channels/store/sqlstore",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkTeamThreadUnreadAggregation$",
+        "-benchtime=1000x",
+        "-count=1",
+        "-timeout=10m",
+        "-overlay",
+        "/tmp/team-thread-unreads-baseline-3bkhk2_v/overlay.json"
+      ],
+      "log_sha256": "b2d84cb76d7e0b24f5bfacf0860d948a17655209430fc710de821f24b4736d48"
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "command": [
+        "go",
+        "test",
+        "./channels/store/sqlstore",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkTeamThreadUnreadAggregation$",
+        "-benchtime=1000x",
+        "-count=1",
+        "-timeout=10m"
+      ],
+      "log_sha256": "deec87660dacb090d68506e61b5dccf94ad66758cbb92e6c1aada8463a2e8afd"
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "command": [
+        "go",
+        "test",
+        "./channels/store/sqlstore",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkTeamThreadUnreadAggregation$",
+        "-benchtime=1000x",
+        "-count=1",
+        "-timeout=10m"
+      ],
+      "log_sha256": "d3645583370459b87eace66fa3b67f17fac3da98b7701e4d4c9c3f01de451dd7"
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "command": [
+        "go",
+        "test",
+        "./channels/store/sqlstore",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkTeamThreadUnreadAggregation$",
+        "-benchtime=1000x",
+        "-count=1",
+        "-timeout=10m",
+        "-overlay",
+        "/tmp/team-thread-unreads-baseline-3bkhk2_v/overlay.json"
+      ],
+      "log_sha256": "ab1fa8a754a8fe38d3fbc0d7111e58cc36bff458dfec5c3549a9ef713bf24a52"
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "command": [
+        "go",
+        "test",
+        "./channels/store/sqlstore",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkTeamThreadUnreadAggregation$",
+        "-benchtime=1000x",
+        "-count=1",
+        "-timeout=10m",
+        "-overlay",
+        "/tmp/team-thread-unreads-baseline-3bkhk2_v/overlay.json"
+      ],
+      "log_sha256": "4ad85c5c332cabeb78ff80cf6aa690980e412bf0ea5f306deb6f59bfb4974cbc"
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "command": [
+        "go",
+        "test",
+        "./channels/store/sqlstore",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkTeamThreadUnreadAggregation$",
+        "-benchtime=1000x",
+        "-count=1",
+        "-timeout=10m"
+      ],
+      "log_sha256": "a91552cdd9d8033088931e9bd7bf156a4571bca757cec737d7530c88ebb9f8c8"
+    }
+  ],
+  "limits": [
+    "SQL store method on loopback PostgreSQL, not complete HTTP endpoint latency or production capacity.",
+    "Parallel ns/op is amortized wall time per completed operation, not per-request latency.",
+    "Fixture creation is outside timing; every operation checks map shape and all count fields.",
+    "These are standalone measurements, not combined-stack throughput."
+  ]
+}

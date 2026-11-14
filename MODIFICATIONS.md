@@ -23,6 +23,14 @@ was added or last changed in behaviour, and what it does and why. When a patch
 is removed (for example because upstream merged it), keep its entry and add the
 removal date.
 
+### team-thread-unread-aggregation.patch
+
+2026-11-14. Compute team thread unread counts, mention sums and optional urgent
+mention sums in one grouped query instead of two or three concurrent queries.
+Preserve channel-membership filtering, deleted/followed rules, zero-valued team
+groups and the urgent-feature toggle. Adds compatibility tests and serial/
+parallel SQL benchmarks. Changes no API, schema, configuration or dependency.
+
 ### release-license.patch
 
 2026-11-03. `server/build/release.mk` packages `LICENSE.txt` (AGPL v3.0) with
