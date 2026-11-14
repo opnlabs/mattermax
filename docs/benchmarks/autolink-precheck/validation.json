@@ -1,0 +1,80 @@
+{
+  "status": "passed",
+  "source_workspace_sha": "b194a44d9c3dc3cc8dd22d9c5501dcb13e723cf7",
+  "source_tree_sha": "7d642977d818593b46e931b86c2a7782365507f2",
+  "race_suites": {
+    "api4": {
+      "pass_events": 17,
+      "fail_events": 0,
+      "skip_events": 0
+    },
+    "app": {
+      "pass_events": 183,
+      "fail_events": 0,
+      "skip_events": 0
+    }
+  },
+  "counting": "Go parent/subtest pass events, excluding package summaries.",
+  "race_command": "go test -race -p 2 ./channels/app ./channels/api4 -run '^(TestFirstAutolinkPrecheck|TestGetFirstLink|TestPreparePostListForClient|TestPreparePostForClient|TestPreparePostForClientWithImageProxy|TestGetImagesForPost|TestSanitizePostMetadataForUser|TestPreparePostForClient_BurnOnReadSenderExpireAt|TestGetPostsForChannel|TestGetPostThread|TestGetPostsByIds)$' -count=1 -timeout=20m -json",
+  "environment": {
+    "GOMAXPROCS": "4",
+    "GOFLAGS": "-p=2",
+    "database": "Disposable PostgreSQL 17 test service with TEST_DATABASE_POSTGRESQL_DSN set."
+  },
+  "fuzz": {
+    "status": "passed",
+    "command": "go test ./channels/app -run '^$' -fuzz '^FuzzFirstAutolinkPrecheck$' -fuzztime=20s -parallel=2 -timeout=3m -json",
+    "executions": 15047,
+    "max_input_bytes": 4096,
+    "comparison": "Both returned first links and panic outcomes against the unguarded parser, with a blocked preview domain.",
+    "known_existing_parser_panic": {
+      "baseline_panic": "runtime.boundsError: runtime error: slice bounds out of range [:13] with length 11",
+      "baseline_result": "",
+      "guarded_panic": "runtime.boundsError: runtime error: slice bounds out of range [:13] with length 11",
+      "guarded_result": "",
+      "input_hex": "687474703a2f2f303030e3",
+      "scope": "Public Markdown parser unchanged from the original 38-patch baseline; both call paths panic identically on malformed UTF-8.",
+      "status": "confirmed pre-existing"
+    },
+    "scope": "Short differential fuzz run; not exhaustive input coverage. Earlier fuzz attempts stopped on the unchanged parser panic, which is now compared explicitly."
+  },
+  "patch_check": {
+    "command": "just check",
+    "status": "passed",
+    "patches": 39,
+    "inherited_patches_byte_identical": 38,
+    "base_root_sha": "d2b07cc3f7c3200349e32ca167a39bdc85255baf"
+  },
+  "backend_build": {
+    "status": "passed",
+    "source_workspace_sha": "b194a44d9c3dc3cc8dd22d9c5501dcb13e723cf7",
+    "command": [
+      "go",
+      "build",
+      "-tags",
+      "production",
+      "-ldflags",
+      "-X github.com/mattermost/mattermost/server/public/model.BuildNumber=12.0.2-1.autolink-precheck -X github.com/mattermost/mattermost/server/public/model.BuildHash=b194a44d9c3dc3cc8dd22d9c5501dcb13e723cf7 -X github.com/mattermost/mattermost/server/public/model.BuildEnterpriseReady=false",
+      "-o",
+      "/tmp/mattermax-autolink-precheck-server",
+      "./cmd/mattermost"
+    ],
+    "environment": {
+      "GOFLAGS": "-p=2 -buildvcs=false",
+      "GOMAXPROCS": "4"
+    },
+    "build_tags": "production",
+    "forbidden_build_tags": false,
+    "enterprise_symbols_found": false,
+    "build_enterprise_ready": "false",
+    "binary_sha256": "2ee807bf129e4c7679db2974f4413dc4187ad1a2de087a5b7b71409ad4d37df4",
+    "symbol_tool": "Matching SDK standard cmd/nm via temporary GOROOT, same gates as scripts/build-release.sh.",
+    "scope": "Public backend command build and exclusion checks; no full branded frontend/package build."
+  },
+  "corpus": "corpus.json",
+  "private_log_sha256": {
+    "autolink-precheck-race.jsonl": "af5a50b29301bfaaee0b01a8ef273cd57f7c669709f30501bd78d44c3cb0e3f9",
+    "autolink-precheck-final-fuzz.jsonl": "ecac8d422021f36d63b1521d047d88c29f1469fb3eb6afbbfe43ef593b7dd461",
+    "autolink-precheck-patch-check.log": "beab570c027102ef1d8f465f5ae4c7fddbaa4ffc1d552cde44f3454b15df802a"
+  }
+}

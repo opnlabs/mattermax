@@ -1,0 +1,215 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: rhnvrm <hello@rohanverma.net>
+Date: Sat, 14 Nov 2026 17:32:13 +0530
+Subject: [PATCH] perf: skip autolink parsing without required markers
+
+Preserve the Markdown size limit and skip inspection when the raw message contains neither a colon nor a lowercase www prefix. Keep the existing parser and domain policy for potential links.
+
+Add syntax and size-boundary checks, a differential fuzz oracle that compares results and existing panic outcomes, and ordered real-history benchmarks with link-positive controls.
+
+Mattermax-Patch: autolink-precheck.patch
+---
+ .../app/post_autolink_precheck_test.go        | 175 ++++++++++++++++++
+ server/channels/app/post_metadata.go          |   7 +
+ 2 files changed, 182 insertions(+)
+ create mode 100644 server/channels/app/post_autolink_precheck_test.go
+
+diff --git a/server/channels/app/post_autolink_precheck_test.go b/server/channels/app/post_autolink_precheck_test.go
+new file mode 100644
+index 000000000000..c3307ca30f9c
+--- /dev/null
++++ b/server/channels/app/post_autolink_precheck_test.go
+@@ -0,0 +1,175 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++package app
++
++import (
++	"fmt"
++	"strings"
++	"testing"
++
++	"github.com/stretchr/testify/require"
++
++	"github.com/mattermost/mattermost/server/public/model"
++	"github.com/mattermost/mattermost/server/public/shared/markdown"
++	"github.com/mattermost/mattermost/server/public/shared/request"
++)
++
++// Retain the unguarded implementation as a differential oracle.
++func firstAutolinkWithoutPrecheck(a *App, rctx request.CTX, text string) string {
++	first := ""
++	markdown.Inspect(text, func(node any) bool {
++		if node, ok := node.(*markdown.Autolink); ok {
++			if link := node.Destination(); first == "" && a.isLinkAllowedForPreview(rctx, link) {
++				first = link
++			}
++		}
++		return true
++	})
++	return first
++}
++
++// Compare panic outcomes too: malformed UTF-8 can panic in the existing parser.
++// A future parser fix can remove those panics without changing this comparison.
++func firstAutolinkOutcome(call func() string) (link, problem string) {
++	defer func() {
++		if value := recover(); value != nil {
++			problem = fmt.Sprintf("%T: %v", value, value)
++		}
++	}()
++	link = call()
++	return
++}
++
++func requireFirstAutolinkEquivalent(t *testing.T, th *TestHelper, text string) {
++	want, oldProblem := firstAutolinkOutcome(func() string { return firstAutolinkWithoutPrecheck(th.App, th.Context, text) })
++	got, newProblem := firstAutolinkOutcome(func() string { return th.App.getFirstLink(th.Context, text) })
++	require.Equal(t, oldProblem, newProblem, "panic for input %q", text)
++	require.Equal(t, want, got, "link for input %q", text)
++}
++
++func autolinkPrecheckInputs() []string {
++	return []string{
++		"", "The deploy is ready for review.", "We should review this change", "Thanks, this looks good!",
++		"**formatted** text and `code`.", "value: 42", "www is a prefix, not a link", "Words. WWW.example.com",
++		"https://example.com/path", "HTTP://example.com/path", "www.example.com/path", "www123.example.com/path",
++		"http://localhost/path", "ftp://example.com/path", "tel://12345", "mailto:person@example.com",
++		"https://blocked.example/first https://allowed.example/second", "https://例え.テスト/path",
++		"<https://example.com/path>", "<www.example.com/path>", "[label](https://example.com/path)",
++		"![image](https://example.com/path)", "[label]\n\n[label]: https://example.com/path",
++		"`https://example.com/path`", "```\nwww.example.com/path\n```", "\\www.example.com/path",
++		"> www.example.com/path", "- item\n  www.example.com/path", "> ww\n> w.example.com/path",
++		"ww\r\nw.example.com/path", "w\nww.example.com/path", "http&#58;//example.com/path",
++		"&#119;&#119;&#119;&#46;example&#46;com", "ｗｗｗ．ｅｘａｍｐｌｅ．ｃｏｍ", string([]byte{0xff, 0xfe, 'w', 'w', 'w', '.'}), "http://000\xe3",
++	}
++}
++
++func TestFirstAutolinkPrecheck(t *testing.T) {
++	for _, restricted := range []string{"", "blocked.example"} {
++		t.Run("restricted="+restricted, func(t *testing.T) {
++			th := SetupConfigWithStoreMock(t, func(cfg *model.Config) { *cfg.ServiceSettings.RestrictLinkPreviews = restricted })
++			for i, text := range autolinkPrecheckInputs() {
++				t.Run(fmt.Sprint(i), func(t *testing.T) {
++					requireFirstAutolinkEquivalent(t, th, text)
++				})
++			}
++			for _, text := range []string{strings.Repeat("w", markdown.MaxLen()+1), strings.Repeat(":", markdown.MaxLen()+1), strings.Repeat("a", markdown.MaxLen())} {
++				require.Empty(t, th.App.getFirstLink(th.Context, text))
++				require.Empty(t, firstAutolinkWithoutPrecheck(th.App, th.Context, text))
++			}
++			require.Equal(t, "https://example.com/path", th.App.getFirstLink(th.Context, "https://example.com/path"))
++			require.Equal(t, "http://www.example.com/path", th.App.getFirstLink(th.Context, "www.example.com/path"))
++			if restricted != "" {
++				require.Equal(t, "https://allowed.example/second", th.App.getFirstLink(th.Context, "https://blocked.example/first https://allowed.example/second"))
++			}
++		})
++	}
++}
++
++func FuzzFirstAutolinkPrecheck(f *testing.F) {
++	for _, input := range autolinkPrecheckInputs() {
++		f.Add(input)
++	}
++	th := SetupConfigWithStoreMock(f, func(cfg *model.Config) { *cfg.ServiceSettings.RestrictLinkPreviews = "blocked.example" })
++	f.Fuzz(func(t *testing.T, text string) {
++		if len(text) > 4096 {
++			return
++		}
++		requireFirstAutolinkEquivalent(t, th, text)
++	})
++}
++
++func BenchmarkFirstAutolinkPrecheck(b *testing.B) {
++	th := SetupWithStoreMock(b)
++	for _, tc := range []struct{ name, text string }{
++		{"plain", "The deploy is ready for review."},
++		{"prose", strings.Repeat("The service is healthy and the next deploy is ready for review.\n", 50)},
++		{"formatting", strings.Repeat("- **Service** is healthy with `stable` memory.\n", 50)},
++		{"colon_control", "The deploy is ready at 14:30."},
++		{"http_control", "See https://example.com/path for the details."},
++		{"www_control", "See www.example.com/path for the details."},
++	} {
++		b.Run(tc.name, func(b *testing.B) {
++			want := firstAutolinkWithoutPrecheck(th.App, th.Context, tc.text)
++			b.ReportAllocs()
++			b.ResetTimer()
++			for range b.N {
++				if got := th.App.getFirstLink(th.Context, tc.text); got != want {
++					b.Fatalf("link = %q, want %q", got, want)
++				}
++			}
++		})
++	}
++}
++
++// BenchmarkAutolinkPrecheckHistory uses stored, ordered pages with the default
++// priority/acknowledgement reads. Link previews are disabled to avoid network I/O.
++func BenchmarkAutolinkPrecheckHistory(b *testing.B) {
++	th := Setup(b).InitBasic(b)
++	th.App.UpdateConfig(func(cfg *model.Config) { *cfg.ServiceSettings.EnableLinkPreviews = false })
++	for _, tc := range []struct{ name, text string }{
++		{"plain", "The deploy is ready for review."},
++		{"prose", strings.Repeat("The service is healthy and the next deploy is ready for review.\n", 50)},
++		{"formatting", strings.Repeat("- **Service** is healthy with `stable` memory.\n", 50)},
++		{"colon_control", "The deploy is ready at 14:30."},
++		{"http_control", "See https://example.com/path for the details."},
++		{"www_control", "See www.example.com/path for the details."},
++	} {
++		b.Run(tc.name, func(b *testing.B) {
++			for _, size := range []int{1, 60} {
++				b.Run(fmt.Sprintf("posts=%d", size), func(b *testing.B) {
++					list := model.NewPostList()
++					for range size {
++						post, err := th.App.Srv().Store().Post().Save(th.Context, &model.Post{ChannelId: th.BasicChannel.Id, UserId: th.BasicUser.Id, Message: tc.text})
++						if err != nil {
++							b.Fatal(err)
++						}
++						list.AddPost(post)
++						list.AddOrder(post.Id)
++					}
++					wantLink := firstAutolinkWithoutPrecheck(th.App, th.Context, tc.text)
++					if got := th.App.getFirstLink(th.Context, tc.text); got != wantLink {
++						b.Fatal("incorrect first link")
++					}
++					check := func(result *model.PostList) {
++						if len(result.Order) != size || len(result.Posts) != size {
++							b.Fatal("incorrect page length")
++						}
++						for i, id := range list.Order {
++							post := result.Posts[id]
++							if result.Order[i] != id || post == nil || post.Message != tc.text || post.Metadata == nil || len(post.Metadata.Embeds) != 0 || len(post.Metadata.Images) != 0 || len(post.Metadata.Reactions) != 0 {
++								b.Fatal("incorrect page metadata")
++							}
++						}
++					}
++					check(th.App.PreparePostListForClient(th.Context, list))
++					b.ReportAllocs()
++					b.ResetTimer()
++					for range b.N {
++						check(th.App.PreparePostListForClient(th.Context, list))
++					}
++				})
++			}
++		})
++	}
++}
+diff --git a/server/channels/app/post_metadata.go b/server/channels/app/post_metadata.go
+index 8021a3f38709..b83e7cb24791 100644
+--- a/server/channels/app/post_metadata.go
++++ b/server/channels/app/post_metadata.go
+@@ -839,6 +839,13 @@ func (a *App) markdownImageURLsFromStrings(rctx request.CTX, allStrings []string
+ // getFirstLink returns the first autolinked URL in the string. It does not return Markdown links of
+ // the form [text](url) or image URLs from ![alt](url).
+ func (a *App) getFirstLink(rctx request.CTX, str string) string {
++	if len(str) > markdown.MaxLen() {
++		return ""
++	}
++	// The parser requires a literal colon or lowercase www prefix for autolinks.
++	if !strings.Contains(str, ":") && !strings.Contains(str, "www") {
++		return ""
++	}
+ 	firstLink := ""
+ 	markdown.Inspect(str, func(blockOrInline any) bool {
+ 		if v, ok := blockOrInline.(*markdown.Autolink); ok {

@@ -1,0 +1,1304 @@
+{
+  "status": "passed",
+  "method": "Alternating-order paired processes. A Go overlay restores only post_metadata.go for baseline; all other production code and test/benchmark fixtures stay identical. Microbenchmarks validate first-link results against the unguarded parser. History benchmarks use real stored ordered pages, default priority/acknowledgement reads and output validation. No files or reactions. Link previews are disabled; link-positive controls use external URLs without fetching them. Single- and 60-post pages, six message types.",
+  "baseline_workspace_sha": "c9dbbcc480b242f7349cb7f4e9dcb6ea35cf6404",
+  "current_workspace_sha": "b194a44d9c3dc3cc8dd22d9c5501dcb13e723cf7",
+  "source_sha256": {
+    "before": "7c1df926962309717a8bbb013c12f9bd18ca1882da213f4346ae370be66340b7",
+    "after": "c027874c76ba0c7b0613f3dbeeaf052912742402356a6b27f9d54f7b9c8c3f84",
+    "fixtures": "02afe057849b9d0c0def87f7bcf87454ba37cb81e946bb453ef367b0afceadb5"
+  },
+  "environment": {
+    "platform": "Linux-6.18.55-cachyos-x86_64-with-glibc2.44",
+    "go": "go version go1.26.10 linux/amd64",
+    "GOMAXPROCS": "4",
+    "GOFLAGS": "-p=2",
+    "cpu": "13th Gen Intel(R) Core(TM) i7-1355U"
+  },
+  "settings": {
+    "trials": 3,
+    "duration": "1s"
+  },
+  "samples": [
+    {
+      "trial": 0,
+      "variant": "before",
+      "benchmarks": [
+        {
+          "name": "BenchmarkFirstAutolinkPrecheck/plain",
+          "iterations": 1488582,
+          "ns_per_op": 773.9,
+          "bytes_per_op": 624.0,
+          "allocations_per_op": 20.0,
+          "raw": "BenchmarkFirstAutolinkPrecheck/plain-4         \t 1488582\t       773.9 ns/op\t     624 B/op\t      20 allocs/op"
+        },
+        {
+          "name": "BenchmarkFirstAutolinkPrecheck/prose",
+          "iterations": 28252,
+          "ns_per_op": 40825.0,
+          "bytes_per_op": 114320.0,
+          "allocations_per_op": 522.0,
+          "raw": "BenchmarkFirstAutolinkPrecheck/prose-4         \t   28252\t     40825 ns/op\t  114320 B/op\t     522 allocs/op"
+        },
+        {
+          "name": "BenchmarkFirstAutolinkPrecheck/formatting",
+          "iterations": 19000,
+          "ns_per_op": 60410.0,
+          "bytes_per_op": 58853.0,
+          "allocations_per_op": 1324.0,
+          "raw": "BenchmarkFirstAutolinkPrecheck/formatting-4    \t   19000\t     60410 ns/op\t   58853 B/op\t    1324 allocs/op"
+        },
+        {
+          "name": "BenchmarkFirstAutolinkPrecheck/colon_control",
+          "iterations": 1532570,
+          "ns_per_op": 779.7,
+          "bytes_per_op": 624.0,
+          "allocations_per_op": 20.0,
+          "raw": "BenchmarkFirstAutolinkPrecheck/colon_control-4 \t 1532570\t       779.7 ns/op\t     624 B/op\t      20 allocs/op"
+        },
+        {
+          "name": "BenchmarkFirstAutolinkPrecheck/http_control",
+          "iterations": 899810,
+          "ns_per_op": 1308.0,
+          "bytes_per_op": 664.0,
+          "allocations_per_op": 22.0,
+          "raw": "BenchmarkFirstAutolinkPrecheck/http_control-4  \t  899810\t      1308 ns/op\t     664 B/op\t      22 allocs/op"
+        },
+        {
+          "name": "BenchmarkFirstAutolinkPrecheck/www_control",
+          "iterations": 917624,
+          "ns_per_op": 1339.0,
+          "bytes_per_op": 664.0,
+          "allocations_per_op": 22.0,
+          "raw": "BenchmarkFirstAutolinkPrecheck/www_control-4   \t  917624\t      1339 ns/op\t     664 B/op\t      22 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/plain/posts=1",
+          "iterations": 3816,
+          "ns_per_op": 273475.0,
+          "bytes_per_op": 16764.0,
+          "allocations_per_op": 298.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/plain/posts=1-4         \t    3816\t    273475 ns/op\t   16764 B/op\t     298 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/plain/posts=60",
+          "iterations": 1981,
+          "ns_per_op": 660364.0,
+          "bytes_per_op": 163298.0,
+          "allocations_per_op": 3331.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/plain/posts=60-4        \t    1981\t    660364 ns/op\t  163298 B/op\t    3331 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/prose/posts=1",
+          "iterations": 2832,
+          "ns_per_op": 442042.0,
+          "bytes_per_op": 244158.0,
+          "allocations_per_op": 1302.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/prose/posts=1-4         \t    2832\t    442042 ns/op\t  244158 B/op\t    1302 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/prose/posts=60",
+          "iterations": 156,
+          "ns_per_op": 7933775.0,
+          "bytes_per_op": 13812313.0,
+          "allocations_per_op": 63574.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/prose/posts=60-4        \t     156\t   7933775 ns/op\t13812313 B/op\t   63574 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/formatting/posts=1",
+          "iterations": 2754,
+          "ns_per_op": 474686.0,
+          "bytes_per_op": 133162.0,
+          "allocations_per_op": 2906.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/formatting/posts=1-4    \t    2754\t    474686 ns/op\t  133162 B/op\t    2906 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/formatting/posts=60",
+          "iterations": 100,
+          "ns_per_op": 10084086.0,
+          "bytes_per_op": 7148519.0,
+          "allocations_per_op": 159812.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/formatting/posts=60-4   \t     100\t  10084086 ns/op\t 7148519 B/op\t  159812 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/colon_control/posts=1",
+          "iterations": 4040,
+          "ns_per_op": 258416.0,
+          "bytes_per_op": 16764.0,
+          "allocations_per_op": 298.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/colon_control/posts=1-4 \t    4040\t    258416 ns/op\t   16764 B/op\t     298 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/colon_control/posts=60",
+          "iterations": 1866,
+          "ns_per_op": 575847.0,
+          "bytes_per_op": 163288.0,
+          "allocations_per_op": 3331.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/colon_control/posts=60-4         \t    1866\t    575847 ns/op\t  163288 B/op\t    3331 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/http_control/posts=1",
+          "iterations": 3990,
+          "ns_per_op": 301424.0,
+          "bytes_per_op": 92170.0,
+          "allocations_per_op": 1170.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/http_control/posts=1-4           \t    3990\t    301424 ns/op\t   92170 B/op\t    1170 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/http_control/posts=60",
+          "iterations": 292,
+          "ns_per_op": 4014452.0,
+          "bytes_per_op": 4689088.0,
+          "allocations_per_op": 55652.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/http_control/posts=60-4          \t     292\t   4014452 ns/op\t 4689088 B/op\t   55652 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/www_control/posts=1",
+          "iterations": 3562,
+          "ns_per_op": 320986.0,
+          "bytes_per_op": 92139.0,
+          "allocations_per_op": 1169.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/www_control/posts=1-4            \t    3562\t    320986 ns/op\t   92139 B/op\t    1169 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/www_control/posts=60",
+          "iterations": 289,
+          "ns_per_op": 3980474.0,
+          "bytes_per_op": 4686534.0,
+          "allocations_per_op": 55592.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/www_control/posts=60-4           \t     289\t   3980474 ns/op\t 4686534 B/op\t   55592 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "benchmarks": [
+        {
+          "name": "BenchmarkFirstAutolinkPrecheck/plain",
+          "iterations": 100000000,
+          "ns_per_op": 10.64,
+          "bytes_per_op": 0.0,
+          "allocations_per_op": 0.0,
+          "raw": "BenchmarkFirstAutolinkPrecheck/plain-4         \t100000000\t        10.64 ns/op\t       0 B/op\t       0 allocs/op"
+        },
+        {
+          "name": "BenchmarkFirstAutolinkPrecheck/prose",
+          "iterations": 3459514,
+          "ns_per_op": 343.9,
+          "bytes_per_op": 0.0,
+          "allocations_per_op": 0.0,
+          "raw": "BenchmarkFirstAutolinkPrecheck/prose-4         \t 3459514\t       343.9 ns/op\t       0 B/op\t       0 allocs/op"
+        },
+        {
+          "name": "BenchmarkFirstAutolinkPrecheck/formatting",
+          "iterations": 3299672,
+          "ns_per_op": 357.8,
+          "bytes_per_op": 0.0,
+          "allocations_per_op": 0.0,
+          "raw": "BenchmarkFirstAutolinkPrecheck/formatting-4    \t 3299672\t       357.8 ns/op\t       0 B/op\t       0 allocs/op"
+        },
+        {
+          "name": "BenchmarkFirstAutolinkPrecheck/colon_control",
+          "iterations": 1468807,
+          "ns_per_op": 821.9,
+          "bytes_per_op": 624.0,
+          "allocations_per_op": 20.0,
+          "raw": "BenchmarkFirstAutolinkPrecheck/colon_control-4 \t 1468807\t       821.9 ns/op\t     624 B/op\t      20 allocs/op"
+        },
+        {
+          "name": "BenchmarkFirstAutolinkPrecheck/http_control",
+          "iterations": 818564,
+          "ns_per_op": 1378.0,
+          "bytes_per_op": 664.0,
+          "allocations_per_op": 22.0,
+          "raw": "BenchmarkFirstAutolinkPrecheck/http_control-4  \t  818564\t      1378 ns/op\t     664 B/op\t      22 allocs/op"
+        },
+        {
+          "name": "BenchmarkFirstAutolinkPrecheck/www_control",
+          "iterations": 803372,
+          "ns_per_op": 1378.0,
+          "bytes_per_op": 664.0,
+          "allocations_per_op": 22.0,
+          "raw": "BenchmarkFirstAutolinkPrecheck/www_control-4   \t  803372\t      1378 ns/op\t     664 B/op\t      22 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/plain/posts=1",
+          "iterations": 4358,
+          "ns_per_op": 303923.0,
+          "bytes_per_op": 16141.0,
+          "allocations_per_op": 278.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/plain/posts=1-4         \t    4358\t    303923 ns/op\t   16141 B/op\t     278 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/plain/posts=60",
+          "iterations": 2844,
+          "ns_per_op": 502845.0,
+          "bytes_per_op": 125843.0,
+          "allocations_per_op": 2131.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/plain/posts=60-4        \t    2844\t    502845 ns/op\t  125843 B/op\t    2131 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/prose/posts=1",
+          "iterations": 4057,
+          "ns_per_op": 332604.0,
+          "bytes_per_op": 129834.0,
+          "allocations_per_op": 780.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/prose/posts=1-4         \t    4057\t    332604 ns/op\t  129834 B/op\t     780 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/prose/posts=60",
+          "iterations": 279,
+          "ns_per_op": 4451295.0,
+          "bytes_per_op": 6949412.0,
+          "allocations_per_op": 32252.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/prose/posts=60-4        \t     279\t   4451295 ns/op\t 6949412 B/op\t   32252 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/formatting/posts=1",
+          "iterations": 3300,
+          "ns_per_op": 326307.0,
+          "bytes_per_op": 74338.0,
+          "allocations_per_op": 1582.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/formatting/posts=1-4    \t    3300\t    326307 ns/op\t   74338 B/op\t    1582 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/formatting/posts=60",
+          "iterations": 204,
+          "ns_per_op": 6044526.0,
+          "bytes_per_op": 3618244.0,
+          "allocations_per_op": 80372.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/formatting/posts=60-4   \t     204\t   6044526 ns/op\t 3618244 B/op\t   80372 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/colon_control/posts=1",
+          "iterations": 5193,
+          "ns_per_op": 223104.0,
+          "bytes_per_op": 16766.0,
+          "allocations_per_op": 298.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/colon_control/posts=1-4 \t    5193\t    223104 ns/op\t   16766 B/op\t     298 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/colon_control/posts=60",
+          "iterations": 1942,
+          "ns_per_op": 634417.0,
+          "bytes_per_op": 163283.0,
+          "allocations_per_op": 3331.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/colon_control/posts=60-4         \t    1942\t    634417 ns/op\t  163283 B/op\t    3331 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/http_control/posts=1",
+          "iterations": 3901,
+          "ns_per_op": 346212.0,
+          "bytes_per_op": 92199.0,
+          "allocations_per_op": 1170.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/http_control/posts=1-4           \t    3901\t    346212 ns/op\t   92199 B/op\t    1170 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/http_control/posts=60",
+          "iterations": 291,
+          "ns_per_op": 4032435.0,
+          "bytes_per_op": 4688207.0,
+          "allocations_per_op": 55652.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/http_control/posts=60-4          \t     291\t   4032435 ns/op\t 4688207 B/op\t   55652 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/www_control/posts=1",
+          "iterations": 3715,
+          "ns_per_op": 334305.0,
+          "bytes_per_op": 92139.0,
+          "allocations_per_op": 1169.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/www_control/posts=1-4            \t    3715\t    334305 ns/op\t   92139 B/op\t    1169 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/www_control/posts=60",
+          "iterations": 297,
+          "ns_per_op": 3894685.0,
+          "bytes_per_op": 4686643.0,
+          "allocations_per_op": 55592.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/www_control/posts=60-4           \t     297\t   3894685 ns/op\t 4686643 B/op\t   55592 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "benchmarks": [
+        {
+          "name": "BenchmarkFirstAutolinkPrecheck/plain",
+          "iterations": 100000000,
+          "ns_per_op": 10.19,
+          "bytes_per_op": 0.0,
+          "allocations_per_op": 0.0,
+          "raw": "BenchmarkFirstAutolinkPrecheck/plain-4         \t100000000\t        10.19 ns/op\t       0 B/op\t       0 allocs/op"
+        },
+        {
+          "name": "BenchmarkFirstAutolinkPrecheck/prose",
+          "iterations": 3558524,
+          "ns_per_op": 339.4,
+          "bytes_per_op": 0.0,
+          "allocations_per_op": 0.0,
+          "raw": "BenchmarkFirstAutolinkPrecheck/prose-4         \t 3558524\t       339.4 ns/op\t       0 B/op\t       0 allocs/op"
+        },
+        {
+          "name": "BenchmarkFirstAutolinkPrecheck/formatting",
+          "iterations": 3359798,
+          "ns_per_op": 348.1,
+          "bytes_per_op": 0.0,
+          "allocations_per_op": 0.0,
+          "raw": "BenchmarkFirstAutolinkPrecheck/formatting-4    \t 3359798\t       348.1 ns/op\t       0 B/op\t       0 allocs/op"
+        },
+        {
+          "name": "BenchmarkFirstAutolinkPrecheck/colon_control",
+          "iterations": 1503354,
+          "ns_per_op": 799.8,
+          "bytes_per_op": 624.0,
+          "allocations_per_op": 20.0,
+          "raw": "BenchmarkFirstAutolinkPrecheck/colon_control-4 \t 1503354\t       799.8 ns/op\t     624 B/op\t      20 allocs/op"
+        },
+        {
+          "name": "BenchmarkFirstAutolinkPrecheck/http_control",
+          "iterations": 958801,
+          "ns_per_op": 1325.0,
+          "bytes_per_op": 664.0,
+          "allocations_per_op": 22.0,
+          "raw": "BenchmarkFirstAutolinkPrecheck/http_control-4  \t  958801\t      1325 ns/op\t     664 B/op\t      22 allocs/op"
+        },
+        {
+          "name": "BenchmarkFirstAutolinkPrecheck/www_control",
+          "iterations": 912082,
+          "ns_per_op": 1351.0,
+          "bytes_per_op": 664.0,
+          "allocations_per_op": 22.0,
+          "raw": "BenchmarkFirstAutolinkPrecheck/www_control-4   \t  912082\t      1351 ns/op\t     664 B/op\t      22 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/plain/posts=1",
+          "iterations": 4654,
+          "ns_per_op": 240885.0,
+          "bytes_per_op": 16153.0,
+          "allocations_per_op": 278.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/plain/posts=1-4         \t    4654\t    240885 ns/op\t   16153 B/op\t     278 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/plain/posts=60",
+          "iterations": 2727,
+          "ns_per_op": 498266.0,
+          "bytes_per_op": 125845.0,
+          "allocations_per_op": 2131.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/plain/posts=60-4        \t    2727\t    498266 ns/op\t  125845 B/op\t    2131 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/prose/posts=1",
+          "iterations": 4177,
+          "ns_per_op": 342937.0,
+          "bytes_per_op": 129864.0,
+          "allocations_per_op": 780.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/prose/posts=1-4         \t    4177\t    342937 ns/op\t  129864 B/op\t     780 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/prose/posts=60",
+          "iterations": 318,
+          "ns_per_op": 4478724.0,
+          "bytes_per_op": 6949453.0,
+          "allocations_per_op": 32252.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/prose/posts=60-4        \t     318\t   4478724 ns/op\t 6949453 B/op\t   32252 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/formatting/posts=1",
+          "iterations": 2732,
+          "ns_per_op": 380630.0,
+          "bytes_per_op": 74337.0,
+          "allocations_per_op": 1582.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/formatting/posts=1-4    \t    2732\t    380630 ns/op\t   74337 B/op\t    1582 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/formatting/posts=60",
+          "iterations": 249,
+          "ns_per_op": 6017190.0,
+          "bytes_per_op": 3618480.0,
+          "allocations_per_op": 80372.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/formatting/posts=60-4   \t     249\t   6017190 ns/op\t 3618480 B/op\t   80372 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/colon_control/posts=1",
+          "iterations": 3717,
+          "ns_per_op": 282629.0,
+          "bytes_per_op": 16764.0,
+          "allocations_per_op": 298.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/colon_control/posts=1-4 \t    3717\t    282629 ns/op\t   16764 B/op\t     298 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/colon_control/posts=60",
+          "iterations": 1645,
+          "ns_per_op": 678430.0,
+          "bytes_per_op": 163279.0,
+          "allocations_per_op": 3331.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/colon_control/posts=60-4         \t    1645\t    678430 ns/op\t  163279 B/op\t    3331 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/http_control/posts=1",
+          "iterations": 3844,
+          "ns_per_op": 278341.0,
+          "bytes_per_op": 92171.0,
+          "allocations_per_op": 1170.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/http_control/posts=1-4           \t    3844\t    278341 ns/op\t   92171 B/op\t    1170 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/http_control/posts=60",
+          "iterations": 333,
+          "ns_per_op": 3782742.0,
+          "bytes_per_op": 4688600.0,
+          "allocations_per_op": 55652.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/http_control/posts=60-4          \t     333\t   3782742 ns/op\t 4688600 B/op\t   55652 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/www_control/posts=1",
+          "iterations": 3889,
+          "ns_per_op": 346325.0,
+          "bytes_per_op": 92141.0,
+          "allocations_per_op": 1169.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/www_control/posts=1-4            \t    3889\t    346325 ns/op\t   92141 B/op\t    1169 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/www_control/posts=60",
+          "iterations": 310,
+          "ns_per_op": 3835698.0,
+          "bytes_per_op": 4686735.0,
+          "allocations_per_op": 55592.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/www_control/posts=60-4           \t     310\t   3835698 ns/op\t 4686735 B/op\t   55592 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "benchmarks": [
+        {
+          "name": "BenchmarkFirstAutolinkPrecheck/plain",
+          "iterations": 1517540,
+          "ns_per_op": 785.8,
+          "bytes_per_op": 624.0,
+          "allocations_per_op": 20.0,
+          "raw": "BenchmarkFirstAutolinkPrecheck/plain-4         \t 1517540\t       785.8 ns/op\t     624 B/op\t      20 allocs/op"
+        },
+        {
+          "name": "BenchmarkFirstAutolinkPrecheck/prose",
+          "iterations": 24550,
+          "ns_per_op": 57713.0,
+          "bytes_per_op": 114320.0,
+          "allocations_per_op": 522.0,
+          "raw": "BenchmarkFirstAutolinkPrecheck/prose-4         \t   24550\t     57713 ns/op\t  114320 B/op\t     522 allocs/op"
+        },
+        {
+          "name": "BenchmarkFirstAutolinkPrecheck/formatting",
+          "iterations": 14480,
+          "ns_per_op": 82746.0,
+          "bytes_per_op": 58850.0,
+          "allocations_per_op": 1324.0,
+          "raw": "BenchmarkFirstAutolinkPrecheck/formatting-4    \t   14480\t     82746 ns/op\t   58850 B/op\t    1324 allocs/op"
+        },
+        {
+          "name": "BenchmarkFirstAutolinkPrecheck/colon_control",
+          "iterations": 1230577,
+          "ns_per_op": 955.8,
+          "bytes_per_op": 624.0,
+          "allocations_per_op": 20.0,
+          "raw": "BenchmarkFirstAutolinkPrecheck/colon_control-4 \t 1230577\t       955.8 ns/op\t     624 B/op\t      20 allocs/op"
+        },
+        {
+          "name": "BenchmarkFirstAutolinkPrecheck/http_control",
+          "iterations": 683422,
+          "ns_per_op": 1579.0,
+          "bytes_per_op": 664.0,
+          "allocations_per_op": 22.0,
+          "raw": "BenchmarkFirstAutolinkPrecheck/http_control-4  \t  683422\t      1579 ns/op\t     664 B/op\t      22 allocs/op"
+        },
+        {
+          "name": "BenchmarkFirstAutolinkPrecheck/www_control",
+          "iterations": 711792,
+          "ns_per_op": 1610.0,
+          "bytes_per_op": 664.0,
+          "allocations_per_op": 22.0,
+          "raw": "BenchmarkFirstAutolinkPrecheck/www_control-4   \t  711792\t      1610 ns/op\t     664 B/op\t      22 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/plain/posts=1",
+          "iterations": 4664,
+          "ns_per_op": 224579.0,
+          "bytes_per_op": 16768.0,
+          "allocations_per_op": 298.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/plain/posts=1-4         \t    4664\t    224579 ns/op\t   16768 B/op\t     298 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/plain/posts=60",
+          "iterations": 2206,
+          "ns_per_op": 653273.0,
+          "bytes_per_op": 163284.0,
+          "allocations_per_op": 3331.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/plain/posts=60-4        \t    2206\t    653273 ns/op\t  163284 B/op\t    3331 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/prose/posts=1",
+          "iterations": 2194,
+          "ns_per_op": 501378.0,
+          "bytes_per_op": 244179.0,
+          "allocations_per_op": 1302.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/prose/posts=1-4         \t    2194\t    501378 ns/op\t  244179 B/op\t    1302 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/prose/posts=60",
+          "iterations": 147,
+          "ns_per_op": 8539416.0,
+          "bytes_per_op": 13812036.0,
+          "allocations_per_op": 63573.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/prose/posts=60-4        \t     147\t   8539416 ns/op\t13812036 B/op\t   63573 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/formatting/posts=1",
+          "iterations": 2044,
+          "ns_per_op": 631073.0,
+          "bytes_per_op": 133165.0,
+          "allocations_per_op": 2906.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/formatting/posts=1-4    \t    2044\t    631073 ns/op\t  133165 B/op\t    2906 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/formatting/posts=60",
+          "iterations": 100,
+          "ns_per_op": 10225573.0,
+          "bytes_per_op": 7148888.0,
+          "allocations_per_op": 159812.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/formatting/posts=60-4   \t     100\t  10225573 ns/op\t 7148888 B/op\t  159812 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/colon_control/posts=1",
+          "iterations": 3993,
+          "ns_per_op": 315677.0,
+          "bytes_per_op": 16767.0,
+          "allocations_per_op": 298.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/colon_control/posts=1-4 \t    3993\t    315677 ns/op\t   16767 B/op\t     298 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/colon_control/posts=60",
+          "iterations": 1688,
+          "ns_per_op": 720574.0,
+          "bytes_per_op": 163282.0,
+          "allocations_per_op": 3331.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/colon_control/posts=60-4         \t    1688\t    720574 ns/op\t  163282 B/op\t    3331 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/http_control/posts=1",
+          "iterations": 2712,
+          "ns_per_op": 385451.0,
+          "bytes_per_op": 92174.0,
+          "allocations_per_op": 1170.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/http_control/posts=1-4           \t    2712\t    385451 ns/op\t   92174 B/op\t    1170 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/http_control/posts=60",
+          "iterations": 301,
+          "ns_per_op": 3948897.0,
+          "bytes_per_op": 4688433.0,
+          "allocations_per_op": 55652.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/http_control/posts=60-4          \t     301\t   3948897 ns/op\t 4688433 B/op\t   55652 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/www_control/posts=1",
+          "iterations": 2992,
+          "ns_per_op": 411164.0,
+          "bytes_per_op": 92142.0,
+          "allocations_per_op": 1169.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/www_control/posts=1-4            \t    2992\t    411164 ns/op\t   92142 B/op\t    1169 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/www_control/posts=60",
+          "iterations": 306,
+          "ns_per_op": 4409228.0,
+          "bytes_per_op": 4687002.0,
+          "allocations_per_op": 55592.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/www_control/posts=60-4           \t     306\t   4409228 ns/op\t 4687002 B/op\t   55592 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "benchmarks": [
+        {
+          "name": "BenchmarkFirstAutolinkPrecheck/plain",
+          "iterations": 1553090,
+          "ns_per_op": 762.5,
+          "bytes_per_op": 624.0,
+          "allocations_per_op": 20.0,
+          "raw": "BenchmarkFirstAutolinkPrecheck/plain-4         \t 1553090\t       762.5 ns/op\t     624 B/op\t      20 allocs/op"
+        },
+        {
+          "name": "BenchmarkFirstAutolinkPrecheck/prose",
+          "iterations": 28603,
+          "ns_per_op": 42742.0,
+          "bytes_per_op": 114320.0,
+          "allocations_per_op": 522.0,
+          "raw": "BenchmarkFirstAutolinkPrecheck/prose-4         \t   28603\t     42742 ns/op\t  114320 B/op\t     522 allocs/op"
+        },
+        {
+          "name": "BenchmarkFirstAutolinkPrecheck/formatting",
+          "iterations": 19208,
+          "ns_per_op": 61176.0,
+          "bytes_per_op": 58855.0,
+          "allocations_per_op": 1324.0,
+          "raw": "BenchmarkFirstAutolinkPrecheck/formatting-4    \t   19208\t     61176 ns/op\t   58855 B/op\t    1324 allocs/op"
+        },
+        {
+          "name": "BenchmarkFirstAutolinkPrecheck/colon_control",
+          "iterations": 1519539,
+          "ns_per_op": 796.3,
+          "bytes_per_op": 624.0,
+          "allocations_per_op": 20.0,
+          "raw": "BenchmarkFirstAutolinkPrecheck/colon_control-4 \t 1519539\t       796.3 ns/op\t     624 B/op\t      20 allocs/op"
+        },
+        {
+          "name": "BenchmarkFirstAutolinkPrecheck/http_control",
+          "iterations": 904112,
+          "ns_per_op": 1322.0,
+          "bytes_per_op": 664.0,
+          "allocations_per_op": 22.0,
+          "raw": "BenchmarkFirstAutolinkPrecheck/http_control-4  \t  904112\t      1322 ns/op\t     664 B/op\t      22 allocs/op"
+        },
+        {
+          "name": "BenchmarkFirstAutolinkPrecheck/www_control",
+          "iterations": 890792,
+          "ns_per_op": 1326.0,
+          "bytes_per_op": 664.0,
+          "allocations_per_op": 22.0,
+          "raw": "BenchmarkFirstAutolinkPrecheck/www_control-4   \t  890792\t      1326 ns/op\t     664 B/op\t      22 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/plain/posts=1",
+          "iterations": 4600,
+          "ns_per_op": 264688.0,
+          "bytes_per_op": 16773.0,
+          "allocations_per_op": 298.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/plain/posts=1-4         \t    4600\t    264688 ns/op\t   16773 B/op\t     298 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/plain/posts=60",
+          "iterations": 2180,
+          "ns_per_op": 641293.0,
+          "bytes_per_op": 163281.0,
+          "allocations_per_op": 3331.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/plain/posts=60-4        \t    2180\t    641293 ns/op\t  163281 B/op\t    3331 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/prose/posts=1",
+          "iterations": 3214,
+          "ns_per_op": 363417.0,
+          "bytes_per_op": 244155.0,
+          "allocations_per_op": 1302.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/prose/posts=1-4         \t    3214\t    363417 ns/op\t  244155 B/op\t    1302 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/prose/posts=60",
+          "iterations": 153,
+          "ns_per_op": 7518356.0,
+          "bytes_per_op": 13812331.0,
+          "allocations_per_op": 63573.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/prose/posts=60-4        \t     153\t   7518356 ns/op\t13812331 B/op\t   63573 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/formatting/posts=1",
+          "iterations": 2406,
+          "ns_per_op": 458245.0,
+          "bytes_per_op": 133162.0,
+          "allocations_per_op": 2906.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/formatting/posts=1-4    \t    2406\t    458245 ns/op\t  133162 B/op\t    2906 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/formatting/posts=60",
+          "iterations": 134,
+          "ns_per_op": 10339635.0,
+          "bytes_per_op": 7149072.0,
+          "allocations_per_op": 159812.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/formatting/posts=60-4   \t     134\t  10339635 ns/op\t 7149072 B/op\t  159812 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/colon_control/posts=1",
+          "iterations": 4635,
+          "ns_per_op": 234890.0,
+          "bytes_per_op": 16763.0,
+          "allocations_per_op": 298.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/colon_control/posts=1-4 \t    4635\t    234890 ns/op\t   16763 B/op\t     298 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/colon_control/posts=60",
+          "iterations": 1815,
+          "ns_per_op": 643062.0,
+          "bytes_per_op": 163284.0,
+          "allocations_per_op": 3331.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/colon_control/posts=60-4         \t    1815\t    643062 ns/op\t  163284 B/op\t    3331 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/http_control/posts=1",
+          "iterations": 3837,
+          "ns_per_op": 353203.0,
+          "bytes_per_op": 92171.0,
+          "allocations_per_op": 1170.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/http_control/posts=1-4           \t    3837\t    353203 ns/op\t   92171 B/op\t    1170 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/http_control/posts=60",
+          "iterations": 303,
+          "ns_per_op": 4020427.0,
+          "bytes_per_op": 4687936.0,
+          "allocations_per_op": 55652.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/http_control/posts=60-4          \t     303\t   4020427 ns/op\t 4687936 B/op\t   55652 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/www_control/posts=1",
+          "iterations": 3724,
+          "ns_per_op": 311140.0,
+          "bytes_per_op": 92139.0,
+          "allocations_per_op": 1169.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/www_control/posts=1-4            \t    3724\t    311140 ns/op\t   92139 B/op\t    1169 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/www_control/posts=60",
+          "iterations": 322,
+          "ns_per_op": 3473665.0,
+          "bytes_per_op": 4686599.0,
+          "allocations_per_op": 55592.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/www_control/posts=60-4           \t     322\t   3473665 ns/op\t 4686599 B/op\t   55592 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "benchmarks": [
+        {
+          "name": "BenchmarkFirstAutolinkPrecheck/plain",
+          "iterations": 100000000,
+          "ns_per_op": 10.37,
+          "bytes_per_op": 0.0,
+          "allocations_per_op": 0.0,
+          "raw": "BenchmarkFirstAutolinkPrecheck/plain-4         \t100000000\t        10.37 ns/op\t       0 B/op\t       0 allocs/op"
+        },
+        {
+          "name": "BenchmarkFirstAutolinkPrecheck/prose",
+          "iterations": 3391107,
+          "ns_per_op": 339.8,
+          "bytes_per_op": 0.0,
+          "allocations_per_op": 0.0,
+          "raw": "BenchmarkFirstAutolinkPrecheck/prose-4         \t 3391107\t       339.8 ns/op\t       0 B/op\t       0 allocs/op"
+        },
+        {
+          "name": "BenchmarkFirstAutolinkPrecheck/formatting",
+          "iterations": 3313842,
+          "ns_per_op": 355.7,
+          "bytes_per_op": 0.0,
+          "allocations_per_op": 0.0,
+          "raw": "BenchmarkFirstAutolinkPrecheck/formatting-4    \t 3313842\t       355.7 ns/op\t       0 B/op\t       0 allocs/op"
+        },
+        {
+          "name": "BenchmarkFirstAutolinkPrecheck/colon_control",
+          "iterations": 1491195,
+          "ns_per_op": 780.3,
+          "bytes_per_op": 624.0,
+          "allocations_per_op": 20.0,
+          "raw": "BenchmarkFirstAutolinkPrecheck/colon_control-4 \t 1491195\t       780.3 ns/op\t     624 B/op\t      20 allocs/op"
+        },
+        {
+          "name": "BenchmarkFirstAutolinkPrecheck/http_control",
+          "iterations": 893553,
+          "ns_per_op": 1352.0,
+          "bytes_per_op": 664.0,
+          "allocations_per_op": 22.0,
+          "raw": "BenchmarkFirstAutolinkPrecheck/http_control-4  \t  893553\t      1352 ns/op\t     664 B/op\t      22 allocs/op"
+        },
+        {
+          "name": "BenchmarkFirstAutolinkPrecheck/www_control",
+          "iterations": 897542,
+          "ns_per_op": 1368.0,
+          "bytes_per_op": 664.0,
+          "allocations_per_op": 22.0,
+          "raw": "BenchmarkFirstAutolinkPrecheck/www_control-4   \t  897542\t      1368 ns/op\t     664 B/op\t      22 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/plain/posts=1",
+          "iterations": 5479,
+          "ns_per_op": 244057.0,
+          "bytes_per_op": 16140.0,
+          "allocations_per_op": 278.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/plain/posts=1-4         \t    5479\t    244057 ns/op\t   16140 B/op\t     278 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/plain/posts=60",
+          "iterations": 2239,
+          "ns_per_op": 518754.0,
+          "bytes_per_op": 125836.0,
+          "allocations_per_op": 2131.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/plain/posts=60-4        \t    2239\t    518754 ns/op\t  125836 B/op\t    2131 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/prose/posts=1",
+          "iterations": 3346,
+          "ns_per_op": 314200.0,
+          "bytes_per_op": 129835.0,
+          "allocations_per_op": 780.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/prose/posts=1-4         \t    3346\t    314200 ns/op\t  129835 B/op\t     780 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/prose/posts=60",
+          "iterations": 271,
+          "ns_per_op": 4625771.0,
+          "bytes_per_op": 6949907.0,
+          "allocations_per_op": 32252.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/prose/posts=60-4        \t     271\t   4625771 ns/op\t 6949907 B/op\t   32252 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/formatting/posts=1",
+          "iterations": 2536,
+          "ns_per_op": 469225.0,
+          "bytes_per_op": 74355.0,
+          "allocations_per_op": 1582.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/formatting/posts=1-4    \t    2536\t    469225 ns/op\t   74355 B/op\t    1582 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/formatting/posts=60",
+          "iterations": 196,
+          "ns_per_op": 6270509.0,
+          "bytes_per_op": 3618070.0,
+          "allocations_per_op": 80372.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/formatting/posts=60-4   \t     196\t   6270509 ns/op\t 3618070 B/op\t   80372 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/colon_control/posts=1",
+          "iterations": 3990,
+          "ns_per_op": 329906.0,
+          "bytes_per_op": 16766.0,
+          "allocations_per_op": 298.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/colon_control/posts=1-4 \t    3990\t    329906 ns/op\t   16766 B/op\t     298 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/colon_control/posts=60",
+          "iterations": 1772,
+          "ns_per_op": 705974.0,
+          "bytes_per_op": 163280.0,
+          "allocations_per_op": 3331.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/colon_control/posts=60-4         \t    1772\t    705974 ns/op\t  163280 B/op\t    3331 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/http_control/posts=1",
+          "iterations": 3270,
+          "ns_per_op": 390408.0,
+          "bytes_per_op": 92175.0,
+          "allocations_per_op": 1170.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/http_control/posts=1-4           \t    3270\t    390408 ns/op\t   92175 B/op\t    1170 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/http_control/posts=60",
+          "iterations": 297,
+          "ns_per_op": 4148808.0,
+          "bytes_per_op": 4689335.0,
+          "allocations_per_op": 55652.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/http_control/posts=60-4          \t     297\t   4148808 ns/op\t 4689335 B/op\t   55652 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/www_control/posts=1",
+          "iterations": 3009,
+          "ns_per_op": 421540.0,
+          "bytes_per_op": 92142.0,
+          "allocations_per_op": 1169.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/www_control/posts=1-4            \t    3009\t    421540 ns/op\t   92142 B/op\t    1169 allocs/op"
+        },
+        {
+          "name": "BenchmarkAutolinkPrecheckHistory/www_control/posts=60",
+          "iterations": 322,
+          "ns_per_op": 4255239.0,
+          "bytes_per_op": 4686364.0,
+          "allocations_per_op": 55592.0,
+          "raw": "BenchmarkAutolinkPrecheckHistory/www_control/posts=60-4           \t     322\t   4255239 ns/op\t 4686364 B/op\t   55592 allocs/op"
+        }
+      ]
+    }
+  ],
+  "summary": [
+    {
+      "name": "BenchmarkFirstAutolinkPrecheck/plain",
+      "before": {
+        "ns_per_op": 773.9,
+        "bytes_per_op": 624.0,
+        "allocations_per_op": 20.0,
+        "ns_per_op_range": [
+          762.5,
+          785.8
+        ]
+      },
+      "after": {
+        "ns_per_op": 10.37,
+        "bytes_per_op": 0.0,
+        "allocations_per_op": 0.0,
+        "ns_per_op_range": [
+          10.19,
+          10.64
+        ]
+      }
+    },
+    {
+      "name": "BenchmarkFirstAutolinkPrecheck/prose",
+      "before": {
+        "ns_per_op": 42742.0,
+        "bytes_per_op": 114320.0,
+        "allocations_per_op": 522.0,
+        "ns_per_op_range": [
+          40825.0,
+          57713.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 339.8,
+        "bytes_per_op": 0.0,
+        "allocations_per_op": 0.0,
+        "ns_per_op_range": [
+          339.4,
+          343.9
+        ]
+      }
+    },
+    {
+      "name": "BenchmarkFirstAutolinkPrecheck/formatting",
+      "before": {
+        "ns_per_op": 61176.0,
+        "bytes_per_op": 58853.0,
+        "allocations_per_op": 1324.0,
+        "ns_per_op_range": [
+          60410.0,
+          82746.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 355.7,
+        "bytes_per_op": 0.0,
+        "allocations_per_op": 0.0,
+        "ns_per_op_range": [
+          348.1,
+          357.8
+        ]
+      }
+    },
+    {
+      "name": "BenchmarkFirstAutolinkPrecheck/colon_control",
+      "before": {
+        "ns_per_op": 796.3,
+        "bytes_per_op": 624.0,
+        "allocations_per_op": 20.0,
+        "ns_per_op_range": [
+          779.7,
+          955.8
+        ]
+      },
+      "after": {
+        "ns_per_op": 799.8,
+        "bytes_per_op": 624.0,
+        "allocations_per_op": 20.0,
+        "ns_per_op_range": [
+          780.3,
+          821.9
+        ]
+      }
+    },
+    {
+      "name": "BenchmarkFirstAutolinkPrecheck/http_control",
+      "before": {
+        "ns_per_op": 1322.0,
+        "bytes_per_op": 664.0,
+        "allocations_per_op": 22.0,
+        "ns_per_op_range": [
+          1308.0,
+          1579.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 1352.0,
+        "bytes_per_op": 664.0,
+        "allocations_per_op": 22.0,
+        "ns_per_op_range": [
+          1325.0,
+          1378.0
+        ]
+      }
+    },
+    {
+      "name": "BenchmarkFirstAutolinkPrecheck/www_control",
+      "before": {
+        "ns_per_op": 1339.0,
+        "bytes_per_op": 664.0,
+        "allocations_per_op": 22.0,
+        "ns_per_op_range": [
+          1326.0,
+          1610.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 1368.0,
+        "bytes_per_op": 664.0,
+        "allocations_per_op": 22.0,
+        "ns_per_op_range": [
+          1351.0,
+          1378.0
+        ]
+      }
+    },
+    {
+      "name": "BenchmarkAutolinkPrecheckHistory/plain/posts=1",
+      "before": {
+        "ns_per_op": 264688.0,
+        "bytes_per_op": 16768.0,
+        "allocations_per_op": 298.0,
+        "ns_per_op_range": [
+          224579.0,
+          273475.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 244057.0,
+        "bytes_per_op": 16141.0,
+        "allocations_per_op": 278.0,
+        "ns_per_op_range": [
+          240885.0,
+          303923.0
+        ]
+      }
+    },
+    {
+      "name": "BenchmarkAutolinkPrecheckHistory/plain/posts=60",
+      "before": {
+        "ns_per_op": 653273.0,
+        "bytes_per_op": 163284.0,
+        "allocations_per_op": 3331.0,
+        "ns_per_op_range": [
+          641293.0,
+          660364.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 502845.0,
+        "bytes_per_op": 125843.0,
+        "allocations_per_op": 2131.0,
+        "ns_per_op_range": [
+          498266.0,
+          518754.0
+        ]
+      }
+    },
+    {
+      "name": "BenchmarkAutolinkPrecheckHistory/prose/posts=1",
+      "before": {
+        "ns_per_op": 442042.0,
+        "bytes_per_op": 244158.0,
+        "allocations_per_op": 1302.0,
+        "ns_per_op_range": [
+          363417.0,
+          501378.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 332604.0,
+        "bytes_per_op": 129835.0,
+        "allocations_per_op": 780.0,
+        "ns_per_op_range": [
+          314200.0,
+          342937.0
+        ]
+      }
+    },
+    {
+      "name": "BenchmarkAutolinkPrecheckHistory/prose/posts=60",
+      "before": {
+        "ns_per_op": 7933775.0,
+        "bytes_per_op": 13812313.0,
+        "allocations_per_op": 63573.0,
+        "ns_per_op_range": [
+          7518356.0,
+          8539416.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 4478724.0,
+        "bytes_per_op": 6949453.0,
+        "allocations_per_op": 32252.0,
+        "ns_per_op_range": [
+          4451295.0,
+          4625771.0
+        ]
+      }
+    },
+    {
+      "name": "BenchmarkAutolinkPrecheckHistory/formatting/posts=1",
+      "before": {
+        "ns_per_op": 474686.0,
+        "bytes_per_op": 133162.0,
+        "allocations_per_op": 2906.0,
+        "ns_per_op_range": [
+          458245.0,
+          631073.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 380630.0,
+        "bytes_per_op": 74338.0,
+        "allocations_per_op": 1582.0,
+        "ns_per_op_range": [
+          326307.0,
+          469225.0
+        ]
+      }
+    },
+    {
+      "name": "BenchmarkAutolinkPrecheckHistory/formatting/posts=60",
+      "before": {
+        "ns_per_op": 10225573.0,
+        "bytes_per_op": 7148888.0,
+        "allocations_per_op": 159812.0,
+        "ns_per_op_range": [
+          10084086.0,
+          10339635.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 6044526.0,
+        "bytes_per_op": 3618244.0,
+        "allocations_per_op": 80372.0,
+        "ns_per_op_range": [
+          6017190.0,
+          6270509.0
+        ]
+      }
+    },
+    {
+      "name": "BenchmarkAutolinkPrecheckHistory/colon_control/posts=1",
+      "before": {
+        "ns_per_op": 258416.0,
+        "bytes_per_op": 16764.0,
+        "allocations_per_op": 298.0,
+        "ns_per_op_range": [
+          234890.0,
+          315677.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 282629.0,
+        "bytes_per_op": 16766.0,
+        "allocations_per_op": 298.0,
+        "ns_per_op_range": [
+          223104.0,
+          329906.0
+        ]
+      }
+    },
+    {
+      "name": "BenchmarkAutolinkPrecheckHistory/colon_control/posts=60",
+      "before": {
+        "ns_per_op": 643062.0,
+        "bytes_per_op": 163284.0,
+        "allocations_per_op": 3331.0,
+        "ns_per_op_range": [
+          575847.0,
+          720574.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 678430.0,
+        "bytes_per_op": 163280.0,
+        "allocations_per_op": 3331.0,
+        "ns_per_op_range": [
+          634417.0,
+          705974.0
+        ]
+      }
+    },
+    {
+      "name": "BenchmarkAutolinkPrecheckHistory/http_control/posts=1",
+      "before": {
+        "ns_per_op": 353203.0,
+        "bytes_per_op": 92171.0,
+        "allocations_per_op": 1170.0,
+        "ns_per_op_range": [
+          301424.0,
+          385451.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 346212.0,
+        "bytes_per_op": 92175.0,
+        "allocations_per_op": 1170.0,
+        "ns_per_op_range": [
+          278341.0,
+          390408.0
+        ]
+      }
+    },
+    {
+      "name": "BenchmarkAutolinkPrecheckHistory/http_control/posts=60",
+      "before": {
+        "ns_per_op": 4014452.0,
+        "bytes_per_op": 4688433.0,
+        "allocations_per_op": 55652.0,
+        "ns_per_op_range": [
+          3948897.0,
+          4020427.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 4032435.0,
+        "bytes_per_op": 4688600.0,
+        "allocations_per_op": 55652.0,
+        "ns_per_op_range": [
+          3782742.0,
+          4148808.0
+        ]
+      }
+    },
+    {
+      "name": "BenchmarkAutolinkPrecheckHistory/www_control/posts=1",
+      "before": {
+        "ns_per_op": 320986.0,
+        "bytes_per_op": 92139.0,
+        "allocations_per_op": 1169.0,
+        "ns_per_op_range": [
+          311140.0,
+          411164.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 346325.0,
+        "bytes_per_op": 92141.0,
+        "allocations_per_op": 1169.0,
+        "ns_per_op_range": [
+          334305.0,
+          421540.0
+        ]
+      }
+    },
+    {
+      "name": "BenchmarkAutolinkPrecheckHistory/www_control/posts=60",
+      "before": {
+        "ns_per_op": 3980474.0,
+        "bytes_per_op": 4686599.0,
+        "allocations_per_op": 55592.0,
+        "ns_per_op_range": [
+          3473665.0,
+          4409228.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 3894685.0,
+        "bytes_per_op": 4686643.0,
+        "allocations_per_op": 55592.0,
+        "ns_per_op_range": [
+          3835698.0,
+          4255239.0
+        ]
+      }
+    }
+  ]
+}
