@@ -1,0 +1,189 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: rhnvrm <hello@rohanverma.net>
+Date: Sat, 14 Nov 2026 14:26:34 +0530
+Subject: [PATCH] perf: compile the permalink path regexp once
+
+Reuse the constant path matcher after the existing SiteURL prefix check.
+Keep the pattern, whitespace/slash handling and URL acceptance unchanged.
+
+Add boundary regressions and real history-page benchmarks with configured
+SiteURL, external URL controls, same-site images and cached permalink previews.
+
+Mattermax-Patch: permalink-regexp.patch
+---
+ server/channels/app/permalink_path_test.go | 140 +++++++++++++++++++++
+ server/channels/app/post_metadata.go       |   8 +-
+ 2 files changed, 143 insertions(+), 5 deletions(-)
+ create mode 100644 server/channels/app/permalink_path_test.go
+
+diff --git a/server/channels/app/permalink_path_test.go b/server/channels/app/permalink_path_test.go
+new file mode 100644
+index 000000000000..913f9823e3e9
+--- /dev/null
++++ b/server/channels/app/permalink_path_test.go
+@@ -0,0 +1,140 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++package app
++
++import (
++	"net/http"
++	"net/http/httptest"
++	"strings"
++	"sync/atomic"
++	"testing"
++
++	"github.com/mattermost/mattermost/server/public/model"
++	"github.com/mattermost/mattermost/server/v8/channels/utils/testutils"
++	"github.com/stretchr/testify/require"
++)
++
++func TestPermalinkPathBoundaries(t *testing.T) {
++	const base = "https://chat.example.com"
++	const id = "dppezk51jp8afbhwxf1jpag66r"
++	for _, tc := range []struct {
++		name, url, site string
++		want            bool
++	}{
++		{"one character team", base + "/a/pl/" + id, base, true},
++		{"maximum team", base + "/" + strings.Repeat("a", 64) + "/pl/" + id, base, true},
++		{"team too long", base + "/" + strings.Repeat("a", 65) + "/pl/" + id, base, false},
++		{"empty team", base + "//pl/" + id, base, false},
++		{"team punctuation", base + "/team_0-9/pl/" + id, base, true},
++		{"uppercase team", base + "/Team/pl/" + id, base, false},
++		{"uppercase id", base + "/team/pl/" + strings.ToUpper(id), base, false},
++		{"extra id", base + "/team/pl/" + id + "a", base, false},
++		{"query", base + "/team/pl/" + id + "?foo=bar", base, false},
++		{"fragment", base + "/team/pl/" + id + "#foo", base, false},
++		{"extra slash", base + "//team/pl/" + id, base, false},
++		{"unicode whitespace", "\u2003" + base + "/team/pl/" + id + "\u2003", base, true},
++		{"subpath", base + "/chat/team/pl/" + id, base + "/chat", true},
++		{"empty site relative", "/team/pl/" + id, "", true},
++		{"legacy prefix without separator", base + "team/pl/" + id, base, true},
++		{"external host", "https://other.example.com/team/pl/" + id, base, false},
++	} {
++		t.Run(tc.name, func(t *testing.T) { require.Equal(t, tc.want, looksLikeAPermalink(tc.url, tc.site)) })
++	}
++}
++
++// BenchmarkPermalinkHistory exercises real stored pages with configured SiteURL.
++// External URLs are controls for the existing prefix rejection path.
++func BenchmarkPermalinkHistory(b *testing.B) {
++	th := Setup(b).InitBasic(b)
++	th.App.UpdateConfig(func(cfg *model.Config) {
++		*cfg.ServiceSettings.EnableLinkPreviews = false
++		*cfg.ServiceSettings.EnablePermalinkPreviews = true
++		*cfg.ServiceSettings.AllowedUntrustedInternalConnections = "127.0.0.1"
++	})
++	image, err := testutils.ReadTestFile("test.png")
++	if err != nil {
++		b.Fatal(err)
++	}
++	var fetches atomic.Int64
++	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		fetches.Add(1)
++		w.Header().Set("Content-Type", "image/png")
++		_, _ = w.Write(image)
++	}))
++	defer server.Close()
++	target, err := th.App.Srv().Store().Post().Save(th.Context, &model.Post{ChannelId: th.BasicChannel.Id, UserId: th.BasicUser.Id, Message: "linked target"})
++	if err != nil {
++		b.Fatal(err)
++	}
++	for _, tc := range []struct {
++		name, siteURL, message, imageURL string
++		permalink                        bool
++	}{
++		{name: "plain", siteURL: "https://chat.example.invalid", message: "The deploy is ready for review."},
++		{name: "external_image", siteURL: "https://chat.example.invalid", message: "![status](" + server.URL + "/image.png)", imageURL: server.URL + "/image.png"},
++		{name: "same_site_image", siteURL: server.URL, message: "![status](" + server.URL + "/image.png)", imageURL: server.URL + "/image.png"},
++		{name: "subpath_image", siteURL: server.URL + "/chat", message: "![status](" + server.URL + "/chat/image.png)", imageURL: server.URL + "/chat/image.png"},
++		{name: "same_site_link", siteURL: server.URL, message: server.URL + "/api/v4/system/ping"},
++		{name: "permalink", siteURL: server.URL, message: server.URL + "/" + th.BasicTeam.Name + "/pl/" + target.Id, permalink: true},
++	} {
++		b.Run(tc.name, func(b *testing.B) {
++			th.App.UpdateConfig(func(cfg *model.Config) { *cfg.ServiceSettings.SiteURL = tc.siteURL })
++			list := model.NewPostList()
++			for range 60 {
++				post, err := th.App.Srv().Store().Post().Save(th.Context, &model.Post{ChannelId: th.BasicChannel.Id, UserId: th.BasicUser.Id, Message: tc.message})
++				if err != nil {
++					b.Fatal(err)
++				}
++				list.AddPost(post)
++				list.AddOrder(post.Id)
++			}
++			check := func(result *model.PostList) {
++				if len(result.Order) != 60 {
++					b.Fatal("incorrect history order")
++				}
++				for id := range list.Posts {
++					post := result.Posts[id]
++					if post == nil || post.Metadata == nil {
++						b.Fatal("missing post metadata")
++					}
++					expectedImages := 0
++					if tc.imageURL != "" {
++						expectedImages = 1
++					}
++					if len(post.Metadata.Images) != expectedImages {
++						b.Fatal("incorrect image count")
++					}
++					if tc.imageURL != "" {
++						dims := post.Metadata.Images[tc.imageURL]
++						if dims == nil || dims.Width != 408 || dims.Height != 336 {
++							b.Fatal("incorrect image dimensions")
++						}
++					}
++					if tc.permalink {
++						if len(post.Metadata.Embeds) != 1 || post.Metadata.Embeds[0].Type != model.PostEmbedPermalink {
++							b.Fatal("missing permalink embed")
++						}
++						link, ok := post.Metadata.Embeds[0].Data.(*model.PreviewPost)
++						if !ok || link.Post == nil || link.PostID != target.Id || link.Post.Id != target.Id {
++							b.Fatal("incorrect permalink target")
++						}
++					} else if len(post.Metadata.Embeds) != 0 {
++						b.Fatal("unexpected embed")
++					}
++				}
++			}
++			check(th.App.PreparePostListForClient(th.Context, list))
++			warmed := fetches.Load()
++			b.ReportAllocs()
++			b.ResetTimer()
++			for range b.N {
++				check(th.App.PreparePostListForClient(th.Context, list))
++			}
++			b.StopTimer()
++			if fetches.Load() != warmed {
++				b.Fatal("unexpected image fetch during timed loop")
++			}
++		})
++	}
++}
+diff --git a/server/channels/app/post_metadata.go b/server/channels/app/post_metadata.go
+index 8021a3f38709..e28a0430ad75 100644
+--- a/server/channels/app/post_metadata.go
++++ b/server/channels/app/post_metadata.go
+@@ -871,17 +871,15 @@ func (a *App) getImages(rctx request.CTX, str string) []string {
+ 	return images
+ }
+ 
++var permalinkPathRegex = regexp.MustCompile(`^[0-9a-z_-]{1,64}/pl/[a-z0-9]{26}$`)
++
+ func looksLikeAPermalink(url, siteURL string) bool {
+ 	path, hasPrefix := strings.CutPrefix(strings.TrimSpace(url), siteURL)
+ 	if !hasPrefix {
+ 		return false
+ 	}
+ 	path = strings.TrimPrefix(path, "/")
+-	matched, err := regexp.MatchString(`^[0-9a-z_-]{1,64}/pl/[a-z0-9]{26}$`, path)
+-	if err != nil {
+-		mlog.Warn("error matching regex", mlog.Err(err))
+-	}
+-	return matched
++	return permalinkPathRegex.MatchString(path)
+ }
+ 
+ func (a *App) containsPermalink(rctx request.CTX, post *model.Post) bool {
