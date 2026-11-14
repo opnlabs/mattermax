@@ -1,0 +1,45 @@
+{
+  "status": "passed",
+  "checks": [
+    {
+      "name": "Post store",
+      "status": "passed",
+      "counts": {
+        "pass": 174,
+        "fail": 0,
+        "skip": 0
+      }
+    },
+    {
+      "name": "Thread store and new regression",
+      "status": "passed",
+      "counts": {
+        "pass": 83,
+        "fail": 0,
+        "skip": 0
+      }
+    },
+    {
+      "name": "App/API",
+      "status": "passed",
+      "counts": {
+        "pass": 36,
+        "fail": 0,
+        "skip": 0
+      }
+    }
+  ],
+  "commands": [
+    "go test -race ./channels/store/sqlstore -run '^(TestThreadLastActivityLookup|TestPostStore|TestThreadStore)$' -count=1 -timeout=15m -json",
+    "go test -race ./channels/store/sqlstore -run '^(TestThreadLastActivityLookup|TestThreadStore)$' -count=1 -timeout=10m -json",
+    "go test -race ./channels/app ./channels/api4 -run '^(TestCheckThreadArchivedRootLookup|TestThreadAutoArchive|TestSlowmode|TestChannelPostingRulesAPI)$' -count=1 -timeout=15m -json"
+  ],
+  "fixture_correction": "The initial combined store run passed the existing post/thread suites but failed the new reply fixture because it lacked a channel. After creating a real channel, the new regression and thread suite passed. An initial benchmark seed also needed explicit bigint casts for timestamp parameters; the recorded successful benchmark uses those casts.",
+  "packaging": "Full branded packaging build not run.",
+  "patch_check": {
+    "command": "just check",
+    "status": "passed",
+    "patches": 39,
+    "existing_patches_modified": 0
+  }
+}
