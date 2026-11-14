@@ -1,0 +1,1561 @@
+{
+  "status": "passed",
+  "method": "Real App.PreparePostForClientWithEmbedsAndImages with full test SQL store/cache setup. Original file.go through Go overlay versus dispatch only for files needing a mini-preview. Text files and PNG FileInfo rows with an existing JPEG mini-preview; zero/one/ten files, warm cached reads and master reads selected by IsNewPost. Both baseline post-metadata passes remain unchanged. Timed loops include app/store/driver work but exclude HTTP, upload bytes, image decoding and remote link fetching. Three alternating-order paired processes by default.",
+  "baseline_workspace_sha": "c9dbbcc480b242f7349cb7f4e9dcb6ea35cf6404",
+  "current_workspace_sha": "92497fe1ccf91a7a3dc43a27aa0284244e0f9e06",
+  "source_sha256": {
+    "before": "ea8956a7546b0b1dd4713732341b3091124c3c101a965430c03ebdf983f96da3",
+    "after": "f3144ac0cf07be69dc466c1c5e63254e73fe41eddd297e0cd5c74ff4898218ac",
+    "benchmark_test": "7df31c1fe14b440855481b9c7ea84f0632b2edde7920a3e2ba209c1cd18a0302"
+  },
+  "environment": {
+    "platform": "Linux-6.18.55-cachyos-x86_64-with-glibc2.44",
+    "go": "go version go1.26.10 linux/amd64",
+    "cpu": "13th Gen Intel(R) Core(TM) i7-1355U"
+  },
+  "settings": {
+    "trials": 5,
+    "iterations": 2000
+  },
+  "unchanged_post_metadata_sha256": "7c1df926962309717a8bbb013c12f9bd18ca1882da213f4346ae370be66340b7",
+  "samples": [
+    {
+      "trial": 0,
+      "variant": "before",
+      "benchmarks": [
+        {
+          "kind": "text",
+          "files": 0,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 1542.0,
+          "bytes_per_op": 1296.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=0/warm-12         \t    2000\t      1542 ns/op\t    1296 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 0,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 1534.0,
+          "bytes_per_op": 1296.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=0/master-12       \t    2000\t      1534 ns/op\t    1296 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 1,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 8592.0,
+          "bytes_per_op": 2640.0,
+          "allocations_per_op": 63.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=1/warm-12         \t    2000\t      8592 ns/op\t    2640 B/op\t      63 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 1,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 1232969.0,
+          "bytes_per_op": 72137.0,
+          "allocations_per_op": 921.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=1/master-12       \t    2000\t   1232969 ns/op\t   72137 B/op\t     921 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 10,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 42606.0,
+          "bytes_per_op": 15401.0,
+          "allocations_per_op": 325.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=10/warm-12        \t    2000\t     42606 ns/op\t   15401 B/op\t     325 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 10,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 1263829.0,
+          "bytes_per_op": 118695.0,
+          "allocations_per_op": 1427.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=10/master-12      \t    2000\t   1263829 ns/op\t  118695 B/op\t    1427 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 0,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 2504.0,
+          "bytes_per_op": 1296.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=0/warm-12  \t    2000\t      2504 ns/op\t    1296 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 0,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 2207.0,
+          "bytes_per_op": 1296.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=0/master-12         \t    2000\t      2207 ns/op\t    1296 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 1,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 10659.0,
+          "bytes_per_op": 3986.0,
+          "allocations_per_op": 67.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=1/warm-12           \t    2000\t     10659 ns/op\t    3986 B/op\t      67 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 1,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 1073879.0,
+          "bytes_per_op": 75266.0,
+          "allocations_per_op": 929.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=1/master-12         \t    2000\t   1073879 ns/op\t   75266 B/op\t     929 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 10,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 47815.0,
+          "bytes_per_op": 28674.0,
+          "allocations_per_op": 365.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=10/warm-12          \t    2000\t     47815 ns/op\t   28674 B/op\t     365 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 10,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 1225582.0,
+          "bytes_per_op": 150479.0,
+          "allocations_per_op": 1507.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=10/master-12        \t    2000\t   1225582 ns/op\t  150479 B/op\t    1507 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "benchmarks": [
+        {
+          "kind": "text",
+          "files": 0,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 1551.0,
+          "bytes_per_op": 1296.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=0/warm-12         \t    2000\t      1551 ns/op\t    1296 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 0,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 2493.0,
+          "bytes_per_op": 1296.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=0/master-12       \t    2000\t      2493 ns/op\t    1296 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 1,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 5390.0,
+          "bytes_per_op": 2464.0,
+          "allocations_per_op": 57.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=1/warm-12         \t    2000\t      5390 ns/op\t    2464 B/op\t      57 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 1,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 1261175.0,
+          "bytes_per_op": 71936.0,
+          "allocations_per_op": 915.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=1/master-12       \t    2000\t   1261175 ns/op\t   71936 B/op\t     915 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 10,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 32728.0,
+          "bytes_per_op": 13840.0,
+          "allocations_per_op": 283.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=10/warm-12        \t    2000\t     32728 ns/op\t   13840 B/op\t     283 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 10,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 1178384.0,
+          "bytes_per_op": 117216.0,
+          "allocations_per_op": 1385.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=10/master-12      \t    2000\t   1178384 ns/op\t  117216 B/op\t    1385 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 0,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 2296.0,
+          "bytes_per_op": 1296.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=0/warm-12  \t    2000\t      2296 ns/op\t    1296 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 0,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 2530.0,
+          "bytes_per_op": 1296.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=0/master-12         \t    2000\t      2530 ns/op\t    1296 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 1,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 6351.0,
+          "bytes_per_op": 3792.0,
+          "allocations_per_op": 61.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=1/warm-12           \t    2000\t      6351 ns/op\t    3792 B/op\t      61 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 1,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 1081515.0,
+          "bytes_per_op": 75140.0,
+          "allocations_per_op": 923.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=1/master-12         \t    2000\t   1081515 ns/op\t   75140 B/op\t     923 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 10,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 39779.0,
+          "bytes_per_op": 27120.0,
+          "allocations_per_op": 323.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=10/warm-12          \t    2000\t     39779 ns/op\t   27120 B/op\t     323 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 10,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 1203507.0,
+          "bytes_per_op": 148916.0,
+          "allocations_per_op": 1465.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=10/master-12        \t    2000\t   1203507 ns/op\t  148916 B/op\t    1465 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "benchmarks": [
+        {
+          "kind": "text",
+          "files": 0,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 2534.0,
+          "bytes_per_op": 1296.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=0/warm-12         \t    2000\t      2534 ns/op\t    1296 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 0,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 2282.0,
+          "bytes_per_op": 1296.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=0/master-12       \t    2000\t      2282 ns/op\t    1296 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 1,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 8861.0,
+          "bytes_per_op": 2464.0,
+          "allocations_per_op": 57.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=1/warm-12         \t    2000\t      8861 ns/op\t    2464 B/op\t      57 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 1,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 1164640.0,
+          "bytes_per_op": 71972.0,
+          "allocations_per_op": 915.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=1/master-12       \t    2000\t   1164640 ns/op\t   71972 B/op\t     915 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 10,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 30037.0,
+          "bytes_per_op": 13840.0,
+          "allocations_per_op": 283.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=10/warm-12        \t    2000\t     30037 ns/op\t   13840 B/op\t     283 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 10,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 1112741.0,
+          "bytes_per_op": 117284.0,
+          "allocations_per_op": 1385.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=10/master-12      \t    2000\t   1112741 ns/op\t  117284 B/op\t    1385 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 0,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 1540.0,
+          "bytes_per_op": 1296.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=0/warm-12  \t    2000\t      1540 ns/op\t    1296 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 0,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 2412.0,
+          "bytes_per_op": 1296.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=0/master-12         \t    2000\t      2412 ns/op\t    1296 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 1,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 7271.0,
+          "bytes_per_op": 3792.0,
+          "allocations_per_op": 61.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=1/warm-12           \t    2000\t      7271 ns/op\t    3792 B/op\t      61 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 1,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 1041560.0,
+          "bytes_per_op": 75163.0,
+          "allocations_per_op": 923.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=1/master-12         \t    2000\t   1041560 ns/op\t   75163 B/op\t     923 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 10,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 38218.0,
+          "bytes_per_op": 27120.0,
+          "allocations_per_op": 323.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=10/warm-12          \t    2000\t     38218 ns/op\t   27120 B/op\t     323 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 10,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 1128153.0,
+          "bytes_per_op": 148824.0,
+          "allocations_per_op": 1465.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=10/master-12        \t    2000\t   1128153 ns/op\t  148824 B/op\t    1465 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "benchmarks": [
+        {
+          "kind": "text",
+          "files": 0,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 2516.0,
+          "bytes_per_op": 1296.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=0/warm-12         \t    2000\t      2516 ns/op\t    1296 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 0,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 2400.0,
+          "bytes_per_op": 1296.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=0/master-12       \t    2000\t      2400 ns/op\t    1296 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 1,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 6561.0,
+          "bytes_per_op": 2640.0,
+          "allocations_per_op": 63.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=1/warm-12         \t    2000\t      6561 ns/op\t    2640 B/op\t      63 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 1,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 1179496.0,
+          "bytes_per_op": 72214.0,
+          "allocations_per_op": 921.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=1/master-12       \t    2000\t   1179496 ns/op\t   72214 B/op\t     921 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 10,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 44471.0,
+          "bytes_per_op": 15399.0,
+          "allocations_per_op": 325.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=10/warm-12        \t    2000\t     44471 ns/op\t   15399 B/op\t     325 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 10,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 1112023.0,
+          "bytes_per_op": 118695.0,
+          "allocations_per_op": 1427.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=10/master-12      \t    2000\t   1112023 ns/op\t  118695 B/op\t    1427 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 0,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 2473.0,
+          "bytes_per_op": 1296.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=0/warm-12  \t    2000\t      2473 ns/op\t    1296 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 0,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 1527.0,
+          "bytes_per_op": 1296.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=0/master-12         \t    2000\t      1527 ns/op\t    1296 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 1,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 11340.0,
+          "bytes_per_op": 3986.0,
+          "allocations_per_op": 67.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=1/warm-12           \t    2000\t     11340 ns/op\t    3986 B/op\t      67 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 1,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 1087346.0,
+          "bytes_per_op": 75280.0,
+          "allocations_per_op": 929.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=1/master-12         \t    2000\t   1087346 ns/op\t   75280 B/op\t     929 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 10,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 48005.0,
+          "bytes_per_op": 28671.0,
+          "allocations_per_op": 365.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=10/warm-12          \t    2000\t     48005 ns/op\t   28671 B/op\t     365 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 10,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 1091614.0,
+          "bytes_per_op": 150441.0,
+          "allocations_per_op": 1507.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=10/master-12        \t    2000\t   1091614 ns/op\t  150441 B/op\t    1507 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "benchmarks": [
+        {
+          "kind": "text",
+          "files": 0,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 1887.0,
+          "bytes_per_op": 1296.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=0/warm-12         \t    2000\t      1887 ns/op\t    1296 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 0,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 1545.0,
+          "bytes_per_op": 1296.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=0/master-12       \t    2000\t      1545 ns/op\t    1296 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 1,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 7840.0,
+          "bytes_per_op": 2658.0,
+          "allocations_per_op": 63.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=1/warm-12         \t    2000\t      7840 ns/op\t    2658 B/op\t      63 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 1,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 1216474.0,
+          "bytes_per_op": 72206.0,
+          "allocations_per_op": 921.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=1/master-12       \t    2000\t   1216474 ns/op\t   72206 B/op\t     921 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 10,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 41407.0,
+          "bytes_per_op": 15398.0,
+          "allocations_per_op": 325.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=10/warm-12        \t    2000\t     41407 ns/op\t   15398 B/op\t     325 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 10,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 1180263.0,
+          "bytes_per_op": 118585.0,
+          "allocations_per_op": 1427.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=10/master-12      \t    2000\t   1180263 ns/op\t  118585 B/op\t    1427 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 0,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 2498.0,
+          "bytes_per_op": 1296.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=0/warm-12  \t    2000\t      2498 ns/op\t    1296 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 0,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 2226.0,
+          "bytes_per_op": 1296.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=0/master-12         \t    2000\t      2226 ns/op\t    1296 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 1,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 9862.0,
+          "bytes_per_op": 3986.0,
+          "allocations_per_op": 67.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=1/warm-12           \t    2000\t      9862 ns/op\t    3986 B/op\t      67 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 1,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 1012488.0,
+          "bytes_per_op": 75312.0,
+          "allocations_per_op": 929.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=1/master-12         \t    2000\t   1012488 ns/op\t   75312 B/op\t     929 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 10,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 48553.0,
+          "bytes_per_op": 28678.0,
+          "allocations_per_op": 365.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=10/warm-12          \t    2000\t     48553 ns/op\t   28678 B/op\t     365 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 10,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 1197667.0,
+          "bytes_per_op": 150462.0,
+          "allocations_per_op": 1507.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=10/master-12        \t    2000\t   1197667 ns/op\t  150462 B/op\t    1507 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "benchmarks": [
+        {
+          "kind": "text",
+          "files": 0,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 2541.0,
+          "bytes_per_op": 1296.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=0/warm-12         \t    2000\t      2541 ns/op\t    1296 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 0,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 2473.0,
+          "bytes_per_op": 1296.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=0/master-12       \t    2000\t      2473 ns/op\t    1296 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 1,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 4495.0,
+          "bytes_per_op": 2464.0,
+          "allocations_per_op": 57.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=1/warm-12         \t    2000\t      4495 ns/op\t    2464 B/op\t      57 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 1,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 984087.0,
+          "bytes_per_op": 71948.0,
+          "allocations_per_op": 915.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=1/master-12       \t    2000\t    984087 ns/op\t   71948 B/op\t     915 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 10,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 30587.0,
+          "bytes_per_op": 13840.0,
+          "allocations_per_op": 283.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=10/warm-12        \t    2000\t     30587 ns/op\t   13840 B/op\t     283 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 10,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 1050846.0,
+          "bytes_per_op": 117107.0,
+          "allocations_per_op": 1385.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=10/master-12      \t    2000\t   1050846 ns/op\t  117107 B/op\t    1385 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 0,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 2302.0,
+          "bytes_per_op": 1296.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=0/warm-12  \t    2000\t      2302 ns/op\t    1296 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 0,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 2575.0,
+          "bytes_per_op": 1296.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=0/master-12         \t    2000\t      2575 ns/op\t    1296 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 1,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 5432.0,
+          "bytes_per_op": 3792.0,
+          "allocations_per_op": 61.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=1/warm-12           \t    2000\t      5432 ns/op\t    3792 B/op\t      61 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 1,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 970958.0,
+          "bytes_per_op": 75164.0,
+          "allocations_per_op": 923.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=1/master-12         \t    2000\t    970958 ns/op\t   75164 B/op\t     923 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 10,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 37876.0,
+          "bytes_per_op": 27120.0,
+          "allocations_per_op": 323.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=10/warm-12          \t    2000\t     37876 ns/op\t   27120 B/op\t     323 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 10,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 1128649.0,
+          "bytes_per_op": 148780.0,
+          "allocations_per_op": 1465.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=10/master-12        \t    2000\t   1128649 ns/op\t  148780 B/op\t    1465 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 3,
+      "variant": "after",
+      "benchmarks": [
+        {
+          "kind": "text",
+          "files": 0,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 1536.0,
+          "bytes_per_op": 1296.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=0/warm-12         \t    2000\t      1536 ns/op\t    1296 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 0,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 2251.0,
+          "bytes_per_op": 1296.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=0/master-12       \t    2000\t      2251 ns/op\t    1296 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 1,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 5089.0,
+          "bytes_per_op": 2464.0,
+          "allocations_per_op": 57.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=1/warm-12         \t    2000\t      5089 ns/op\t    2464 B/op\t      57 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 1,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 978609.0,
+          "bytes_per_op": 71968.0,
+          "allocations_per_op": 915.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=1/master-12       \t    2000\t    978609 ns/op\t   71968 B/op\t     915 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 10,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 32993.0,
+          "bytes_per_op": 13840.0,
+          "allocations_per_op": 283.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=10/warm-12        \t    2000\t     32993 ns/op\t   13840 B/op\t     283 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 10,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 1026075.0,
+          "bytes_per_op": 117237.0,
+          "allocations_per_op": 1385.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=10/master-12      \t    2000\t   1026075 ns/op\t  117237 B/op\t    1385 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 0,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 2482.0,
+          "bytes_per_op": 1296.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=0/warm-12  \t    2000\t      2482 ns/op\t    1296 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 0,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 1489.0,
+          "bytes_per_op": 1296.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=0/master-12         \t    2000\t      1489 ns/op\t    1296 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 1,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 9673.0,
+          "bytes_per_op": 3792.0,
+          "allocations_per_op": 61.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=1/warm-12           \t    2000\t      9673 ns/op\t    3792 B/op\t      61 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 1,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 992795.0,
+          "bytes_per_op": 75140.0,
+          "allocations_per_op": 923.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=1/master-12         \t    2000\t    992795 ns/op\t   75140 B/op\t     923 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 10,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 37622.0,
+          "bytes_per_op": 27120.0,
+          "allocations_per_op": 323.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=10/warm-12          \t    2000\t     37622 ns/op\t   27120 B/op\t     323 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 10,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 1105299.0,
+          "bytes_per_op": 148849.0,
+          "allocations_per_op": 1465.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=10/master-12        \t    2000\t   1105299 ns/op\t  148849 B/op\t    1465 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 3,
+      "variant": "before",
+      "benchmarks": [
+        {
+          "kind": "text",
+          "files": 0,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 1552.0,
+          "bytes_per_op": 1296.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=0/warm-12         \t    2000\t      1552 ns/op\t    1296 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 0,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 1870.0,
+          "bytes_per_op": 1296.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=0/master-12       \t    2000\t      1870 ns/op\t    1296 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 1,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 7382.0,
+          "bytes_per_op": 2658.0,
+          "allocations_per_op": 63.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=1/warm-12         \t    2000\t      7382 ns/op\t    2658 B/op\t      63 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 1,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 1048773.0,
+          "bytes_per_op": 72149.0,
+          "allocations_per_op": 921.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=1/master-12       \t    2000\t   1048773 ns/op\t   72149 B/op\t     921 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 10,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 42601.0,
+          "bytes_per_op": 15400.0,
+          "allocations_per_op": 325.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=10/warm-12        \t    2000\t     42601 ns/op\t   15400 B/op\t     325 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 10,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 1308130.0,
+          "bytes_per_op": 118680.0,
+          "allocations_per_op": 1427.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=10/master-12      \t    2000\t   1308130 ns/op\t  118680 B/op\t    1427 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 0,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 2087.0,
+          "bytes_per_op": 1296.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=0/warm-12  \t    2000\t      2087 ns/op\t    1296 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 0,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 3308.0,
+          "bytes_per_op": 1296.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=0/master-12         \t    2000\t      3308 ns/op\t    1296 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 1,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 13672.0,
+          "bytes_per_op": 3986.0,
+          "allocations_per_op": 67.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=1/warm-12           \t    2000\t     13672 ns/op\t    3986 B/op\t      67 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 1,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 1315850.0,
+          "bytes_per_op": 75357.0,
+          "allocations_per_op": 929.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=1/master-12         \t    2000\t   1315850 ns/op\t   75357 B/op\t     929 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 10,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 62872.0,
+          "bytes_per_op": 28685.0,
+          "allocations_per_op": 365.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=10/warm-12          \t    2000\t     62872 ns/op\t   28685 B/op\t     365 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 10,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 1649772.0,
+          "bytes_per_op": 150509.0,
+          "allocations_per_op": 1507.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=10/master-12        \t    2000\t   1649772 ns/op\t  150509 B/op\t    1507 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 4,
+      "variant": "before",
+      "benchmarks": [
+        {
+          "kind": "text",
+          "files": 0,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 1506.0,
+          "bytes_per_op": 1296.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=0/warm-12         \t    2000\t      1506 ns/op\t    1296 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 0,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 1518.0,
+          "bytes_per_op": 1296.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=0/master-12       \t    2000\t      1518 ns/op\t    1296 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 1,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 6701.0,
+          "bytes_per_op": 2640.0,
+          "allocations_per_op": 63.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=1/warm-12         \t    2000\t      6701 ns/op\t    2640 B/op\t      63 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 1,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 1056895.0,
+          "bytes_per_op": 72163.0,
+          "allocations_per_op": 921.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=1/master-12       \t    2000\t   1056895 ns/op\t   72163 B/op\t     921 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 10,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 54240.0,
+          "bytes_per_op": 15395.0,
+          "allocations_per_op": 325.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=10/warm-12        \t    2000\t     54240 ns/op\t   15395 B/op\t     325 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 10,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 1459315.0,
+          "bytes_per_op": 118686.0,
+          "allocations_per_op": 1427.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=10/master-12      \t    2000\t   1459315 ns/op\t  118686 B/op\t    1427 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 0,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 2374.0,
+          "bytes_per_op": 1296.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=0/warm-12  \t    2000\t      2374 ns/op\t    1296 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 0,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 2785.0,
+          "bytes_per_op": 1296.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=0/master-12         \t    2000\t      2785 ns/op\t    1296 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 1,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 12208.0,
+          "bytes_per_op": 3986.0,
+          "allocations_per_op": 67.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=1/warm-12           \t    2000\t     12208 ns/op\t    3986 B/op\t      67 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 1,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 1305804.0,
+          "bytes_per_op": 75355.0,
+          "allocations_per_op": 929.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=1/master-12         \t    2000\t   1305804 ns/op\t   75355 B/op\t     929 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 10,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 64007.0,
+          "bytes_per_op": 28694.0,
+          "allocations_per_op": 365.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=10/warm-12          \t    2000\t     64007 ns/op\t   28694 B/op\t     365 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 10,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 1614538.0,
+          "bytes_per_op": 150576.0,
+          "allocations_per_op": 1507.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=10/master-12        \t    2000\t   1614538 ns/op\t  150576 B/op\t    1507 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 4,
+      "variant": "after",
+      "benchmarks": [
+        {
+          "kind": "text",
+          "files": 0,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 2508.0,
+          "bytes_per_op": 1296.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=0/warm-12         \t    2000\t      2508 ns/op\t    1296 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 0,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 1516.0,
+          "bytes_per_op": 1296.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=0/master-12       \t    2000\t      1516 ns/op\t    1296 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 1,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 4672.0,
+          "bytes_per_op": 2464.0,
+          "allocations_per_op": 57.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=1/warm-12         \t    2000\t      4672 ns/op\t    2464 B/op\t      57 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 1,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 1023307.0,
+          "bytes_per_op": 72040.0,
+          "allocations_per_op": 915.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=1/master-12       \t    2000\t   1023307 ns/op\t   72040 B/op\t     915 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 10,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 30124.0,
+          "bytes_per_op": 13840.0,
+          "allocations_per_op": 283.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=10/warm-12        \t    2000\t     30124 ns/op\t   13840 B/op\t     283 allocs/op"
+        },
+        {
+          "kind": "text",
+          "files": 10,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 1333140.0,
+          "bytes_per_op": 117180.0,
+          "allocations_per_op": 1385.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/text/files=10/master-12      \t    2000\t   1333140 ns/op\t  117180 B/op\t    1385 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 0,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 2434.0,
+          "bytes_per_op": 1296.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=0/warm-12  \t    2000\t      2434 ns/op\t    1296 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 0,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 2339.0,
+          "bytes_per_op": 1296.0,
+          "allocations_per_op": 29.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=0/master-12         \t    2000\t      2339 ns/op\t    1296 B/op\t      29 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 1,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 6486.0,
+          "bytes_per_op": 3792.0,
+          "allocations_per_op": 61.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=1/warm-12           \t    2000\t      6486 ns/op\t    3792 B/op\t      61 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 1,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 1042639.0,
+          "bytes_per_op": 75165.0,
+          "allocations_per_op": 923.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=1/master-12         \t    2000\t   1042639 ns/op\t   75165 B/op\t     923 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 10,
+          "mode": "warm",
+          "iterations": 2000,
+          "ns_per_op": 38744.0,
+          "bytes_per_op": 27120.0,
+          "allocations_per_op": 323.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=10/warm-12          \t    2000\t     38744 ns/op\t   27120 B/op\t     323 allocs/op"
+        },
+        {
+          "kind": "ready_image",
+          "files": 10,
+          "mode": "master",
+          "iterations": 2000,
+          "ns_per_op": 1250548.0,
+          "bytes_per_op": 148940.0,
+          "allocations_per_op": 1465.0,
+          "raw": "BenchmarkMiniPreviewPostPreparation/ready_image/files=10/master-12        \t    2000\t   1250548 ns/op\t  148940 B/op\t    1465 allocs/op"
+        }
+      ]
+    }
+  ],
+  "summary": [
+    {
+      "kind": "text",
+      "files": 0,
+      "mode": "warm",
+      "before": {
+        "ns_per_op": 1552.0,
+        "bytes_per_op": 1296.0,
+        "allocations_per_op": 29.0,
+        "ns_per_op_range": [
+          1506.0,
+          2516.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 2508.0,
+        "bytes_per_op": 1296.0,
+        "allocations_per_op": 29.0,
+        "ns_per_op_range": [
+          1536.0,
+          2541.0
+        ]
+      }
+    },
+    {
+      "kind": "text",
+      "files": 0,
+      "mode": "master",
+      "before": {
+        "ns_per_op": 1545.0,
+        "bytes_per_op": 1296.0,
+        "allocations_per_op": 29.0,
+        "ns_per_op_range": [
+          1518.0,
+          2400.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 2282.0,
+        "bytes_per_op": 1296.0,
+        "allocations_per_op": 29.0,
+        "ns_per_op_range": [
+          1516.0,
+          2493.0
+        ]
+      }
+    },
+    {
+      "kind": "text",
+      "files": 1,
+      "mode": "warm",
+      "before": {
+        "ns_per_op": 7382.0,
+        "bytes_per_op": 2640.0,
+        "allocations_per_op": 63.0,
+        "ns_per_op_range": [
+          6561.0,
+          8592.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 5089.0,
+        "bytes_per_op": 2464.0,
+        "allocations_per_op": 57.0,
+        "ns_per_op_range": [
+          4495.0,
+          8861.0
+        ]
+      }
+    },
+    {
+      "kind": "text",
+      "files": 1,
+      "mode": "master",
+      "before": {
+        "ns_per_op": 1179496.0,
+        "bytes_per_op": 72163.0,
+        "allocations_per_op": 921.0,
+        "ns_per_op_range": [
+          1048773.0,
+          1232969.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 1023307.0,
+        "bytes_per_op": 71968.0,
+        "allocations_per_op": 915.0,
+        "ns_per_op_range": [
+          978609.0,
+          1261175.0
+        ]
+      }
+    },
+    {
+      "kind": "text",
+      "files": 10,
+      "mode": "warm",
+      "before": {
+        "ns_per_op": 42606.0,
+        "bytes_per_op": 15399.0,
+        "allocations_per_op": 325.0,
+        "ns_per_op_range": [
+          41407.0,
+          54240.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 30587.0,
+        "bytes_per_op": 13840.0,
+        "allocations_per_op": 283.0,
+        "ns_per_op_range": [
+          30037.0,
+          32993.0
+        ]
+      }
+    },
+    {
+      "kind": "text",
+      "files": 10,
+      "mode": "master",
+      "before": {
+        "ns_per_op": 1263829.0,
+        "bytes_per_op": 118686.0,
+        "allocations_per_op": 1427.0,
+        "ns_per_op_range": [
+          1112023.0,
+          1459315.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 1112741.0,
+        "bytes_per_op": 117216.0,
+        "allocations_per_op": 1385.0,
+        "ns_per_op_range": [
+          1026075.0,
+          1333140.0
+        ]
+      }
+    },
+    {
+      "kind": "ready_image",
+      "files": 0,
+      "mode": "warm",
+      "before": {
+        "ns_per_op": 2473.0,
+        "bytes_per_op": 1296.0,
+        "allocations_per_op": 29.0,
+        "ns_per_op_range": [
+          2087.0,
+          2504.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 2302.0,
+        "bytes_per_op": 1296.0,
+        "allocations_per_op": 29.0,
+        "ns_per_op_range": [
+          1540.0,
+          2482.0
+        ]
+      }
+    },
+    {
+      "kind": "ready_image",
+      "files": 0,
+      "mode": "master",
+      "before": {
+        "ns_per_op": 2226.0,
+        "bytes_per_op": 1296.0,
+        "allocations_per_op": 29.0,
+        "ns_per_op_range": [
+          1527.0,
+          3308.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 2412.0,
+        "bytes_per_op": 1296.0,
+        "allocations_per_op": 29.0,
+        "ns_per_op_range": [
+          1489.0,
+          2575.0
+        ]
+      }
+    },
+    {
+      "kind": "ready_image",
+      "files": 1,
+      "mode": "warm",
+      "before": {
+        "ns_per_op": 11340.0,
+        "bytes_per_op": 3986.0,
+        "allocations_per_op": 67.0,
+        "ns_per_op_range": [
+          9862.0,
+          13672.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 6486.0,
+        "bytes_per_op": 3792.0,
+        "allocations_per_op": 61.0,
+        "ns_per_op_range": [
+          5432.0,
+          9673.0
+        ]
+      }
+    },
+    {
+      "kind": "ready_image",
+      "files": 1,
+      "mode": "master",
+      "before": {
+        "ns_per_op": 1087346.0,
+        "bytes_per_op": 75312.0,
+        "allocations_per_op": 929.0,
+        "ns_per_op_range": [
+          1012488.0,
+          1315850.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 1041560.0,
+        "bytes_per_op": 75163.0,
+        "allocations_per_op": 923.0,
+        "ns_per_op_range": [
+          970958.0,
+          1081515.0
+        ]
+      }
+    },
+    {
+      "kind": "ready_image",
+      "files": 10,
+      "mode": "warm",
+      "before": {
+        "ns_per_op": 48553.0,
+        "bytes_per_op": 28678.0,
+        "allocations_per_op": 365.0,
+        "ns_per_op_range": [
+          47815.0,
+          64007.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 38218.0,
+        "bytes_per_op": 27120.0,
+        "allocations_per_op": 323.0,
+        "ns_per_op_range": [
+          37622.0,
+          39779.0
+        ]
+      }
+    },
+    {
+      "kind": "ready_image",
+      "files": 10,
+      "mode": "master",
+      "before": {
+        "ns_per_op": 1225582.0,
+        "bytes_per_op": 150479.0,
+        "allocations_per_op": 1507.0,
+        "ns_per_op_range": [
+          1091614.0,
+          1649772.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 1128649.0,
+        "bytes_per_op": 148849.0,
+        "allocations_per_op": 1465.0,
+        "ns_per_op_range": [
+          1105299.0,
+          1250548.0
+        ]
+      }
+    }
+  ]
+}

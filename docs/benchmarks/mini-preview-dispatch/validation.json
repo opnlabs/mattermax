@@ -1,0 +1,43 @@
+{
+  "status": "passed",
+  "checks": [
+    {
+      "name": "mini-preview-app-race",
+      "status": "passed",
+      "command": "go test -race ./channels/app -run '^(TestMiniPreviewDispatch|TestGetDraftsForUser|TestUploadFile|TestDoUploadFile)$' -count=1 -timeout=15m -json",
+      "counts": {
+        "pass": 8,
+        "fail": 0,
+        "skip": 0
+      }
+    },
+    {
+      "name": "mini-preview-api-race",
+      "status": "passed",
+      "command": "go test -race ./channels/api4 -run '^(TestGetFileInfosForPost|TestGetFileInfo|TestGetDraftsWithholdsThumbnailWhenPolicyDenies|TestGetScheduledPostsWithholdsThumbnailWhenPolicyDenies)$' -count=1 -timeout=15m -json",
+      "counts": {
+        "pass": 4,
+        "fail": 0,
+        "skip": 0
+      }
+    },
+    {
+      "name": "mini-preview-baseline-functional",
+      "status": "passed",
+      "command": "go test -race -overlay /tmp/before-overlay.json ./channels/app -run '^TestMiniPreviewDispatch$' -count=1 -timeout=10m -json",
+      "counts": {
+        "pass": 1,
+        "fail": 0,
+        "skip": 0
+      }
+    }
+  ],
+  "baseline_control": "The same real-image batch/retry regression passed against the original file.go through a Go overlay.",
+  "packaging": "Full branded packaging build not run.",
+  "patch_check": {
+    "command": "just check",
+    "status": "passed",
+    "patches": 39,
+    "existing_patch_files_changed": 0
+  }
+}

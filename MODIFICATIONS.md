@@ -519,3 +519,14 @@ and channels keep their names. Gates removed: `createChannel` in
 `PluginAPI.CreateChannel` in `app/plugin_api.go`, the webapp selector
 `isAnonymousURLEnabled` that hides the URL editors, and the System Console
 toggle's Enterprise Advanced check.
+
+### mini-preview-dispatch.patch
+
+2026-11-14. Checks the existing mini-preview eligibility predicate before
+starting batch workers. Text files, SVGs and images with an existing preview
+skip worker creation and wait-group allocation. Pending raster previews still
+run concurrently, and dispatch waits for completion; failed reads remain
+eligible for later retries. Adds a real-image regression and paired app
+benchmarks, with cached gains and unproven master-read latency gains documented.
+Existing feature patches and author credit remain unchanged.
+[Measured results](docs/benchmarks/mini-preview-dispatch/README.md).

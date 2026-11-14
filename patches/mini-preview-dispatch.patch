@@ -1,0 +1,223 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: rhnvrm <hello@rohanverma.net>
+Date: Sat, 14 Nov 2026 12:50:42 +0530
+Subject: [PATCH] perf: skip preview dispatch for completed attachments
+
+Use the existing preview eligibility predicate before starting workers and allocate the wait group only when work is needed. Keep pending raster previews concurrent and wait for persistence before returning. Retain SVG, existing-preview and failed-read behavior.
+
+Add a real-image batch/retry regression and real app preparation benchmarks. Existing Mattermax patches and original contributor attribution remain unchanged.
+
+Mattermax-Patch: mini-preview-dispatch.patch
+---
+ server/channels/app/file.go                   |  28 +++-
+ server/channels/app/file_mini_preview_test.go | 149 ++++++++++++++++++
+ 2 files changed, 169 insertions(+), 8 deletions(-)
+ create mode 100644 server/channels/app/file_mini_preview_test.go
+
+diff --git a/server/channels/app/file.go b/server/channels/app/file.go
+index 0c72bb5d6eb8..a8c8128ac45b 100644
+--- a/server/channels/app/file.go
++++ b/server/channels/app/file.go
+@@ -1250,10 +1250,15 @@ func (a *App) generatePreviewImage(rctx request.CTX, img image.Image, imgType, p
+ 	}
+ }
+ 
++// needsMiniPreview is shared by single-file generation and batch dispatch.
++func needsMiniPreview(fi *model.FileInfo) bool {
++	return fi.IsImage() && !fi.IsSvg() && fi.MiniPreview == nil
++}
++
+ // generateMiniPreview updates mini preview if needed
+ // will save fileinfo with the preview added
+ func (a *App) generateMiniPreview(rctx request.CTX, fi *model.FileInfo) {
+-	if fi.IsImage() && !fi.IsSvg() && fi.MiniPreview == nil {
++	if needsMiniPreview(fi) {
+ 		file, appErr := a.FileReader(fi.Path)
+ 		if appErr != nil {
+ 			rctx.Logger().Debug("Error reading image file", mlog.Err(appErr))
+@@ -1284,16 +1289,23 @@ func (a *App) generateMiniPreview(rctx request.CTX, fi *model.FileInfo) {
+ }
+ 
+ func (a *App) generateMiniPreviewForInfos(rctx request.CTX, fileInfos []*model.FileInfo) {
+-	wg := new(sync.WaitGroup)
+-
+-	wg.Add(len(fileInfos))
++	var wg *sync.WaitGroup
+ 	for _, fileInfo := range fileInfos {
+-		go func(fi *model.FileInfo) {
+-			defer wg.Done()
++		if !needsMiniPreview(fileInfo) {
++			continue
++		}
++		if wg == nil {
++			wg = new(sync.WaitGroup)
++		}
++		wg.Add(1)
++		go func(fi *model.FileInfo, group *sync.WaitGroup) {
++			defer group.Done()
+ 			a.generateMiniPreview(rctx, fi)
+-		}(fileInfo)
++		}(fileInfo, wg)
++	}
++	if wg != nil {
++		wg.Wait()
+ 	}
+-	wg.Wait()
+ }
+ 
+ func (s *Server) getFileInfo(fileID string) (*model.FileInfo, *model.AppError) {
+diff --git a/server/channels/app/file_mini_preview_test.go b/server/channels/app/file_mini_preview_test.go
+new file mode 100644
+index 000000000000..fb1fe8594040
+--- /dev/null
++++ b/server/channels/app/file_mini_preview_test.go
+@@ -0,0 +1,149 @@
++// Copyright (c) 2026-present the Mattermax authors.
++// See LICENSE.txt for license information.
++
++package app
++
++import (
++	"bytes"
++	"fmt"
++	"image"
++	"image/jpeg"
++	"image/png"
++	"testing"
++
++	"github.com/stretchr/testify/require"
++
++	"github.com/mattermost/mattermost/server/public/model"
++)
++
++func TestMiniPreviewDispatch(t *testing.T) {
++	th := Setup(t)
++	var encoded bytes.Buffer
++	require.NoError(t, png.Encode(&encoded, image.NewRGBA(image.Rect(0, 0, 8, 8))))
++	prefix := "mini-preview/" + model.NewId() + "/"
++	// A second pending image is made readable only after the first call, proving
++	// failed preview attempts remain eligible on a later request.
++	makePending := func(name string, write bool) *model.FileInfo {
++		t.Helper()
++		path := prefix + name
++		if write {
++			_, err := th.App.WriteFile(bytes.NewReader(encoded.Bytes()), path)
++			require.Nil(t, err)
++		}
++		info, err := th.App.Srv().Store().FileInfo().Save(th.Context, &model.FileInfo{CreatorId: model.NewId(), PostId: model.NewId(), Name: name, Path: path, MimeType: "image/png", Width: 8, Height: 8})
++		require.NoError(t, err)
++		return info
++	}
++	first := makePending("first.png", true)
++	second := makePending("second.png", true)
++	retry := makePending("retry.png", false)
++	preview := []byte("existing preview")
++	text := &model.FileInfo{Id: model.NewId(), Name: "note.txt", MimeType: "text/plain"}
++	svg := &model.FileInfo{Id: model.NewId(), Name: "drawing.svg", MimeType: "image/svg+xml"}
++	ready := &model.FileInfo{Id: model.NewId(), Name: "ready.png", MimeType: "image/png", MiniPreview: &preview}
++	originalText, originalSVG, originalReady := *text, *svg, *ready
++	infos := []*model.FileInfo{text, first, svg, ready, second, retry}
++	originalOrder := append([]*model.FileInfo(nil), infos...)
++	th.App.generateMiniPreviewForInfos(th.Context, infos)
++	require.Equal(t, originalOrder, infos, "dispatch must not reorder or replace caller entries")
++	require.Equal(t, originalText, *text)
++	require.Equal(t, originalSVG, *svg)
++	require.Equal(t, originalReady, *ready)
++	for _, info := range []*model.FileInfo{first, second} {
++		require.NotNil(t, info.MiniPreview, "pending images must finish before dispatch returns")
++		require.NotEmpty(t, *info.MiniPreview)
++		persisted, err := th.SQLStore.FileInfo().Get(info.Id)
++		require.NoError(t, err)
++		require.Equal(t, info.MiniPreview, persisted.MiniPreview, "preview writes must be complete before return")
++	}
++	require.Nil(t, retry.MiniPreview)
++	_, appErr := th.App.WriteFile(bytes.NewReader(encoded.Bytes()), retry.Path)
++	require.Nil(t, appErr)
++	th.App.generateMiniPreviewForInfos(th.Context, infos)
++	require.NotNil(t, retry.MiniPreview)
++	persisted, err := th.SQLStore.FileInfo().Get(retry.Id)
++	require.NoError(t, err)
++	require.Equal(t, retry.MiniPreview, persisted.MiniPreview)
++	// A completed batch and an empty batch preserve the input and do no extra work.
++	completed := append([]byte(nil), (*first.MiniPreview)...)
++	th.App.generateMiniPreviewForInfos(th.Context, infos)
++	require.Equal(t, completed, *first.MiniPreview)
++	th.App.generateMiniPreviewForInfos(th.Context, nil)
++}
++
++// BenchmarkMiniPreviewPostPreparation exercises real app preparation with text
++// files and image metadata whose mini-preview is already present. It excludes
++// image decoding, uploads, HTTP and remote links. Both existing metadata passes
++// stay enabled so this benchmark is independent of the metadata-reuse patch.
++func BenchmarkMiniPreviewPostPreparation(b *testing.B) {
++	th := Setup(b).InitBasic(b)
++	th.App.UpdateConfig(func(cfg *model.Config) { *cfg.ServiceSettings.EnableLinkPreviews = false })
++	var jpegBytes bytes.Buffer
++	if err := jpeg.Encode(&jpegBytes, image.NewRGBA(image.Rect(0, 0, 8, 8)), nil); err != nil {
++		b.Fatal(err)
++	}
++	preview := jpegBytes.Bytes()
++	for _, kind := range []string{"text", "ready_image"} {
++		b.Run(kind, func(b *testing.B) {
++			for _, files := range []int{0, 1, 10} {
++				b.Run(fmt.Sprintf("files=%d", files), func(b *testing.B) {
++					post, err := th.App.Srv().Store().Post().Save(th.Context, &model.Post{ChannelId: th.BasicChannel.Id, UserId: th.BasicUser.Id, Message: "attachment benchmark"})
++					if err != nil {
++						b.Fatal(err)
++					}
++					ids := make([]string, files)
++					for i := range ids {
++						fi := &model.FileInfo{CreatorId: th.BasicUser.Id, PostId: post.Id, Name: fmt.Sprintf("attachment-%d.txt", i), Path: fmt.Sprintf("benchmark/%s/%d", post.Id, i), MimeType: "text/plain"}
++						if kind == "ready_image" {
++							fi.Name = fmt.Sprintf("attachment-%d.png", i)
++							fi.MimeType = "image/png"
++							fi.MiniPreview = &preview
++							fi.Width = 8
++							fi.Height = 8
++						}
++						info, err := th.App.Srv().Store().FileInfo().Save(th.Context, fi)
++						if err != nil {
++							b.Fatal(err)
++						}
++						ids[i] = info.Id
++					}
++					updated := post.Clone()
++					updated.FileIds = ids
++					post, err = th.App.Srv().Store().Post().Update(th.Context, updated, post)
++					if err != nil {
++						b.Fatal(err)
++					}
++					for _, mode := range []string{"warm", "master"} {
++						b.Run(mode, func(b *testing.B) {
++							opts := &model.PreparePostForClientOpts{IsNewPost: mode == "master"}
++							check := func(p *model.Post) bool {
++								if p.Metadata == nil || len(p.Metadata.Files) != files {
++									return false
++								}
++								for i, info := range p.Metadata.Files {
++									if info.Id != ids[i] {
++										return false
++									}
++									if kind == "ready_image" && (info.MiniPreview == nil || !bytes.Equal(*info.MiniPreview, preview)) {
++										return false
++									}
++								}
++								return true
++							}
++							if !check(th.App.PreparePostForClientWithEmbedsAndImages(th.Context, post, opts)) {
++								b.Fatal("incorrect attachment preflight")
++							}
++							b.ReportAllocs()
++							b.ResetTimer()
++							for i := 0; i < b.N; i++ {
++								if !check(th.App.PreparePostForClientWithEmbedsAndImages(th.Context, post, opts)) {
++									b.Fatal("incorrect attachment metadata")
++								}
++							}
++						})
++					}
++				})
++			}
++		})
++	}
++}
