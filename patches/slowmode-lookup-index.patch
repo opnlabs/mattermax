@@ -1,0 +1,103 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: rhnvrm <hello@rohanverma.net>
+Date: Sat, 14 Nov 2026 10:47:07 +0530
+Subject: [PATCH] perf: index slowmode latest-post lookups
+
+Add a concurrent partial index matching channel, user, creation time and non-system type. Keep deleted posts eligible so deletion cannot reset the cooldown. Cover query semantics and migrated index readiness in the store suite.
+
+Builds on Karan Sharma (mr-karan) and the slowmode feature in opnlabs/mattermax#21. The original slowmode patch and its authorship remain unchanged.
+
+Mattermax-Patch: slowmode-lookup-index.patch
+---
+ server/channels/db/migrations/migrations.list |  2 +
+ ...0243_posts_channel_user_create_at.down.sql |  2 +
+ ...000243_posts_channel_user_create_at.up.sql |  4 ++
+ .../store/sqlstore/post_store_test.go         | 41 +++++++++++++++++++
+ 4 files changed, 49 insertions(+)
+ create mode 100644 server/channels/db/migrations/postgres/000243_posts_channel_user_create_at.down.sql
+ create mode 100644 server/channels/db/migrations/postgres/000243_posts_channel_user_create_at.up.sql
+
+diff --git a/server/channels/db/migrations/migrations.list b/server/channels/db/migrations/migrations.list
+index 0211a10afdd0..49567c6ecc7e 100644
+--- a/server/channels/db/migrations/migrations.list
++++ b/server/channels/db/migrations/migrations.list
+@@ -459,3 +459,5 @@ channels/db/migrations/postgres/000234_recreate_posts_message_txt_index.down.sql
+ channels/db/migrations/postgres/000234_recreate_posts_message_txt_index.up.sql
+ channels/db/migrations/postgres/000242_create_legacy_attribute_view.down.sql
+ channels/db/migrations/postgres/000242_create_legacy_attribute_view.up.sql
++channels/db/migrations/postgres/000243_posts_channel_user_create_at.down.sql
++channels/db/migrations/postgres/000243_posts_channel_user_create_at.up.sql
+diff --git a/server/channels/db/migrations/postgres/000243_posts_channel_user_create_at.down.sql b/server/channels/db/migrations/postgres/000243_posts_channel_user_create_at.down.sql
+new file mode 100644
+index 000000000000..a95c4c35612f
+--- /dev/null
++++ b/server/channels/db/migrations/postgres/000243_posts_channel_user_create_at.down.sql
+@@ -0,0 +1,2 @@
++-- morph:nontransactional
++DROP INDEX CONCURRENTLY IF EXISTS idx_posts_channel_user_create_at;
+diff --git a/server/channels/db/migrations/postgres/000243_posts_channel_user_create_at.up.sql b/server/channels/db/migrations/postgres/000243_posts_channel_user_create_at.up.sql
+new file mode 100644
+index 000000000000..a6cc9bb546ae
+--- /dev/null
++++ b/server/channels/db/migrations/postgres/000243_posts_channel_user_create_at.up.sql
+@@ -0,0 +1,4 @@
++-- morph:nontransactional
++CREATE INDEX CONCURRENTLY idx_posts_channel_user_create_at
++    ON posts (channelid, userid, createat)
++    WHERE type NOT LIKE 'system_%';
+diff --git a/server/channels/store/sqlstore/post_store_test.go b/server/channels/store/sqlstore/post_store_test.go
+index 533e4162c0f2..b49eb4e784be 100644
+--- a/server/channels/store/sqlstore/post_store_test.go
++++ b/server/channels/store/sqlstore/post_store_test.go
+@@ -12,6 +12,8 @@ import (
+ 
+ 	"github.com/mattermost/mattermost/server/public/model"
+ 	"github.com/mattermost/mattermost/server/public/shared/mlog"
++	"github.com/mattermost/mattermost/server/public/shared/request"
++	"github.com/mattermost/mattermost/server/v8/channels/store"
+ 	"github.com/mattermost/mattermost/server/v8/channels/store/searchtest"
+ 	"github.com/mattermost/mattermost/server/v8/channels/store/storetest"
+ )
+@@ -58,3 +60,42 @@ func TestDetermineMaxPostSize(t *testing.T) {
+ 		})
+ 	}
+ }
++
++func TestSlowmodeLastPostLookup(t *testing.T) {
++	StoreTest(t, func(t *testing.T, rctx request.CTX, ss store.Store) {
++		channel, err := ss.Channel().Save(rctx, &model.Channel{TeamId: model.NewId(), DisplayName: "Slowmode lookup", Name: "slowmode-" + model.NewId(), Type: model.ChannelTypeOpen}, -1)
++		require.NoError(t, err)
++		userID, otherUser, otherChannel := model.NewId(), model.NewId(), model.NewId()
++		since := model.GetMillis() - 60000
++		latest := func(since int64) int64 {
++			t.Helper()
++			at, err := ss.Post().GetLastCreateAtForUserInChannel(channel.Id, userID, since)
++			require.NoError(t, err)
++			return at
++		}
++		save := func(uid, cid string, at int64, kind string) *model.Post {
++			t.Helper()
++			p, err := ss.Post().Save(rctx, &model.Post{ChannelId: cid, UserId: uid, CreateAt: at, Message: "slowmode lookup fixture", Type: kind})
++			require.NoError(t, err)
++			return p
++		}
++		require.Zero(t, latest(since))
++		save(userID, channel.Id, since, "")
++		save(otherUser, channel.Id, since+30000, "")
++		save(userID, otherChannel, since+30000, "")
++		save(userID, channel.Id, since+30000, "system_join_channel")
++		require.Zero(t, latest(since), "cutoff, other authors/channels and system messages must not start the interval")
++		save(userID, channel.Id, since+1, "")
++		require.Equal(t, since+1, latest(since))
++		post := save(userID, channel.Id, since+20000, "")
++		require.Equal(t, post.CreateAt, latest(since))
++		require.NoError(t, ss.Post().Delete(rctx, post.Id, model.GetMillis(), userID))
++		require.Equal(t, post.CreateAt, latest(since), "deleted posts must retain the cooldown")
++		require.Zero(t, latest(post.CreateAt), "the lower timestamp bound is exclusive")
++
++		sqlStore := ss.(*SqlStore)
++		var valid bool
++		require.NoError(t, sqlStore.GetMaster().Get(&valid, `SELECT i.indisvalid AND i.indisready FROM pg_index i JOIN pg_class c ON c.oid=i.indexrelid JOIN pg_namespace n ON n.oid=c.relnamespace WHERE c.relname='idx_posts_channel_user_create_at' AND n.nspname=current_schema()`))
++		require.True(t, valid, "the online migration must leave a usable index")
++	})
++}
