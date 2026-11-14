@@ -1,0 +1,66 @@
+{
+  "status": "passed",
+  "source_sha": "6aed323b6c6e236558e4e3adba0ff51449693780",
+  "tests": [
+    {
+      "package": "sqlstore",
+      "command": "go test -race ./channels/store/sqlstore ./channels/store/localcachelayer -run '^(TestReactionBulkLookup|TestReactionBulkCache|TestReactionStore|TestReactionStoreCache)$' -count=1 -timeout=10m -json",
+      "status": "passed",
+      "counts": {
+        "pass": 26
+      },
+      "private_log_sha256": "369f4da546a207022020691bcbc254a1ccdd9b6def5e6091079abaa8c2619c53"
+    },
+    {
+      "package": "localcachelayer",
+      "command": "go test -race ./channels/store/sqlstore ./channels/store/localcachelayer -run '^(TestReactionBulkLookup|TestReactionBulkCache|TestReactionStore|TestReactionStoreCache)$' -count=1 -timeout=10m -json",
+      "status": "passed",
+      "counts": {
+        "pass": 30
+      },
+      "private_log_sha256": "369f4da546a207022020691bcbc254a1ccdd9b6def5e6091079abaa8c2619c53"
+    },
+    {
+      "package": "app",
+      "command": "go test -race ./channels/app -run '^(TestPrepareReactionHistory|TestReactionHistoryHiddenAndEmpty|TestSaveReactionForPost|TestDeleteReactionForPost)$' -count=1 -timeout=10m -json",
+      "status": "passed",
+      "counts": {
+        "pass": 12
+      },
+      "private_log_sha256": "03ac6778cfc07241bbd007eb6da9be4a201ff02a7de7165fa2e39581bdb5728b"
+    },
+    {
+      "package": "app",
+      "command": "go test -race ./channels/app -run '^(TestPreparePostListForClient|TestPreparePostForClient|TestPreparePostFilesReusesSuccessfulRead)$' -count=1 -timeout=15m -json",
+      "status": "passed",
+      "counts": {
+        "pass": 70
+      },
+      "private_log_sha256": "12b4789ec4a3c2930ea34718bfb2b78ec108abcf03a28a76219623d3053a5488"
+    },
+    {
+      "package": "api4",
+      "command": "go test -race ./channels/app ./channels/api4 -run '^(TestPrepareReactionHistory|TestReactionHistoryHiddenAndEmpty|TestSaveReactionForPost|TestDeleteReactionForPost|TestGetReactions|TestSaveReaction|TestDeleteReaction|TestGetPostsForChannel|TestGetPostThread|TestGetPostsByIds)$' -count=1 -timeout=15m -json",
+      "status": "passed",
+      "counts": {
+        "pass": 55
+      },
+      "private_log_sha256": "0a715b088a4a244607f31991ab2b6e2ce5222386a0f4827ea4d02aa3502dc085",
+      "note": "API package passed in the combined invocation. Initial app test-fixture expectations were corrected; app results are recorded from the separate successful reruns above."
+    }
+  ],
+  "counting": "Parent and subtest pass events; package summaries excluded.",
+  "patch_check": {
+    "command": "just check",
+    "status": "passed",
+    "patches": 40,
+    "original_patches_byte_identical": 38,
+    "parent_pr_43_patch_byte_identical": true
+  },
+  "limits": [
+    "Selected race suites, not the full repository suite.",
+    "Full branded release workflow not run.",
+    "Benchmarks measure local post preparation, not total API throughput."
+  ],
+  "total_pass_events": 193
+}

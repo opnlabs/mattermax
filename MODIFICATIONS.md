@@ -530,3 +530,17 @@ flags, attachment order and per-user sanitization. Adds regressions, a negative
 control and paired real-app benchmarks. Existing feature patches and author
 credit remain unchanged.
 [Measured results](docs/benchmarks/post-file-metadata/README.md).
+
+### reaction-history-batches.patch
+
+2026-11-14. Batches active reaction reads for history pages with multiple
+reaction-bearing posts. Each cached entry is decoded once; only cache misses
+reach bounded SQL batches. Preserves creation-time ordering, legacy NULL
+handling, remote/channel fields, empty results and existing Save/Delete cache
+invalidation. A failed bulk read falls back to the existing per-post path.
+Single-post preparation and nested permalink reads retain their own lookups;
+deleted and unrevealed burn-on-read posts retain metadata filtering. Regenerates
+store wrappers/mocks and adds storage, cache and app regressions plus paired
+real-app benchmarks. Built on the attachment-metadata preparation patch.
+Existing feature patches and contributor credit remain unchanged.
+[Measured results](docs/benchmarks/reaction-history/README.md).

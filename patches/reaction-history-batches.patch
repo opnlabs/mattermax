@@ -1,0 +1,618 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: rhnvrm <hello@rohanverma.net>
+Date: Sat, 14 Nov 2026 14:01:08 +0530
+Subject: [PATCH] perf: batch history reaction cache misses
+
+Read cached reactions once per post and fetch misses in bounded SQL batches.
+Preserve empty results, legacy timestamps, remote fields, cache invalidation
+and metadata filtering. Fall back to per-post reads if a bulk read fails.
+Single-post and nested permalink preparation keep their existing lookups.
+
+Add store/cache/app regressions and a real history-page benchmark. Regenerate
+store layers and mocks. Existing feature patches and authorship are unchanged.
+
+Mattermax-Patch: reaction-history-batches.patch
+---
+ server/channels/app/post_metadata.go          |  43 +++--
+ .../channels/app/post_reaction_batch_test.go  | 168 ++++++++++++++++++
+ .../store/localcachelayer/reaction_layer.go   |  32 ++++
+ .../localcachelayer/reaction_layer_test.go    |  49 +++++
+ .../channels/store/retrylayer/retrylayer.go   |  21 +++
+ .../channels/store/sqlstore/reaction_store.go |  28 +++
+ .../store/sqlstore/reaction_store_test.go     |  44 +++++
+ server/channels/store/store.go                |   3 +
+ .../store/storetest/mocks/ReactionStore.go    |  30 ++++
+ .../channels/store/timerlayer/timerlayer.go   |  16 ++
+ 10 files changed, 424 insertions(+), 10 deletions(-)
+ create mode 100644 server/channels/app/post_reaction_batch_test.go
+
+diff --git a/server/channels/app/post_metadata.go b/server/channels/app/post_metadata.go
+index e709b3c79f6e..d4208e03618b 100644
+--- a/server/channels/app/post_metadata.go
++++ b/server/channels/app/post_metadata.go
+@@ -61,8 +61,23 @@ func (a *App) PreparePostListForClient(rctx request.CTX, originalList *model.Pos
+ 		FirstInaccessiblePostTime: originalList.FirstInaccessiblePostTime,
+ 	}
+ 
++	var reactions map[string][]*model.Reaction
++	var reactionPostIDs []string
++	if len(originalList.Posts) > 1 {
++		for _, post := range originalList.Posts {
++			if post.HasReactions && post.DeleteAt == 0 {
++				reactionPostIDs = append(reactionPostIDs, post.Id)
++			}
++		}
++	}
++	if len(reactionPostIDs) > 1 {
++		// On failure retain per-post reads and their existing best-effort error handling.
++		if prepared, err := a.Srv().Store().Reaction().GetForPosts(reactionPostIDs, true); err == nil {
++			reactions = prepared
++		}
++	}
+ 	for id, originalPost := range originalList.Posts {
+-		post := a.PreparePostForClientWithEmbedsAndImages(rctx, originalPost, &model.PreparePostForClientOpts{})
++		post := a.preparePostForClientWithEmbedsAndImages(rctx, originalPost, &model.PreparePostForClientOpts{}, reactions)
+ 
+ 		list.Posts[id] = post
+ 	}
+@@ -185,13 +200,13 @@ func (a *App) OverrideIconURLIfEmoji(rctx request.CTX, post *model.Post) {
+ }
+ 
+ func (a *App) PreparePostForClient(rctx request.CTX, originalPost *model.Post, opts *model.PreparePostForClientOpts) *model.Post {
+-	post, _ := a.preparePostForClient(rctx, originalPost, opts)
++	post, _ := a.preparePostForClient(rctx, originalPost, opts, nil)
+ 	return post
+ }
+ 
+ // preparePostForClient reports whether file metadata can be reused by the embed
+ // path. Failed reads, pending previews and metadata resets need another attempt.
+-func (a *App) preparePostForClient(rctx request.CTX, originalPost *model.Post, opts *model.PreparePostForClientOpts) (*model.Post, bool) {
++func (a *App) preparePostForClient(rctx request.CTX, originalPost *model.Post, opts *model.PreparePostForClientOpts, reactions map[string][]*model.Reaction) (*model.Post, bool) {
+ 	post := originalPost.Clone()
+ 
+ 	// Proxy image links before constructing metadata so that requests go through the proxy
+@@ -210,7 +225,7 @@ func (a *App) preparePostForClient(rctx request.CTX, originalPost *model.Post, o
+ 	}
+ 
+ 	// Emojis and reaction counts
+-	if emojis, reactions, err := a.getEmojisAndReactionsForPost(rctx, post); err != nil {
++	if emojis, reactions, err := a.getEmojisAndReactionsForPost(rctx, post, reactions); err != nil {
+ 		rctx.Logger().Warn("Failed to get emojis and reactions for a post", mlog.String("post_id", post.Id), mlog.Err(err))
+ 	} else {
+ 		post.Metadata.Emojis = emojis
+@@ -281,7 +296,11 @@ func (a *App) preparePostFilesForClient(rctx request.CTX, post *model.Post, opts
+ }
+ 
+ func (a *App) PreparePostForClientWithEmbedsAndImages(rctx request.CTX, originalPost *model.Post, opts *model.PreparePostForClientOpts) *model.Post {
+-	post, filesPrepared := a.preparePostForClient(rctx, originalPost, opts)
++	return a.preparePostForClientWithEmbedsAndImages(rctx, originalPost, opts, nil)
++}
++
++func (a *App) preparePostForClientWithEmbedsAndImages(rctx request.CTX, originalPost *model.Post, opts *model.PreparePostForClientOpts, reactions map[string][]*model.Reaction) *model.Post {
++	post, filesPrepared := a.preparePostForClient(rctx, originalPost, opts, reactions)
+ 	post = a.getEmbedsAndImages(rctx, post, opts.IsNewPost)
+ 	if !filesPrepared {
+ 		a.preparePostFilesForClient(rctx, post, opts)
+@@ -608,13 +627,17 @@ func (a *App) getFileMetadataForPost(rctx request.CTX, post *model.Post, fromMas
+ 	return a.GetFileInfosForPost(rctx, post, fromMaster, includeDeleted)
+ }
+ 
+-func (a *App) getEmojisAndReactionsForPost(rctx request.CTX, post *model.Post) ([]*model.Emoji, []*model.Reaction, *model.AppError) {
++func (a *App) getEmojisAndReactionsForPost(rctx request.CTX, post *model.Post, prepared map[string][]*model.Reaction) ([]*model.Emoji, []*model.Reaction, *model.AppError) {
+ 	var reactions []*model.Reaction
+ 	if post.HasReactions {
+-		var err *model.AppError
+-		reactions, err = a.GetReactionsForPost(post.Id)
+-		if err != nil {
+-			return nil, nil, err
++		var found bool
++		reactions, found = prepared[post.Id]
++		if !found {
++			var err *model.AppError
++			reactions, err = a.GetReactionsForPost(post.Id)
++			if err != nil {
++				return nil, nil, err
++			}
+ 		}
+ 	}
+ 
+diff --git a/server/channels/app/post_reaction_batch_test.go b/server/channels/app/post_reaction_batch_test.go
+new file mode 100644
+index 000000000000..85e512329c36
+--- /dev/null
++++ b/server/channels/app/post_reaction_batch_test.go
+@@ -0,0 +1,168 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++package app
++
++import (
++	"errors"
++	"fmt"
++	"github.com/mattermost/mattermost/server/v8/channels/store/storetest/mocks"
++	"github.com/stretchr/testify/mock"
++	"github.com/stretchr/testify/require"
++	"testing"
++
++	"github.com/mattermost/mattermost/server/public/model"
++	"github.com/mattermost/mattermost/server/v8/channels/store/localcachelayer"
++)
++
++// BenchmarkReactionHistory prepares real stored history pages. Cache purges are
++// outside the timer; cold measures SQL/cache fills, warm measures cached reads.
++// No files, custom emoji or remote links are included.
++func BenchmarkReactionHistory(b *testing.B) {
++	th := Setup(b).InitBasic(b)
++	th.App.UpdateConfig(func(cfg *model.Config) { *cfg.ServiceSettings.EnableLinkPreviews = false })
++	cached, ok := th.App.Srv().Store().(localcachelayer.LocalCacheStore)
++	if !ok {
++		b.Fatal("expected real local-cache store")
++	}
++	for _, size := range []int{1, 10, 60} {
++		b.Run(fmt.Sprintf("posts=%d", size), func(b *testing.B) {
++			list := model.NewPostList()
++			for range size {
++				post, err := th.App.Srv().Store().Post().Save(th.Context, &model.Post{ChannelId: th.BasicChannel.Id, UserId: th.BasicUser.Id, Message: "reaction history"})
++				if err != nil {
++					b.Fatal(err)
++				}
++				for _, emoji := range []string{"smile", "heart", "tada"} {
++					_, err := th.App.Srv().Store().Reaction().Save(&model.Reaction{PostId: post.Id, ChannelId: post.ChannelId, UserId: post.UserId, EmojiName: emoji})
++					if err != nil {
++						b.Fatal(err)
++					}
++				}
++				post.HasReactions = true
++				list.AddPost(post)
++			}
++			check := func(result *model.PostList) {
++				for id := range list.Posts {
++					p := result.Posts[id]
++					if p == nil || p.Metadata == nil || len(p.Metadata.Reactions) != 3 {
++						b.Fatal("missing reaction metadata")
++					}
++					for _, r := range p.Metadata.Reactions {
++						if r.PostId != id || r.DeleteAt != 0 {
++							b.Fatal("incorrect reaction metadata")
++						}
++					}
++				}
++			}
++			for _, mode := range []string{"cold", "warm"} {
++				b.Run(mode, func(b *testing.B) {
++					check(th.App.PreparePostListForClient(th.Context, list))
++					b.ReportAllocs()
++					b.ResetTimer()
++					for range b.N {
++						if mode == "cold" {
++							b.StopTimer()
++							cached.Invalidate()
++							b.StartTimer()
++						}
++						check(th.App.PreparePostListForClient(th.Context, list))
++					}
++				})
++			}
++		})
++	}
++}
++
++func TestPrepareReactionHistory(t *testing.T) {
++	for _, fail := range []bool{false, true} {
++		t.Run(fmt.Sprintf("bulk failure=%t", fail), func(t *testing.T) {
++			th := SetupConfigWithStoreMock(t, func(cfg *model.Config) {
++				*cfg.ServiceSettings.EnableCustomEmoji = false
++				*cfg.ServiceSettings.PostPriority = false
++			})
++			list := model.NewPostList()
++			reactions := make(map[string][]*model.Reaction)
++			for range 3 {
++				p := &model.Post{Id: model.NewId(), Message: "history", HasReactions: true}
++				list.AddPost(p)
++				reactions[p.Id] = []*model.Reaction{{PostId: p.Id, EmojiName: "smile"}}
++			}
++			deleted := &model.Post{Id: model.NewId(), DeleteAt: 1, HasReactions: true, Message: "deleted"}
++			list.AddPost(deleted)
++			rs := &mocks.ReactionStore{}
++			th.App.Srv().Store().(*mocks.Store).On("Reaction").Return(rs)
++			rs.On("GetForPosts", mock.MatchedBy(func(ids []string) bool {
++				if len(ids) != 3 {
++					return false
++				}
++				for _, id := range ids {
++					if id == deleted.Id {
++						return false
++					}
++				}
++				return true
++			}), true).Return(func([]string, bool) map[string][]*model.Reaction {
++				if fail {
++					return nil
++				}
++				return reactions
++			}, func([]string, bool) error {
++				if fail {
++					return errors.New("bulk failed")
++				}
++				return nil
++			}).Once()
++			if fail {
++				for id, r := range reactions {
++					rs.On("GetForPost", id, true).Return(r, nil).Once()
++				}
++			}
++			got := th.App.PreparePostListForClient(th.Context, list)
++			for id, want := range reactions {
++				require.Equal(t, want, got.Posts[id].Metadata.Reactions)
++				require.Nil(t, list.Posts[id].Metadata)
++			}
++			require.Empty(t, got.Posts[deleted.Id].Message)
++			require.Nil(t, got.Posts[deleted.Id].Metadata.Reactions)
++			rs.AssertExpectations(t)
++			if !fail {
++				rs.AssertNotCalled(t, "GetForPost", mock.Anything, mock.Anything)
++			}
++		})
++	}
++}
++
++func TestReactionHistoryHiddenAndEmpty(t *testing.T) {
++	th := SetupConfigWithStoreMock(t, func(cfg *model.Config) {
++		*cfg.ServiceSettings.EnableCustomEmoji = false
++		*cfg.ServiceSettings.PostPriority = false
++	})
++	rctx := th.Context.WithSession(&model.Session{UserId: model.NewId()})
++	empty := &model.Post{Id: model.NewId(), HasReactions: true}
++	hidden := &model.Post{Id: model.NewId(), Type: model.PostTypeBurnOnRead, UserId: model.NewId(), HasReactions: true}
++	list := model.NewPostList()
++	list.AddPost(empty)
++	list.AddPost(hidden)
++	rs := &mocks.ReactionStore{}
++	th.App.Srv().Store().(*mocks.Store).On("Reaction").Return(rs)
++	rs.On("GetForPosts", mock.Anything, true).Return(map[string][]*model.Reaction{
++		empty.Id:  nil,
++		hidden.Id: {{PostId: hidden.Id, EmojiName: "smile"}},
++	}, nil).Once()
++	got := th.App.PreparePostListForClient(rctx, list)
++	require.Nil(t, got.Posts[empty.Id].Metadata.Reactions)
++	require.Nil(t, got.Posts[hidden.Id].Metadata.Reactions)
++	require.Zero(t, got.Posts[hidden.Id].Metadata.ExpireAt)
++	rs.AssertExpectations(t)
++	rs.AssertNotCalled(t, "GetForPost", mock.Anything, mock.Anything)
++	// A single eligible post keeps its existing single-post cache lookup.
++	single := model.NewPostList()
++	single.AddPost(empty)
++	rs.On("GetForPost", empty.Id, true).Return([]*model.Reaction{}, nil).Once()
++	got = th.App.PreparePostListForClient(rctx, single)
++	require.NotNil(t, got.Posts[empty.Id].Metadata.Reactions)
++	require.Empty(t, got.Posts[empty.Id].Metadata.Reactions)
++	rs.AssertExpectations(t)
++	rs.AssertNumberOfCalls(t, "GetForPosts", 1)
++}
+diff --git a/server/channels/store/localcachelayer/reaction_layer.go b/server/channels/store/localcachelayer/reaction_layer.go
+index 16c724107d23..f2e371568ef2 100644
+--- a/server/channels/store/localcachelayer/reaction_layer.go
++++ b/server/channels/store/localcachelayer/reaction_layer.go
+@@ -54,6 +54,38 @@ func (s LocalCacheReactionStore) GetForPost(postId string, allowFromCache bool)
+ 	return reaction, nil
+ }
+ 
++// GetForPosts decodes each cached entry once and batches only cache misses.
++func (s LocalCacheReactionStore) GetForPosts(postIDs []string, allowFromCache bool) (map[string][]*model.Reaction, error) {
++	if !allowFromCache {
++		return s.ReactionStore.GetForPosts(postIDs, false)
++	}
++	result := make(map[string][]*model.Reaction, len(postIDs))
++	missing := make([]string, 0, len(postIDs))
++	for _, id := range postIDs {
++		if _, ok := result[id]; ok {
++			continue
++		}
++		var reactions []*model.Reaction
++		result[id] = nil
++		if err := s.rootStore.doStandardReadCache(s.rootStore.reactionCache, id, &reactions); err == nil {
++			result[id] = reactions
++		} else {
++			missing = append(missing, id)
++		}
++	}
++	if len(missing) > 0 {
++		fetched, err := s.ReactionStore.GetForPosts(missing, false)
++		if err != nil {
++			return nil, err
++		}
++		for _, id := range missing {
++			result[id] = fetched[id]
++			s.rootStore.doStandardAddToCache(s.rootStore.reactionCache, id, fetched[id])
++		}
++	}
++	return result, nil
++}
++
+ func (s LocalCacheReactionStore) DeleteAllWithEmojiName(rctx request.CTX, emojiName string) error {
+ 	// This could be improved. Right now we just clear the whole
+ 	// cache because we don't have a way find what post Ids have this emoji name.
+diff --git a/server/channels/store/localcachelayer/reaction_layer_test.go b/server/channels/store/localcachelayer/reaction_layer_test.go
+index 0bdc3cff3f3f..0a86499ecc14 100644
+--- a/server/channels/store/localcachelayer/reaction_layer_test.go
++++ b/server/channels/store/localcachelayer/reaction_layer_test.go
+@@ -4,6 +4,7 @@
+ package localcachelayer
+ 
+ import (
++	"errors"
+ 	"testing"
+ 
+ 	"github.com/stretchr/testify/assert"
+@@ -76,3 +77,51 @@ func TestReactionStoreCache(t *testing.T) {
+ 		mockStore.Reaction().(*mocks.ReactionStore).AssertNumberOfCalls(t, "GetForPost", 2)
+ 	})
+ }
++
++func TestReactionBulkCache(t *testing.T) {
++	mockStore := getMockStore(t)
++	base := mockStore.Reaction().(*mocks.ReactionStore)
++	base.ExpectedCalls = nil
++	base.On("Save", &model.Reaction{PostId: "a"}).Return(&model.Reaction{PostId: "a"}, nil).Once()
++	base.On("Delete", &model.Reaction{PostId: "a"}).Return(&model.Reaction{PostId: "a"}, nil).Once()
++	cached, err := NewLocalCacheLayer(mockStore, nil, nil, getMockCacheProvider(), mlog.CreateConsoleTestLogger(t))
++	require.NoError(t, err)
++	active := []*model.Reaction{{PostId: "a", EmojiName: "smile"}}
++	base.On("GetForPosts", []string{"a", "empty"}, false).Return(map[string][]*model.Reaction{"a": active, "empty": nil}, nil).Once()
++	first, err := cached.Reaction().GetForPosts([]string{"a", "empty", "a"}, true)
++	require.NoError(t, err)
++	require.Equal(t, active, first["a"])
++	require.Contains(t, first, "empty")
++	require.Nil(t, first["empty"])
++	// Bulk fills are visible to existing single-post readers, including empty hits.
++	hit, err := cached.Reaction().GetForPost("a", true)
++	require.NoError(t, err)
++	require.Equal(t, active, hit)
++	empty, err := cached.Reaction().GetForPost("empty", true)
++	require.NoError(t, err)
++	require.Nil(t, empty)
++	base.On("GetForPosts", []string{"b"}, false).Return(map[string][]*model.Reaction{"b": active}, nil).Once()
++	_, err = cached.Reaction().GetForPosts([]string{"a", "b", "empty"}, true)
++	require.NoError(t, err)
++	// Existing Save/Delete invalidation also invalidates batch-filled entries.
++	_, err = cached.Reaction().Delete(&model.Reaction{PostId: "a"})
++	require.NoError(t, err)
++	base.On("GetForPosts", []string{"a"}, false).Return(map[string][]*model.Reaction{"a": nil}, nil).Once()
++	cleared, err := cached.Reaction().GetForPosts([]string{"a", "empty"}, true)
++	require.NoError(t, err)
++	require.Nil(t, cleared["a"])
++	_, err = cached.Reaction().Save(&model.Reaction{PostId: "a"})
++	require.NoError(t, err)
++	base.On("GetForPosts", []string{"a"}, false).Return(nil, errors.New("unavailable")).Once()
++	_, err = cached.Reaction().GetForPosts([]string{"a", "empty"}, true)
++	require.Error(t, err)
++	base.On("GetForPosts", []string{"a"}, false).Return(map[string][]*model.Reaction{"a": active}, nil).Once()
++	_, err = cached.Reaction().GetForPosts([]string{"a", "empty"}, true)
++	require.NoError(t, err)
++	// Explicit cache bypass must reach SQL even when every entry is cached.
++	base.On("GetForPosts", []string{"a", "empty"}, false).Return(map[string][]*model.Reaction{"a": nil, "empty": nil}, nil).Once()
++	_, err = cached.Reaction().GetForPosts([]string{"a", "empty"}, false)
++	require.NoError(t, err)
++	base.AssertExpectations(t)
++	base.AssertNotCalled(t, "GetForPost", "a", false)
++}
+diff --git a/server/channels/store/retrylayer/retrylayer.go b/server/channels/store/retrylayer/retrylayer.go
+index 468cfba8d54e..0d6b259863b0 100644
+--- a/server/channels/store/retrylayer/retrylayer.go
++++ b/server/channels/store/retrylayer/retrylayer.go
+@@ -11881,6 +11881,27 @@ func (s *RetryLayerReactionStore) GetForPostSince(postID string, since int64, ex
+ 
+ }
+ 
++func (s *RetryLayerReactionStore) GetForPosts(postIDs []string, allowFromCache bool) (map[string][]*model.Reaction, error) {
++
++	tries := 0
++	for {
++		result, err := s.ReactionStore.GetForPosts(postIDs, allowFromCache)
++		if err == nil {
++			return result, nil
++		}
++		if !isRepeatableError(err) {
++			return result, err
++		}
++		tries++
++		if tries >= 3 {
++			err = errors.Wrap(err, "giving up after 3 consecutive repeatable transaction failures")
++			return result, err
++		}
++		timepkg.Sleep(100 * timepkg.Millisecond)
++	}
++
++}
++
+ func (s *RetryLayerReactionStore) GetReactionAuthorIDsForChannel(teamName string, channelName string, includeArchivedChannels bool) ([]string, error) {
+ 
+ 	tries := 0
+diff --git a/server/channels/store/sqlstore/reaction_store.go b/server/channels/store/sqlstore/reaction_store.go
+index 1efefc82dbcc..f503500beeeb 100644
+--- a/server/channels/store/sqlstore/reaction_store.go
++++ b/server/channels/store/sqlstore/reaction_store.go
+@@ -8,6 +8,7 @@ import (
+ 	"fmt"
+ 	"time"
+ 
++	"github.com/lib/pq"
+ 	sq "github.com/mattermost/squirrel"
+ 
+ 	"github.com/mattermost/mattermost/server/public/model"
+@@ -103,6 +104,33 @@ func (s *SqlReactionStore) GetForPost(postId string, allowFromCache bool) ([]*mo
+ 	return reactions, nil
+ }
+ 
++// GetForPosts reads bounded batches without expanding the SQL parameter list.
++func (s *SqlReactionStore) GetForPosts(postIDs []string, allowFromCache bool) (map[string][]*model.Reaction, error) {
++	result := make(map[string][]*model.Reaction, len(postIDs))
++	ids := make([]string, 0, len(postIDs))
++	for _, id := range postIDs {
++		if _, ok := result[id]; !ok {
++			result[id] = nil
++			ids = append(ids, id)
++		}
++	}
++	const batchSize = 1000
++	for offset := 0; offset < len(ids); offset += batchSize {
++		end := min(offset+batchSize, len(ids))
++		builder := s.getQueryBuilder().Select("UserId", "PostId", "EmojiName", "CreateAt", "COALESCE(UpdateAt, CreateAt) As UpdateAt", "COALESCE(DeleteAt, 0) As DeleteAt", "RemoteId", "ChannelId").
++			From("Reactions").Where("PostId = ANY(?)", pq.Array(ids[offset:end])).
++			Where(sq.Eq{"COALESCE(DeleteAt, 0)": 0}).OrderBy("CreateAt")
++		var reactions []*model.Reaction
++		if err := s.GetReplica().SelectBuilder(&reactions, builder); err != nil {
++			return nil, errors.Wrap(err, "failed to get reactions for posts")
++		}
++		for _, reaction := range reactions {
++			result[reaction.PostId] = append(result[reaction.PostId], reaction)
++		}
++	}
++	return result, nil
++}
++
+ func (s *SqlReactionStore) ExistsOnPost(postId string, emojiName string) (bool, error) {
+ 	query := s.getQueryBuilder().
+ 		Select("1").
+diff --git a/server/channels/store/sqlstore/reaction_store_test.go b/server/channels/store/sqlstore/reaction_store_test.go
+index 3a2ddd10056c..84922685b782 100644
+--- a/server/channels/store/sqlstore/reaction_store_test.go
++++ b/server/channels/store/sqlstore/reaction_store_test.go
+@@ -4,6 +4,10 @@
+ package sqlstore
+ 
+ import (
++	"github.com/mattermost/mattermost/server/public/model"
++	"github.com/mattermost/mattermost/server/public/shared/request"
++	"github.com/mattermost/mattermost/server/v8/channels/store"
++	"github.com/stretchr/testify/require"
+ 	"testing"
+ 
+ 	"github.com/mattermost/mattermost/server/v8/channels/store/storetest"
+@@ -12,3 +16,43 @@ import (
+ func TestReactionStore(t *testing.T) {
+ 	StoreTestWithSqlStore(t, storetest.TestReactionStore)
+ }
++
++func TestReactionBulkLookup(t *testing.T) {
++	StoreTestWithSqlStore(t, func(t *testing.T, rctx request.CTX, ss store.Store, sqlStore storetest.SqlStore) {
++		ids := make([]string, 1001)
++		for i := range ids {
++			ids[i] = model.NewId()
++		}
++		for _, id := range []string{ids[0], ids[1000]} {
++			for i := 0; i < 3; i++ {
++				_, err := sqlStore.GetMaster().Exec("INSERT INTO Reactions (UserId, PostId, EmojiName, CreateAt, UpdateAt, DeleteAt, RemoteId, ChannelId) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", model.NewId(), id, "smile", 100+i, 200+i, 0, "remote", "channel")
++				require.NoError(t, err)
++			}
++			_, err := sqlStore.GetMaster().Exec("INSERT INTO Reactions (UserId, PostId, EmojiName, CreateAt, UpdateAt, DeleteAt, RemoteId, ChannelId) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", model.NewId(), id, "heart", 90, 200, 300, "", "channel")
++			require.NoError(t, err)
++		}
++		// Legacy rows permit NULL timestamps; use the same COALESCE as GetForPost.
++		_, err := sqlStore.GetMaster().Exec("INSERT INTO Reactions (UserId, PostId, EmojiName, CreateAt, UpdateAt, DeleteAt, ChannelId) VALUES (?, ?, ?, ?, NULL, NULL, ?)", model.NewId(), ids[0], "tada", 99, "channel")
++		require.NoError(t, err)
++		t.Cleanup(func() {
++			for _, id := range []string{ids[0], ids[1000]} {
++				_, _ = sqlStore.GetMaster().Exec("DELETE FROM Reactions WHERE PostId = ?", id)
++			}
++		})
++		got, err := ss.Reaction().GetForPosts(append(ids, ids[0]), false)
++		require.NoError(t, err)
++		require.Len(t, got, len(ids))
++		for _, id := range ids {
++			want, err := ss.Reaction().GetForPost(id, false)
++			require.NoError(t, err)
++			require.Equal(t, want, got[id])
++		}
++		require.Len(t, got[ids[0]], 4)
++		require.EqualValues(t, 99, got[ids[0]][0].UpdateAt)
++		require.NotNil(t, got[ids[1000]][0].RemoteId)
++		require.Equal(t, "remote", *got[ids[1000]][0].RemoteId)
++		empty, err := ss.Reaction().GetForPosts(nil, false)
++		require.NoError(t, err)
++		require.Empty(t, empty)
++	})
++}
+diff --git a/server/channels/store/store.go b/server/channels/store/store.go
+index c117ffd453f4..638996bae8b7 100644
+--- a/server/channels/store/store.go
++++ b/server/channels/store/store.go
+@@ -822,6 +822,9 @@ type UploadSessionStore interface {
+ }
+ 
+ type ReactionStore interface {
++	// GetForPosts returns active reactions in creation order, including a nil entry
++	// for each requested post without reactions.
++	GetForPosts(postIDs []string, allowFromCache bool) (map[string][]*model.Reaction, error)
+ 	Save(reaction *model.Reaction) (*model.Reaction, error)
+ 	Delete(reaction *model.Reaction) (*model.Reaction, error)
+ 	GetForPost(postID string, allowFromCache bool) ([]*model.Reaction, error)
+diff --git a/server/channels/store/storetest/mocks/ReactionStore.go b/server/channels/store/storetest/mocks/ReactionStore.go
+index 0ff165175994..4bf74bdeff81 100644
+--- a/server/channels/store/storetest/mocks/ReactionStore.go
++++ b/server/channels/store/storetest/mocks/ReactionStore.go
+@@ -179,6 +179,36 @@ func (_m *ReactionStore) GetForPostSince(postID string, since int64, excludeRemo
+ 	return r0, r1
+ }
+ 
++// GetForPosts provides a mock function with given fields: postIDs, allowFromCache
++func (_m *ReactionStore) GetForPosts(postIDs []string, allowFromCache bool) (map[string][]*model.Reaction, error) {
++	ret := _m.Called(postIDs, allowFromCache)
++
++	if len(ret) == 0 {
++		panic("no return value specified for GetForPosts")
++	}
++
++	var r0 map[string][]*model.Reaction
++	var r1 error
++	if rf, ok := ret.Get(0).(func([]string, bool) (map[string][]*model.Reaction, error)); ok {
++		return rf(postIDs, allowFromCache)
++	}
++	if rf, ok := ret.Get(0).(func([]string, bool) map[string][]*model.Reaction); ok {
++		r0 = rf(postIDs, allowFromCache)
++	} else {
++		if ret.Get(0) != nil {
++			r0 = ret.Get(0).(map[string][]*model.Reaction)
++		}
++	}
++
++	if rf, ok := ret.Get(1).(func([]string, bool) error); ok {
++		r1 = rf(postIDs, allowFromCache)
++	} else {
++		r1 = ret.Error(1)
++	}
++
++	return r0, r1
++}
++
+ // GetReactionAuthorIDsForChannel provides a mock function with given fields: teamName, channelName, includeArchivedChannels
+ func (_m *ReactionStore) GetReactionAuthorIDsForChannel(teamName string, channelName string, includeArchivedChannels bool) ([]string, error) {
+ 	ret := _m.Called(teamName, channelName, includeArchivedChannels)
+diff --git a/server/channels/store/timerlayer/timerlayer.go b/server/channels/store/timerlayer/timerlayer.go
+index 46d600e1e0c6..d31da8822808 100644
+--- a/server/channels/store/timerlayer/timerlayer.go
++++ b/server/channels/store/timerlayer/timerlayer.go
+@@ -9480,6 +9480,22 @@ func (s *TimerLayerReactionStore) GetForPostSince(postID string, since int64, ex
+ 	return result, err
+ }
+ 
++func (s *TimerLayerReactionStore) GetForPosts(postIDs []string, allowFromCache bool) (map[string][]*model.Reaction, error) {
++	start := time.Now()
++
++	result, err := s.ReactionStore.GetForPosts(postIDs, allowFromCache)
++
++	elapsed := float64(time.Since(start)) / float64(time.Second)
++	if s.Root.Metrics != nil {
++		success := "false"
++		if err == nil {
++			success = "true"
++		}
++		s.Root.Metrics.ObserveStoreMethodDuration("ReactionStore.GetForPosts", success, elapsed)
++	}
++	return result, err
++}
++
+ func (s *TimerLayerReactionStore) GetReactionAuthorIDsForChannel(teamName string, channelName string, includeArchivedChannels bool) ([]string, error) {
+ 	start := time.Now()
+ 
