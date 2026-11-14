@@ -1,0 +1,277 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: rhnvrm <hello@rohanverma.net>
+Date: Sun, 15 Nov 2026 00:09:56 +0530
+Subject: [PATCH] perf: enable index-only counts for saved replies
+
+Mattermax-Patch: reply-count-projection.patch
+---
+ server/channels/store/sqlstore/post_store.go  |   2 +-
+ .../reply_count_projection_benchmark_test.go  | 177 ++++++++++++++++++
+ .../sqlstore/reply_count_projection_test.go   |  61 ++++++
+ 3 files changed, 239 insertions(+), 1 deletion(-)
+ create mode 100644 server/channels/store/sqlstore/reply_count_projection_benchmark_test.go
+ create mode 100644 server/channels/store/sqlstore/reply_count_projection_test.go
+
+diff --git a/server/channels/store/sqlstore/post_store.go b/server/channels/store/sqlstore/post_store.go
+index 3661472298b3..264dce23bf45 100644
+--- a/server/channels/store/sqlstore/post_store.go
++++ b/server/channels/store/sqlstore/post_store.go
+@@ -396,7 +396,7 @@ func (s *SqlPostStore) populateReplyCount(posts []*model.Post) error {
+ 			Count  int64
+ 		}{}
+ 		query := s.getQueryBuilder().
+-			Select("RootId, COUNT(Id) AS Count").
++			Select("RootId, COUNT(*) AS Count").
+ 			From("Posts").
+ 			Where(sq.Eq{"RootId": idChunk}).
+ 			Where(sq.Eq{"Posts.DeleteAt": 0}).
+diff --git a/server/channels/store/sqlstore/reply_count_projection_benchmark_test.go b/server/channels/store/sqlstore/reply_count_projection_benchmark_test.go
+new file mode 100644
+index 000000000000..68480a4f37c0
+--- /dev/null
++++ b/server/channels/store/sqlstore/reply_count_projection_benchmark_test.go
+@@ -0,0 +1,177 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++package sqlstore
++
++import (
++	"fmt"
++	"os"
++	"testing"
++
++	"github.com/lib/pq"
++	"github.com/mattermost/mattermost/server/public/model"
++	"github.com/mattermost/mattermost/server/public/shared/request"
++	sq "github.com/mattermost/squirrel"
++)
++
++// BenchmarkReplyCountProjection checks aggregate and real Save/SaveMultiple
++// outputs. Seeding, visibility preparation, plans and cleanup are untimed.
++func BenchmarkReplyCountProjection(b *testing.B) {
++	if len(storeTypes) == 0 {
++		b.Fatal("PostgreSQL store required")
++	}
++	for _, st := range storeTypes {
++		b.Run(st.Name, func(b *testing.B) {
++			var definitions string
++			if err := st.SqlStore.GetMaster().Get(&definitions, "SELECT COALESCE(json_agg(indexdef ORDER BY indexname)::text,'[]') FROM pg_indexes WHERE schemaname=current_schema() AND tablename='posts'"); err != nil {
++				b.Fatal(err)
++			}
++			b.Logf("reply_count_indexes: %s", definitions)
++			for _, history := range []int{0, 1000, 10000} {
++				b.Run(fmt.Sprintf("initial_replies=%d", history), func(b *testing.B) {
++					for _, rootCount := range []int{1, 10} {
++						b.Run(fmt.Sprintf("roots=%d", rootCount), func(b *testing.B) {
++							for _, visibility := range []string{"vacuumed", "fresh"} {
++								b.Run(visibility, func(b *testing.B) {
++									rctx := request.TestContext(b)
++									user := model.NewId()
++									channel, err := st.Store.Channel().Save(rctx, &model.Channel{Name: model.NewId(), DisplayName: "Reply count benchmark", Type: model.ChannelTypeOpen}, 999)
++									if err != nil {
++										b.Fatal(err)
++									}
++									const base = int64(1000000)
++									roots := make([]*model.Post, rootCount)
++									for i := range roots {
++										roots[i] = &model.Post{ChannelId: channel.Id, UserId: user, Message: "root", CreateAt: base}
++									}
++									if _, _, err = st.Store.Post().SaveMultiple(rctx, roots); err != nil {
++										b.Fatal(err)
++									}
++									ids := make([]string, len(roots))
++									posts := make([]*model.Post, len(roots))
++									for i, root := range roots {
++										ids[i] = root.Id
++										posts[i] = &model.Post{RootId: root.Id}
++									}
++									b.Cleanup(func() {
++										for _, q := range []string{"DELETE FROM Posts WHERE ChannelId=?", "DELETE FROM Threads WHERE ChannelId=?", "DELETE FROM Channels WHERE Id=?"} {
++											if _, e := st.SqlStore.GetMaster().Exec(q, channel.Id); e != nil {
++												b.Error(e)
++											}
++										}
++									})
++									if history > 0 {
++										if _, err = st.SqlStore.GetMaster().Exec(`INSERT INTO Posts(Id,RootId,ChannelId,UserId,CreateAt,UpdateAt,DeleteAt,Message,Type,Props,Hashtags,Filenames,FileIds,RemoteId)
++                                            SELECT substr(md5(id||n::text),1,26),id,?,?,?::bigint+n,?::bigint+n,CASE WHEN n%7=0 THEN 1 ELSE 0 END,repeat('history reply ',50),'','{}','','[]','[]',''
++                                            FROM generate_series(1,?) n CROSS JOIN unnest(?::varchar[]) id ORDER BY n,id`, channel.Id, user, base, base, history, pq.Array(ids)); err != nil {
++											b.Fatal(err)
++										}
++										if _, err = st.SqlStore.GetMaster().Exec(`INSERT INTO Threads(PostId,ChannelId,ReplyCount,LastReplyAt,Participants,ThreadTeamId)
++                                            SELECT id,?,?,?,? ,'' FROM unnest(?::varchar[]) id`, channel.Id, history-history/7, base+int64(history), model.StringArray{user}, pq.Array(ids)); err != nil {
++											b.Fatal(err)
++										}
++									}
++									if visibility == "vacuumed" {
++										_, err = st.SqlStore.GetMaster().ExecNoTimeout("VACUUM ANALYZE Posts")
++									} else {
++										_, err = st.SqlStore.GetMaster().ExecNoTimeout("ANALYZE Posts")
++									}
++									if err != nil {
++										b.Fatal(err)
++									}
++									plan := func(label string) {
++										b.Helper()
++										projection := "RootId, COUNT(*) AS Count"
++										if os.Getenv("MATTERMAX_REPLY_COUNT_VARIANT") == "before" {
++											projection = "RootId, COUNT(Id) AS Count"
++										}
++										query := st.SqlStore.getQueryBuilder().Select(projection).From("Posts").Where(sq.Eq{"RootId": ids}).Where(sq.Eq{"Posts.DeleteAt": 0}).GroupBy("RootId")
++										text, args, err := query.ToSql()
++										if err != nil {
++											b.Fatal(err)
++										}
++										var result string
++										if err = st.SqlStore.GetMaster().Get(&result, "EXPLAIN(ANALYZE,BUFFERS,FORMAT JSON) "+text, args...); err != nil {
++											b.Fatal(err)
++										}
++										b.Logf("reply_count_plan %s: %s", label, result)
++									}
++									for _, method := range []string{"populate", "save", "root_control"} {
++										b.Run(method, func(b *testing.B) {
++											expected := make(map[string]int64, len(ids))
++											for _, id := range ids {
++												var n int64
++												if err := st.SqlStore.GetMaster().Get(&n, "SELECT COUNT(Id) FROM Posts WHERE RootId=? AND DeleteAt=0", id); err != nil {
++													b.Fatal(err)
++												}
++												expected[id] = n
++											}
++											lookup := func() {
++												switch method {
++												case "populate":
++													if err := st.Store.Post().(*SqlPostStore).populateReplyCount(posts); err != nil {
++														b.Fatal(err)
++													}
++													for _, post := range posts {
++														if post.ReplyCount != expected[post.RootId] {
++															b.Fatal("incorrect aggregate count")
++														}
++													}
++												case "save":
++													input := make([]*model.Post, len(ids))
++													for i, id := range ids {
++														input[i] = &model.Post{RootId: id, ChannelId: channel.Id, UserId: user, Message: "new reply"}
++													}
++													var saved []*model.Post
++													if len(ids) == 1 {
++														post, err := st.Store.Post().Save(rctx, input[0])
++														if err != nil {
++															b.Fatal(err)
++														}
++														saved = []*model.Post{post}
++													} else {
++														var err error
++														saved, _, err = st.Store.Post().SaveMultiple(rctx, input)
++														if err != nil {
++															b.Fatal(err)
++														}
++													}
++													if len(saved) != len(ids) {
++														b.Fatal("incorrect save size")
++													}
++													for i, post := range saved {
++														expected[ids[i]]++
++														if post.Id == "" || post.RootId != ids[i] || post.Message != "new reply" || post.ReplyCount != expected[ids[i]] {
++															b.Fatal("incorrect saved reply")
++														}
++													}
++												case "root_control":
++													post, err := st.Store.Post().Save(rctx, &model.Post{ChannelId: channel.Id, UserId: user, Message: "new root"})
++													if err != nil {
++														b.Fatal(err)
++													}
++													if post.Id == "" || post.RootId != "" || post.ReplyCount != 0 {
++														b.Fatal("incorrect root control")
++													}
++												}
++											}
++											plan("before " + method)
++											lookup()
++											b.ReportAllocs()
++											b.ResetTimer()
++											for i := 0; i < b.N; i++ {
++												lookup()
++											}
++											b.StopTimer()
++											plan("after " + method)
++										})
++									}
++								})
++							}
++						})
++					}
++				})
++			}
++		})
++	}
++}
+diff --git a/server/channels/store/sqlstore/reply_count_projection_test.go b/server/channels/store/sqlstore/reply_count_projection_test.go
+new file mode 100644
+index 000000000000..38437e029617
+--- /dev/null
++++ b/server/channels/store/sqlstore/reply_count_projection_test.go
+@@ -0,0 +1,61 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++package sqlstore
++
++import (
++	"testing"
++
++	"github.com/mattermost/mattermost/server/public/model"
++	"github.com/mattermost/mattermost/server/public/shared/request"
++	"github.com/mattermost/mattermost/server/v8/channels/store"
++	"github.com/mattermost/mattermost/server/v8/channels/store/storetest"
++	"github.com/stretchr/testify/require"
++)
++
++func TestReplyCountProjection(t *testing.T) {
++	StoreTestWithSqlStore(t, func(t *testing.T, _ request.CTX, ss store.Store, db storetest.SqlStore) {
++		roots := []string{model.NewId(), model.NewId()}
++		t.Cleanup(func() {
++			for _, id := range roots {
++				_, err := db.GetMaster().Exec("DELETE FROM Posts WHERE RootId=?", id)
++				require.NoError(t, err)
++			}
++		})
++		for i, root := range roots {
++			for n := 0; n < 4+i; n++ {
++				var deleted any = int64(0)
++				if n == 1 {
++					deleted = int64(1)
++				}
++				if n == 2 {
++					deleted = nil
++				}
++				_, err := db.GetMaster().Exec("INSERT INTO Posts(Id,RootId,DeleteAt) VALUES (?,?,?)", model.NewId(), root, deleted)
++				require.NoError(t, err)
++			}
++		}
++		var nonNull bool
++		require.NoError(t, db.GetMaster().Get(&nonNull, "SELECT attnotnull FROM pg_attribute WHERE attrelid='posts'::regclass AND attname='id'"))
++		require.True(t, nonNull)
++		posts := []*model.Post{{RootId: roots[0], ReplyCount: 99}, {RootId: roots[1], ReplyCount: 99}, {RootId: roots[0], ReplyCount: 99}, {RootId: model.NewId(), ReplyCount: 99}, {ReplyCount: 99}}
++		expected := make(map[string]int64)
++		for _, post := range posts {
++			if post.RootId != "" {
++				require.NoError(t, db.GetMaster().Get(&post.ReplyCount, "SELECT COUNT(Id) FROM Posts WHERE RootId=? AND DeleteAt=0", post.RootId))
++				expected[post.RootId] = post.ReplyCount
++			}
++			post.ReplyCount = 99
++		}
++		concrete := ss.Post().(*SqlPostStore)
++		oldLimit := concrete.maxInsertParams
++		concrete.maxInsertParams = 2
++		t.Cleanup(func() { concrete.maxInsertParams = oldLimit })
++		require.NoError(t, concrete.populateReplyCount(posts))
++		for _, post := range posts {
++			require.Equal(t, expected[post.RootId], post.ReplyCount)
++		}
++		require.NoError(t, concrete.populateReplyCount(nil))
++		require.NoError(t, concrete.populateReplyCount([]*model.Post{}))
++	})
++}

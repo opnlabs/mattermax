@@ -1,0 +1,146 @@
+{
+  "status": "passed",
+  "source_sha": "b58203dbc8d709418b98b00f1b2fe97979517b74",
+  "source_tree_sha": "248aa79a5158d681d1266593b5d2068884892109",
+  "tests": [
+    {
+      "name": "sqlstore selected race suites",
+      "status": "passed",
+      "counts": {
+        "pass": 257,
+        "fail": 0,
+        "skip": 0
+      }
+    },
+    {
+      "name": "localcachelayer selected race suites",
+      "status": "passed",
+      "counts": {
+        "pass": 174,
+        "fail": 0,
+        "skip": 0
+      }
+    },
+    {
+      "name": "api4 selected race suites",
+      "status": "passed",
+      "counts": {
+        "pass": 64,
+        "fail": 0,
+        "skip": 0
+      }
+    }
+  ],
+  "race_command": [
+    "go",
+    "test",
+    "-race",
+    "-p",
+    "2",
+    "./channels/store/sqlstore",
+    "./channels/store/localcachelayer",
+    "./channels/api4",
+    "-run",
+    "^(TestReplyCountProjection|TestPostStore|TestThreadStore|TestCreatePost|TestCreatePostForPriority|TestGetPostThread|TestGetPostsForChannel|TestGetPostsByIds|TestGetThreadsForUser)$",
+    "-count=1",
+    "-timeout=20m",
+    "-json"
+  ],
+  "race_log_sha256": "db175b379863835e105470ce4916a463045ef017450c661b3f54a76976fc40ac",
+  "fresh_parent_subtest_pass_events": 495,
+  "coverage": "New legacy-count equivalence, non-null primary key, deletion/null/missing/duplicate/root-only inputs and forced query chunking; complete PostStore SQL/cache and SQL ThreadStore suites; selected posting/history/thread HTTP API suites.",
+  "patch_check": {
+    "status": "passed",
+    "command": "just check",
+    "patches": 39,
+    "inherited_patch_files_byte_identical": 38,
+    "private_log_sha256": "beab570c027102ef1d8f465f5ae4c7fddbaa4ffc1d552cde44f3454b15df802a"
+  },
+  "backend_build": {
+    "status": "passed",
+    "source_workspace_sha": "b58203dbc8d709418b98b00f1b2fe97979517b74",
+    "command": [
+      "go",
+      "build",
+      "-tags",
+      "production",
+      "-ldflags",
+      "-X github.com/mattermost/mattermost/server/public/model.BuildNumber=12.0.2-1.reply-count-projection -X github.com/mattermost/mattermost/server/public/model.BuildHash=b58203dbc8d709418b98b00f1b2fe97979517b74 -X github.com/mattermost/mattermost/server/public/model.BuildEnterpriseReady=false",
+      "-o",
+      "/tmp/mattermax-reply-count-projection-server",
+      "./cmd/mattermost"
+    ],
+    "build_tags": "production",
+    "forbidden_build_tags": false,
+    "enterprise_symbols_found": false,
+    "binary_sha256": "ca13fe1150a64a7d448bfd07d2a79d34a423acf99ca6b3929b8af612bda3cd5f",
+    "private_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build_number": "12.0.2-1.reply-count-projection",
+    "build_hash": "b58203dbc8d709418b98b00f1b2fe97979517b74",
+    "build_enterprise_ready": "false",
+    "scope": "Public backend only. No branded frontend/package rebuild, deployment or production load test.",
+    "symbol_tool": "Matching standard SDK cmd/nm via temporary GOROOT; same exclusion criteria as scripts/build-release.sh."
+  },
+  "startup_smoke": {
+    "status": "passed",
+    "database": "mm_reply_count_projection_c06efb0b04dd",
+    "runtime_directory": "/tmp/mattermax-reply_count_projection-smoke-petoqkpb",
+    "database_removed": true,
+    "server_stopped": true,
+    "probes": [
+      {
+        "path": "/api/v4/system/ping",
+        "http_status": 200,
+        "response": {
+          "ActiveSearchBackend": "database",
+          "AndroidLatestVersion": "",
+          "AndroidMinVersion": "",
+          "IosLatestVersion": "",
+          "IosMinVersion": "",
+          "status": "OK"
+        }
+      },
+      {
+        "path": "/api/v4/config/client?format=old",
+        "http_status": 200,
+        "site_name": "Mattermax",
+        "version": "12.0.2",
+        "full_response": "reply-count-projection-client-config.json"
+      }
+    ],
+    "base_url": "http://127.0.0.1:18065",
+    "binary": "/tmp/mattermax-reply-count-projection-server",
+    "environment": "Allowlisted system variables only; configuration comes from the temporary file plus repository overlay.",
+    "verified_build_number": "12.0.2-1.reply-count-projection",
+    "runtime_directory_removed": true
+  },
+  "public_runner_smoke": {
+    "status": "passed",
+    "processes": 2,
+    "cases_per_process": 36,
+    "runner_sha256": "0b5b8f12a6a24cc904b86a91ad0a866eb35c099bd49019452a01ff18efb2d14c",
+    "scope": "Single-iteration execution/output/plan parsing checks; no timing claim."
+  },
+  "limits": [
+    "Measured operations are serial SQL-store calls, not complete HTTP latency or server throughput.",
+    "Full-save and unchanged-root controls vary; observed full-save gains cannot all be assigned to this query.",
+    "PostgreSQL visibility state affects index-only eligibility. Fresh means no explicit VACUUM during fixture preparation.",
+    "Full branded packaging, browser flows, deployment and production load tests were not run."
+  ],
+  "authorship": "All 38 inherited patches remain byte-identical, preserving original authorship including Karan Sharma (@mr-karan).",
+  "date_test_environment": {
+    "status": "verified_existing_timezone_assumption",
+    "baseline_overlay": "Original post_store.go restored from parent commit",
+    "local_timezone": "Asia/Kolkata",
+    "local_result": "Original production code reproduces the same PostCountsByDuration date failures in SQL and cache layers.",
+    "utc_result": "Baseline date tests pass under TZ=UTC. The fresh full race rerun uses TZ=UTC to match database date grouping.",
+    "source_changed_for_fix": false,
+    "baseline_local_log": "reply-count-baseline-date-probe.jsonl",
+    "baseline_utc_log": "reply-count-baseline-date-utc.jsonl",
+    "initial_current_log": "reply-count-projection-race-asia-kolkata-failed.jsonl"
+  },
+  "race_environment": {
+    "TZ": "UTC",
+    "GOMAXPROCS": "4"
+  }
+}

@@ -519,3 +519,12 @@ and channels keep their names. Gates removed: `createChannel` in
 `PluginAPI.CreateChannel` in `app/plugin_api.go`, the webapp selector
 `isAnonymousURLEnabled` that hides the URL editors, and the System Console
 toggle's Enterprise Advanced check.
+
+### reply-count-projection.patch
+
+2026-11-15. Use COUNT(*) for grouped counts returned with saved replies, equivalent
+to COUNT(Id) for the non-null primary key. This lets the existing RootId/DeleteAt
+index cover the query when PostgreSQL visibility permits. Keep root deduplication,
+query chunking, deletion filtering, missing-root counts and error handling. Add
+compatibility tests and real aggregate/Save/SaveMultiple benchmarks. No HTTP API,
+schema, index, configuration or third-party dependency changes.

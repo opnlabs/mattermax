@@ -1,0 +1,1240 @@
+{
+  "source_sha": "b58203dbc8d709418b98b00f1b2fe97979517b74",
+  "source_tree_sha": "248aa79a5158d681d1266593b5d2068884892109",
+  "rows": [
+    {
+      "name": "BenchmarkReplyCountProjection/PostgreSQL/initial_replies=0/roots=1/vacuumed/populate",
+      "before": {
+        "median_ms": 0.20811,
+        "range_ms": [
+          0.206136,
+          0.227934
+        ],
+        "samples_ms": [
+          0.227934,
+          0.20811,
+          0.206136
+        ],
+        "median_allocs": 131.0
+      },
+      "after": {
+        "median_ms": 0.207178,
+        "range_ms": [
+          0.202642,
+          0.234354
+        ],
+        "samples_ms": [
+          0.202642,
+          0.234354,
+          0.207178
+        ],
+        "median_allocs": 131.0
+      },
+      "median_change_percent": -0.44784008457064983
+    },
+    {
+      "name": "BenchmarkReplyCountProjection/PostgreSQL/initial_replies=0/roots=1/vacuumed/save",
+      "before": {
+        "median_ms": 27.308616,
+        "range_ms": [
+          19.279605,
+          37.888439
+        ],
+        "samples_ms": [
+          19.279605,
+          27.308616,
+          37.888439
+        ],
+        "median_allocs": 649.0
+      },
+      "after": {
+        "median_ms": 25.402964,
+        "range_ms": [
+          23.588608,
+          36.359438
+        ],
+        "samples_ms": [
+          36.359438,
+          25.402964,
+          23.588608
+        ],
+        "median_allocs": 649.0
+      },
+      "median_change_percent": -6.978207903322531
+    },
+    {
+      "name": "BenchmarkReplyCountProjection/PostgreSQL/initial_replies=0/roots=1/vacuumed/root_control",
+      "before": {
+        "median_ms": 15.391085,
+        "range_ms": [
+          14.915227,
+          16.949431
+        ],
+        "samples_ms": [
+          14.915227,
+          16.949431,
+          15.391085
+        ],
+        "median_allocs": 274.0
+      },
+      "after": {
+        "median_ms": 14.359312,
+        "range_ms": [
+          14.080599,
+          16.887266
+        ],
+        "samples_ms": [
+          14.080599,
+          16.887266,
+          14.359312
+        ],
+        "median_allocs": 274.0
+      },
+      "median_change_percent": -6.703705424276462
+    },
+    {
+      "name": "BenchmarkReplyCountProjection/PostgreSQL/initial_replies=0/roots=1/fresh/populate",
+      "before": {
+        "median_ms": 0.252033,
+        "range_ms": [
+          0.251911,
+          0.252413
+        ],
+        "samples_ms": [
+          0.251911,
+          0.252413,
+          0.252033
+        ],
+        "median_allocs": 131.0
+      },
+      "after": {
+        "median_ms": 0.254842,
+        "range_ms": [
+          0.227238,
+          0.258788
+        ],
+        "samples_ms": [
+          0.254842,
+          0.258788,
+          0.227238
+        ],
+        "median_allocs": 131.0
+      },
+      "median_change_percent": 1.1145365884626335
+    },
+    {
+      "name": "BenchmarkReplyCountProjection/PostgreSQL/initial_replies=0/roots=1/fresh/save",
+      "before": {
+        "median_ms": 31.904193,
+        "range_ms": [
+          22.70544,
+          32.833071
+        ],
+        "samples_ms": [
+          22.70544,
+          31.904193,
+          32.833071
+        ],
+        "median_allocs": 649.0
+      },
+      "after": {
+        "median_ms": 25.532098,
+        "range_ms": [
+          20.233739,
+          26.506295
+        ],
+        "samples_ms": [
+          25.532098,
+          26.506295,
+          20.233739
+        ],
+        "median_allocs": 649.0
+      },
+      "median_change_percent": -19.972594197884895
+    },
+    {
+      "name": "BenchmarkReplyCountProjection/PostgreSQL/initial_replies=0/roots=1/fresh/root_control",
+      "before": {
+        "median_ms": 15.066217,
+        "range_ms": [
+          14.213726,
+          16.675287
+        ],
+        "samples_ms": [
+          15.066217,
+          16.675287,
+          14.213726
+        ],
+        "median_allocs": 274.0
+      },
+      "after": {
+        "median_ms": 15.722896,
+        "range_ms": [
+          15.466636,
+          16.166008
+        ],
+        "samples_ms": [
+          15.722896,
+          16.166008,
+          15.466636
+        ],
+        "median_allocs": 274.0
+      },
+      "median_change_percent": 4.358619021616383
+    },
+    {
+      "name": "BenchmarkReplyCountProjection/PostgreSQL/initial_replies=0/roots=10/vacuumed/populate",
+      "before": {
+        "median_ms": 0.313713,
+        "range_ms": [
+          0.293033,
+          0.318459
+        ],
+        "samples_ms": [
+          0.293033,
+          0.318459,
+          0.313713
+        ],
+        "median_allocs": 171.0
+      },
+      "after": {
+        "median_ms": 0.293726,
+        "range_ms": [
+          0.284494,
+          0.331816
+        ],
+        "samples_ms": [
+          0.331816,
+          0.284494,
+          0.293726
+        ],
+        "median_allocs": 171.0
+      },
+      "median_change_percent": -6.3711098998128985
+    },
+    {
+      "name": "BenchmarkReplyCountProjection/PostgreSQL/initial_replies=0/roots=10/vacuumed/save",
+      "before": {
+        "median_ms": 105.983219,
+        "range_ms": [
+          102.111668,
+          106.976214
+        ],
+        "samples_ms": [
+          106.976214,
+          105.983219,
+          102.111668
+        ],
+        "median_allocs": 2639.0
+      },
+      "after": {
+        "median_ms": 103.301352,
+        "range_ms": [
+          91.728382,
+          109.269573
+        ],
+        "samples_ms": [
+          109.269573,
+          103.301352,
+          91.728382
+        ],
+        "median_allocs": 2639.0
+      },
+      "median_change_percent": -2.5304638086148468
+    },
+    {
+      "name": "BenchmarkReplyCountProjection/PostgreSQL/initial_replies=0/roots=10/vacuumed/root_control",
+      "before": {
+        "median_ms": 14.765401,
+        "range_ms": [
+          14.255007,
+          19.4813
+        ],
+        "samples_ms": [
+          14.765401,
+          19.4813,
+          14.255007
+        ],
+        "median_allocs": 274.0
+      },
+      "after": {
+        "median_ms": 15.379648,
+        "range_ms": [
+          14.393632,
+          16.944512
+        ],
+        "samples_ms": [
+          16.944512,
+          14.393632,
+          15.379648
+        ],
+        "median_allocs": 274.0
+      },
+      "median_change_percent": 4.160042791929586
+    },
+    {
+      "name": "BenchmarkReplyCountProjection/PostgreSQL/initial_replies=0/roots=10/fresh/populate",
+      "before": {
+        "median_ms": 0.302763,
+        "range_ms": [
+          0.301654,
+          0.306006
+        ],
+        "samples_ms": [
+          0.301654,
+          0.306006,
+          0.302763
+        ],
+        "median_allocs": 171.0
+      },
+      "after": {
+        "median_ms": 0.308121,
+        "range_ms": [
+          0.294892,
+          0.309817
+        ],
+        "samples_ms": [
+          0.309817,
+          0.294892,
+          0.308121
+        ],
+        "median_allocs": 171.0
+      },
+      "median_change_percent": 1.7697010532990998
+    },
+    {
+      "name": "BenchmarkReplyCountProjection/PostgreSQL/initial_replies=0/roots=10/fresh/save",
+      "before": {
+        "median_ms": 98.609243,
+        "range_ms": [
+          93.261112,
+          104.205585
+        ],
+        "samples_ms": [
+          98.609243,
+          104.205585,
+          93.261112
+        ],
+        "median_allocs": 2639.0
+      },
+      "after": {
+        "median_ms": 112.636076,
+        "range_ms": [
+          94.088582,
+          122.024859
+        ],
+        "samples_ms": [
+          122.024859,
+          112.636076,
+          94.088582
+        ],
+        "median_allocs": 2639.0
+      },
+      "median_change_percent": 14.22466350339997
+    },
+    {
+      "name": "BenchmarkReplyCountProjection/PostgreSQL/initial_replies=0/roots=10/fresh/root_control",
+      "before": {
+        "median_ms": 15.004383,
+        "range_ms": [
+          13.888123,
+          16.896656
+        ],
+        "samples_ms": [
+          13.888123,
+          15.004383,
+          16.896656
+        ],
+        "median_allocs": 274.0
+      },
+      "after": {
+        "median_ms": 16.609671,
+        "range_ms": [
+          14.918754,
+          18.736189
+        ],
+        "samples_ms": [
+          18.736189,
+          16.609671,
+          14.918754
+        ],
+        "median_allocs": 274.0
+      },
+      "median_change_percent": 10.698793812447981
+    },
+    {
+      "name": "BenchmarkReplyCountProjection/PostgreSQL/initial_replies=1000/roots=1/vacuumed/populate",
+      "before": {
+        "median_ms": 0.414888,
+        "range_ms": [
+          0.386304,
+          0.41896
+        ],
+        "samples_ms": [
+          0.414888,
+          0.41896,
+          0.386304
+        ],
+        "median_allocs": 137.0
+      },
+      "after": {
+        "median_ms": 0.285189,
+        "range_ms": [
+          0.284249,
+          0.299037
+        ],
+        "samples_ms": [
+          0.284249,
+          0.299037,
+          0.285189
+        ],
+        "median_allocs": 137.0
+      },
+      "median_change_percent": -31.261207844044648
+    },
+    {
+      "name": "BenchmarkReplyCountProjection/PostgreSQL/initial_replies=1000/roots=1/vacuumed/save",
+      "before": {
+        "median_ms": 24.685319,
+        "range_ms": [
+          21.0894,
+          60.648092
+        ],
+        "samples_ms": [
+          21.0894,
+          24.685319,
+          60.648092
+        ],
+        "median_allocs": 651.0
+      },
+      "after": {
+        "median_ms": 26.229983,
+        "range_ms": [
+          23.959491,
+          31.410139
+        ],
+        "samples_ms": [
+          31.410139,
+          26.229983,
+          23.959491
+        ],
+        "median_allocs": 651.0
+      },
+      "median_change_percent": 6.257419642824957
+    },
+    {
+      "name": "BenchmarkReplyCountProjection/PostgreSQL/initial_replies=1000/roots=1/vacuumed/root_control",
+      "before": {
+        "median_ms": 14.365492,
+        "range_ms": [
+          13.222824,
+          15.169196
+        ],
+        "samples_ms": [
+          14.365492,
+          15.169196,
+          13.222824
+        ],
+        "median_allocs": 274.0
+      },
+      "after": {
+        "median_ms": 15.935151,
+        "range_ms": [
+          13.710327,
+          17.62932
+        ],
+        "samples_ms": [
+          17.62932,
+          15.935151,
+          13.710327
+        ],
+        "median_allocs": 274.0
+      },
+      "median_change_percent": 10.926594090895048
+    },
+    {
+      "name": "BenchmarkReplyCountProjection/PostgreSQL/initial_replies=1000/roots=1/fresh/populate",
+      "before": {
+        "median_ms": 0.429691,
+        "range_ms": [
+          0.420936,
+          0.444344
+        ],
+        "samples_ms": [
+          0.444344,
+          0.429691,
+          0.420936
+        ],
+        "median_allocs": 137.0
+      },
+      "after": {
+        "median_ms": 0.420898,
+        "range_ms": [
+          0.41739,
+          0.425987
+        ],
+        "samples_ms": [
+          0.420898,
+          0.425987,
+          0.41739
+        ],
+        "median_allocs": 137.0
+      },
+      "median_change_percent": -2.0463542406054525
+    },
+    {
+      "name": "BenchmarkReplyCountProjection/PostgreSQL/initial_replies=1000/roots=1/fresh/save",
+      "before": {
+        "median_ms": 24.232854,
+        "range_ms": [
+          23.178582,
+          24.487612
+        ],
+        "samples_ms": [
+          24.232854,
+          24.487612,
+          23.178582
+        ],
+        "median_allocs": 651.0
+      },
+      "after": {
+        "median_ms": 22.67124,
+        "range_ms": [
+          21.889007,
+          24.409985
+        ],
+        "samples_ms": [
+          21.889007,
+          24.409985,
+          22.67124
+        ],
+        "median_allocs": 651.0
+      },
+      "median_change_percent": -6.4442017436328385
+    },
+    {
+      "name": "BenchmarkReplyCountProjection/PostgreSQL/initial_replies=1000/roots=1/fresh/root_control",
+      "before": {
+        "median_ms": 17.001166,
+        "range_ms": [
+          13.494,
+          18.416774
+        ],
+        "samples_ms": [
+          17.001166,
+          18.416774,
+          13.494
+        ],
+        "median_allocs": 274.0
+      },
+      "after": {
+        "median_ms": 14.896954,
+        "range_ms": [
+          14.363047,
+          15.104694
+        ],
+        "samples_ms": [
+          14.363047,
+          14.896954,
+          15.104694
+        ],
+        "median_allocs": 274.0
+      },
+      "median_change_percent": -12.376868739473522
+    },
+    {
+      "name": "BenchmarkReplyCountProjection/PostgreSQL/initial_replies=1000/roots=10/vacuumed/populate",
+      "before": {
+        "median_ms": 3.046163,
+        "range_ms": [
+          3.028071,
+          3.079471
+        ],
+        "samples_ms": [
+          3.079471,
+          3.028071,
+          3.046163
+        ],
+        "median_allocs": 229.0
+      },
+      "after": {
+        "median_ms": 1.076301,
+        "range_ms": [
+          1.066138,
+          1.078036
+        ],
+        "samples_ms": [
+          1.076301,
+          1.078036,
+          1.066138
+        ],
+        "median_allocs": 229.0
+      },
+      "median_change_percent": -64.66699254110829
+    },
+    {
+      "name": "BenchmarkReplyCountProjection/PostgreSQL/initial_replies=1000/roots=10/vacuumed/save",
+      "before": {
+        "median_ms": 98.726183,
+        "range_ms": [
+          83.479381,
+          105.514946
+        ],
+        "samples_ms": [
+          105.514946,
+          83.479381,
+          98.726183
+        ],
+        "median_allocs": 2659.0
+      },
+      "after": {
+        "median_ms": 110.086118,
+        "range_ms": [
+          92.751174,
+          113.641288
+        ],
+        "samples_ms": [
+          110.086118,
+          113.641288,
+          92.751174
+        ],
+        "median_allocs": 2659.0
+      },
+      "median_change_percent": 11.506506840237085
+    },
+    {
+      "name": "BenchmarkReplyCountProjection/PostgreSQL/initial_replies=1000/roots=10/vacuumed/root_control",
+      "before": {
+        "median_ms": 13.885685,
+        "range_ms": [
+          12.524248,
+          16.235003
+        ],
+        "samples_ms": [
+          16.235003,
+          12.524248,
+          13.885685
+        ],
+        "median_allocs": 274.0
+      },
+      "after": {
+        "median_ms": 16.791749,
+        "range_ms": [
+          15.297742,
+          17.750499
+        ],
+        "samples_ms": [
+          17.750499,
+          16.791749,
+          15.297742
+        ],
+        "median_allocs": 274.0
+      },
+      "median_change_percent": 20.928488583746496
+    },
+    {
+      "name": "BenchmarkReplyCountProjection/PostgreSQL/initial_replies=1000/roots=10/fresh/populate",
+      "before": {
+        "median_ms": 3.42441,
+        "range_ms": [
+          3.156137,
+          3.461537
+        ],
+        "samples_ms": [
+          3.461537,
+          3.42441,
+          3.156137
+        ],
+        "median_allocs": 229.0
+      },
+      "after": {
+        "median_ms": 3.313357,
+        "range_ms": [
+          3.2113,
+          3.325824
+        ],
+        "samples_ms": [
+          3.2113,
+          3.313357,
+          3.325824
+        ],
+        "median_allocs": 229.0
+      },
+      "median_change_percent": -3.2429820027391587
+    },
+    {
+      "name": "BenchmarkReplyCountProjection/PostgreSQL/initial_replies=1000/roots=10/fresh/save",
+      "before": {
+        "median_ms": 103.157442,
+        "range_ms": [
+          93.976661,
+          105.364138
+        ],
+        "samples_ms": [
+          105.364138,
+          103.157442,
+          93.976661
+        ],
+        "median_allocs": 2659.0
+      },
+      "after": {
+        "median_ms": 113.151571,
+        "range_ms": [
+          103.486718,
+          149.676376
+        ],
+        "samples_ms": [
+          103.486718,
+          113.151571,
+          149.676376
+        ],
+        "median_allocs": 2659.0
+      },
+      "median_change_percent": 9.688228794971486
+    },
+    {
+      "name": "BenchmarkReplyCountProjection/PostgreSQL/initial_replies=1000/roots=10/fresh/root_control",
+      "before": {
+        "median_ms": 14.358741,
+        "range_ms": [
+          13.071574,
+          36.497213
+        ],
+        "samples_ms": [
+          36.497213,
+          13.071574,
+          14.358741
+        ],
+        "median_allocs": 274.0
+      },
+      "after": {
+        "median_ms": 15.922921,
+        "range_ms": [
+          12.484135,
+          16.667882
+        ],
+        "samples_ms": [
+          12.484135,
+          16.667882,
+          15.922921
+        ],
+        "median_allocs": 274.0
+      },
+      "median_change_percent": 10.893573468593098
+    },
+    {
+      "name": "BenchmarkReplyCountProjection/PostgreSQL/initial_replies=10000/roots=1/vacuumed/populate",
+      "before": {
+        "median_ms": 2.020343,
+        "range_ms": [
+          1.969227,
+          2.038845
+        ],
+        "samples_ms": [
+          1.969227,
+          2.020343,
+          2.038845
+        ],
+        "median_allocs": 137.0
+      },
+      "after": {
+        "median_ms": 0.687596,
+        "range_ms": [
+          0.645367,
+          0.689929
+        ],
+        "samples_ms": [
+          0.689929,
+          0.687596,
+          0.645367
+        ],
+        "median_allocs": 137.0
+      },
+      "median_change_percent": -65.96637303665764
+    },
+    {
+      "name": "BenchmarkReplyCountProjection/PostgreSQL/initial_replies=10000/roots=1/vacuumed/save",
+      "before": {
+        "median_ms": 28.117218,
+        "range_ms": [
+          26.320195,
+          69.607285
+        ],
+        "samples_ms": [
+          28.117218,
+          69.607285,
+          26.320195
+        ],
+        "median_allocs": 651.0
+      },
+      "after": {
+        "median_ms": 26.867453,
+        "range_ms": [
+          20.547415,
+          29.120305
+        ],
+        "samples_ms": [
+          20.547415,
+          29.120305,
+          26.867453
+        ],
+        "median_allocs": 651.0
+      },
+      "median_change_percent": -4.444838746137691
+    },
+    {
+      "name": "BenchmarkReplyCountProjection/PostgreSQL/initial_replies=10000/roots=1/vacuumed/root_control",
+      "before": {
+        "median_ms": 16.801544,
+        "range_ms": [
+          14.346273,
+          17.858857
+        ],
+        "samples_ms": [
+          17.858857,
+          14.346273,
+          16.801544
+        ],
+        "median_allocs": 274.0
+      },
+      "after": {
+        "median_ms": 15.716048,
+        "range_ms": [
+          13.110901,
+          21.649366
+        ],
+        "samples_ms": [
+          13.110901,
+          15.716048,
+          21.649366
+        ],
+        "median_allocs": 274.0
+      },
+      "median_change_percent": -6.460691945930675
+    },
+    {
+      "name": "BenchmarkReplyCountProjection/PostgreSQL/initial_replies=10000/roots=1/fresh/populate",
+      "before": {
+        "median_ms": 2.38579,
+        "range_ms": [
+          2.34893,
+          2.483655
+        ],
+        "samples_ms": [
+          2.483655,
+          2.38579,
+          2.34893
+        ],
+        "median_allocs": 137.0
+      },
+      "after": {
+        "median_ms": 2.368003,
+        "range_ms": [
+          2.280385,
+          2.851471
+        ],
+        "samples_ms": [
+          2.851471,
+          2.280385,
+          2.368003
+        ],
+        "median_allocs": 137.0
+      },
+      "median_change_percent": -0.7455392134261718
+    },
+    {
+      "name": "BenchmarkReplyCountProjection/PostgreSQL/initial_replies=10000/roots=1/fresh/save",
+      "before": {
+        "median_ms": 26.51192,
+        "range_ms": [
+          25.575159,
+          27.359902
+        ],
+        "samples_ms": [
+          26.51192,
+          25.575159,
+          27.359902
+        ],
+        "median_allocs": 651.0
+      },
+      "after": {
+        "median_ms": 28.506495,
+        "range_ms": [
+          27.804399,
+          29.3977
+        ],
+        "samples_ms": [
+          29.3977,
+          27.804399,
+          28.506495
+        ],
+        "median_allocs": 651.0
+      },
+      "median_change_percent": 7.523314041382134
+    },
+    {
+      "name": "BenchmarkReplyCountProjection/PostgreSQL/initial_replies=10000/roots=1/fresh/root_control",
+      "before": {
+        "median_ms": 14.741717,
+        "range_ms": [
+          14.030138,
+          15.503484
+        ],
+        "samples_ms": [
+          14.741717,
+          14.030138,
+          15.503484
+        ],
+        "median_allocs": 274.0
+      },
+      "after": {
+        "median_ms": 14.941535,
+        "range_ms": [
+          14.430324,
+          15.406164
+        ],
+        "samples_ms": [
+          14.941535,
+          15.406164,
+          14.430324
+        ],
+        "median_allocs": 274.0
+      },
+      "median_change_percent": 1.3554594759891403
+    },
+    {
+      "name": "BenchmarkReplyCountProjection/PostgreSQL/initial_replies=10000/roots=10/vacuumed/populate",
+      "before": {
+        "median_ms": 16.071768,
+        "range_ms": [
+          15.234421,
+          16.406481
+        ],
+        "samples_ms": [
+          16.406481,
+          16.071768,
+          15.234421
+        ],
+        "median_allocs": 229.0
+      },
+      "after": {
+        "median_ms": 5.581557,
+        "range_ms": [
+          5.309967,
+          6.419738
+        ],
+        "samples_ms": [
+          5.581557,
+          6.419738,
+          5.309967
+        ],
+        "median_allocs": 229.0
+      },
+      "median_change_percent": -65.27104547551956
+    },
+    {
+      "name": "BenchmarkReplyCountProjection/PostgreSQL/initial_replies=10000/roots=10/vacuumed/save",
+      "before": {
+        "median_ms": 92.063637,
+        "range_ms": [
+          85.708228,
+          102.469409
+        ],
+        "samples_ms": [
+          92.063637,
+          102.469409,
+          85.708228
+        ],
+        "median_allocs": 2659.0
+      },
+      "after": {
+        "median_ms": 98.077734,
+        "range_ms": [
+          91.507095,
+          116.545692
+        ],
+        "samples_ms": [
+          116.545692,
+          91.507095,
+          98.077734
+        ],
+        "median_allocs": 2659.0
+      },
+      "median_change_percent": 6.532543353680453
+    },
+    {
+      "name": "BenchmarkReplyCountProjection/PostgreSQL/initial_replies=10000/roots=10/vacuumed/root_control",
+      "before": {
+        "median_ms": 13.357751,
+        "range_ms": [
+          11.223905,
+          16.913935
+        ],
+        "samples_ms": [
+          13.357751,
+          16.913935,
+          11.223905
+        ],
+        "median_allocs": 274.0
+      },
+      "after": {
+        "median_ms": 17.902432,
+        "range_ms": [
+          15.479528,
+          20.043274
+        ],
+        "samples_ms": [
+          17.902432,
+          15.479528,
+          20.043274
+        ],
+        "median_allocs": 274.0
+      },
+      "median_change_percent": 34.02280069451811
+    },
+    {
+      "name": "BenchmarkReplyCountProjection/PostgreSQL/initial_replies=10000/roots=10/fresh/populate",
+      "before": {
+        "median_ms": 19.846705,
+        "range_ms": [
+          19.669284,
+          20.242425
+        ],
+        "samples_ms": [
+          19.846705,
+          20.242425,
+          19.669284
+        ],
+        "median_allocs": 229.0
+      },
+      "after": {
+        "median_ms": 19.369181,
+        "range_ms": [
+          19.1971,
+          19.440784
+        ],
+        "samples_ms": [
+          19.1971,
+          19.440784,
+          19.369181
+        ],
+        "median_allocs": 229.0
+      },
+      "median_change_percent": -2.4060618626618346
+    },
+    {
+      "name": "BenchmarkReplyCountProjection/PostgreSQL/initial_replies=10000/roots=10/fresh/save",
+      "before": {
+        "median_ms": 107.001289,
+        "range_ms": [
+          105.724082,
+          142.929066
+        ],
+        "samples_ms": [
+          142.929066,
+          107.001289,
+          105.724082
+        ],
+        "median_allocs": 2659.0
+      },
+      "after": {
+        "median_ms": 115.112597,
+        "range_ms": [
+          110.376214,
+          149.271466
+        ],
+        "samples_ms": [
+          115.112597,
+          110.376214,
+          149.271466
+        ],
+        "median_allocs": 2659.0
+      },
+      "median_change_percent": 7.580570361166394
+    },
+    {
+      "name": "BenchmarkReplyCountProjection/PostgreSQL/initial_replies=10000/roots=10/fresh/root_control",
+      "before": {
+        "median_ms": 18.02479,
+        "range_ms": [
+          15.918807,
+          22.053147
+        ],
+        "samples_ms": [
+          22.053147,
+          18.02479,
+          15.918807
+        ],
+        "median_allocs": 274.0
+      },
+      "after": {
+        "median_ms": 14.451508,
+        "range_ms": [
+          13.865645,
+          29.946993
+        ],
+        "samples_ms": [
+          29.946993,
+          13.865645,
+          14.451508
+        ],
+        "median_allocs": 274.0
+      },
+      "median_change_percent": -19.82426424940318
+    }
+  ],
+  "plan_examples": [
+    {
+      "variant": "before",
+      "case": "BenchmarkReplyCountProjection/PostgreSQL/initial_replies=10000/roots=1/vacuumed/populate",
+      "nodes": [
+        {
+          "Node Type": "Aggregate",
+          "Actual Rows": 1,
+          "Shared Hit Blocks": 1326,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Seq Scan",
+          "Actual Rows": 8572,
+          "Shared Hit Blocks": 1326,
+          "Shared Read Blocks": 0
+        }
+      ]
+    },
+    {
+      "variant": "after",
+      "case": "BenchmarkReplyCountProjection/PostgreSQL/initial_replies=10000/roots=1/vacuumed/populate",
+      "nodes": [
+        {
+          "Node Type": "Aggregate",
+          "Actual Rows": 1,
+          "Shared Hit Blocks": 9,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Index Only Scan",
+          "Index Name": "idx_posts_root_id_delete_at",
+          "Heap Fetches": 0,
+          "Actual Rows": 8572,
+          "Shared Hit Blocks": 9,
+          "Shared Read Blocks": 0
+        }
+      ]
+    }
+  ],
+  "isolated": [
+    {
+      "name": "fresh_single_save",
+      "before": {
+        "median_ms": 24.167128,
+        "range_ms": [
+          24.112323,
+          36.980042
+        ],
+        "samples_ms": [
+          36.980042,
+          24.167128,
+          24.112323
+        ]
+      },
+      "after": {
+        "median_ms": 30.351316,
+        "range_ms": [
+          29.056883,
+          33.674769
+        ],
+        "samples_ms": [
+          30.351316,
+          29.056883,
+          33.674769
+        ]
+      },
+      "median_change_percent": 25.589254958222575
+    },
+    {
+      "name": "fresh_single_control",
+      "before": {
+        "median_ms": 14.391224,
+        "range_ms": [
+          13.994264,
+          20.084087
+        ],
+        "samples_ms": [
+          20.084087,
+          13.994264,
+          14.391224
+        ]
+      },
+      "after": {
+        "median_ms": 16.713804,
+        "range_ms": [
+          16.119742,
+          26.394636
+        ],
+        "samples_ms": [
+          16.713804,
+          26.394636,
+          16.119742
+        ]
+      },
+      "median_change_percent": 16.138863518488765
+    },
+    {
+      "name": "vacuumed_batch_save",
+      "before": {
+        "median_ms": 105.053462,
+        "range_ms": [
+          102.311586,
+          119.820228
+        ],
+        "samples_ms": [
+          105.053462,
+          119.820228,
+          102.311586
+        ]
+      },
+      "after": {
+        "median_ms": 73.98616,
+        "range_ms": [
+          73.272957,
+          101.418887
+        ],
+        "samples_ms": [
+          73.98616,
+          101.418887,
+          73.272957
+        ]
+      },
+      "median_change_percent": -29.57284929838866
+    },
+    {
+      "name": "vacuumed_batch_control",
+      "before": {
+        "median_ms": 12.338231,
+        "range_ms": [
+          10.01317,
+          13.117883
+        ],
+        "samples_ms": [
+          13.117883,
+          12.338231,
+          10.01317
+        ]
+      },
+      "after": {
+        "median_ms": 10.617638,
+        "range_ms": [
+          10.25496,
+          11.117458
+        ],
+        "samples_ms": [
+          11.117458,
+          10.617638,
+          10.25496
+        ]
+      },
+      "median_change_percent": -13.945216295593754
+    }
+  ]
+}
