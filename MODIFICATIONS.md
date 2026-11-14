@@ -519,3 +519,14 @@ and channels keep their names. Gates removed: `createChannel` in
 `PluginAPI.CreateChannel` in `app/plugin_api.go`, the webapp selector
 `isAnonymousURLEnabled` that hides the URL editors, and the System Console
 toggle's Enterprise Advanced check.
+
+### post-file-metadata.patch
+
+2026-11-14. Reuses successfully prepared attachment metadata when adding post
+embeds and images. Avoids a duplicate file lookup, ordering and mini-preview
+dispatch, while retaining second attempts for failed reads, pending previews
+and metadata resets. Keeps standalone behavior, master selection, deleted-file
+flags, attachment order and per-user sanitization. Adds regressions, a negative
+control and paired real-app benchmarks. Existing feature patches and author
+credit remain unchanged.
+[Measured results](docs/benchmarks/post-file-metadata/README.md).

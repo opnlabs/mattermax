@@ -1,0 +1,39 @@
+{
+  "status": "passed",
+  "checks": [
+    {
+      "name": "post-file-metadata-app-race",
+      "status": "passed",
+      "command": "go test -race ./channels/app -run '^(TestPreparePostFilesReusesSuccessfulRead|TestPreparePostListForClient|TestPreparePostForClient|TestPreparePostForClientWithImageProxy|TestGetImagesForPost|TestSanitizePostMetadataForUser|TestPreparePostForClient_BurnOnReadSenderExpireAt)$' -count=1 -timeout=15m -json",
+      "counts": {
+        "pass": 94,
+        "fail": 0,
+        "skip": 0
+      }
+    },
+    {
+      "name": "post-file-metadata-api-race",
+      "status": "passed",
+      "command": "go test -race ./channels/api4 -run '^(TestGetFileInfosForPost|TestGetPostsByIdsFileMetadataABAC|TestGetEditHistoryForPostDoesNotLeakFilesDeniedByPolicy|TestFileMetadataServedWhenPolicyAllows)$' -count=1 -timeout=15m -json",
+      "counts": {
+        "pass": 8,
+        "fail": 0,
+        "skip": 0
+      }
+    }
+  ],
+  "negative_control": {
+    "status": "expected_failure",
+    "method": "Restore only the original post_metadata.go through a Go overlay and run the exact ordinary-read regression.",
+    "command": "go test -race -overlay /tmp/before-overlay.json ./channels/app -run '^TestPreparePostFilesReusesSuccessfulRead$/^ordinary$' -count=1 -timeout=10m -json",
+    "result": "Expected GetByIds calls: 1; actual with original source: 2.",
+    "before_sha256": "7c1df926962309717a8bbb013c12f9bd18ca1882da213f4346ae370be66340b7"
+  },
+  "packaging": "Full branded packaging build not run.",
+  "patch_check": {
+    "command": "just check",
+    "status": "passed",
+    "patches": 39,
+    "existing_patches_modified": 0
+  }
+}

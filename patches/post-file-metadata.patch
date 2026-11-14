@@ -1,0 +1,252 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: rhnvrm <hello@rohanverma.net>
+Date: Sat, 14 Nov 2026 12:34:26 +0530
+Subject: [PATCH] perf: reuse prepared post attachment metadata
+
+Reuse successfully prepared file metadata in the embed/image wrapper instead of fetching and preparing it twice. Keep second attempts after store failures, incomplete mini-previews and metadata resets. Preserve master selection, attachment order, source-post immutability and standalone preparation behavior.
+
+Add app regressions and a real app benchmark for warm cached and master reads with zero, one and ten text attachments. Existing Mattermax patches and contributor attribution remain unchanged.
+
+Mattermax-Patch: post-file-metadata.patch
+---
+ server/channels/app/post_metadata.go      |  39 +++++--
+ server/channels/app/post_metadata_test.go | 136 ++++++++++++++++++++++
+ 2 files changed, 164 insertions(+), 11 deletions(-)
+
+diff --git a/server/channels/app/post_metadata.go b/server/channels/app/post_metadata.go
+index 8021a3f38709..e709b3c79f6e 100644
+--- a/server/channels/app/post_metadata.go
++++ b/server/channels/app/post_metadata.go
+@@ -185,6 +185,13 @@ func (a *App) OverrideIconURLIfEmoji(rctx request.CTX, post *model.Post) {
+ }
+ 
+ func (a *App) PreparePostForClient(rctx request.CTX, originalPost *model.Post, opts *model.PreparePostForClientOpts) *model.Post {
++	post, _ := a.preparePostForClient(rctx, originalPost, opts)
++	return post
++}
++
++// preparePostForClient reports whether file metadata can be reused by the embed
++// path. Failed reads, pending previews and metadata resets need another attempt.
++func (a *App) preparePostForClient(rctx request.CTX, originalPost *model.Post, opts *model.PreparePostForClientOpts) (*model.Post, bool) {
+ 	post := originalPost.Clone()
+ 
+ 	// Proxy image links before constructing metadata so that requests go through the proxy
+@@ -199,7 +206,7 @@ func (a *App) PreparePostForClient(rctx request.CTX, originalPost *model.Post, o
+ 		// For deleted posts we don't fill out metadata nor do we return the post content
+ 		post.Message = ""
+ 		post.Metadata = &model.PostMetadata{}
+-		return post
++		return post, false
+ 	}
+ 
+ 	// Emojis and reaction counts
+@@ -211,7 +218,7 @@ func (a *App) PreparePostForClient(rctx request.CTX, originalPost *model.Post, o
+ 	}
+ 
+ 	// Files
+-	a.preparePostFilesForClient(rctx, post, opts)
++	filesPrepared := a.preparePostFilesForClient(rctx, post, opts)
+ 
+ 	if post.Type == model.PostTypeBurnOnRead {
+ 		// For the sender, populate ExpireAt from TemporaryPost when all recipients have revealed.
+@@ -232,6 +239,7 @@ func (a *App) PreparePostForClient(rctx request.CTX, originalPost *model.Post, o
+ 				// if the post is a scheduled post, we don't reset the metadata
+ 			} else {
+ 				post.Metadata = &model.PostMetadata{}
++				filesPrepared = false
+ 			}
+ 		}
+ 	}
+@@ -252,23 +260,32 @@ func (a *App) PreparePostForClient(rctx request.CTX, originalPost *model.Post, o
+ 		}
+ 	}
+ 
+-	return post
++	return post, filesPrepared
+ }
+ 
+-func (a *App) preparePostFilesForClient(rctx request.CTX, post *model.Post, opts *model.PreparePostForClientOpts) *model.Post {
+-	if fileInfos, _, err := a.getFileMetadataForPost(rctx, post, opts.IsNewPost || opts.IsEditPost, opts.IncludeDeleted); err != nil {
++func (a *App) preparePostFilesForClient(rctx request.CTX, post *model.Post, opts *model.PreparePostForClientOpts) bool {
++	fileInfos, _, err := a.getFileMetadataForPost(rctx, post, opts.IsNewPost || opts.IsEditPost, opts.IncludeDeleted)
++	if err != nil {
+ 		rctx.Logger().Warn("Failed to get files for a post", mlog.String("post_id", post.Id), mlog.Err(err))
+-	} else {
+-		post.Metadata.Files = fileInfos
++		return false
+ 	}
+-
+-	return post
++	post.Metadata.Files = fileInfos
++	// Mini-preview failures are logged by generateMiniPreview, not returned.
++	// Keep the embed path's second attempt when preview work is still pending.
++	for _, info := range fileInfos {
++		if info.IsImage() && !info.IsSvg() && info.MiniPreview == nil {
++			return false
++		}
++	}
++	return true
+ }
+ 
+ func (a *App) PreparePostForClientWithEmbedsAndImages(rctx request.CTX, originalPost *model.Post, opts *model.PreparePostForClientOpts) *model.Post {
+-	post := a.PreparePostForClient(rctx, originalPost, opts)
++	post, filesPrepared := a.preparePostForClient(rctx, originalPost, opts)
+ 	post = a.getEmbedsAndImages(rctx, post, opts.IsNewPost)
+-	post = a.preparePostFilesForClient(rctx, post, opts)
++	if !filesPrepared {
++		a.preparePostFilesForClient(rctx, post, opts)
++	}
+ 	return post
+ }
+ 
+diff --git a/server/channels/app/post_metadata_test.go b/server/channels/app/post_metadata_test.go
+index 074fdfa02906..dedaaca2250c 100644
+--- a/server/channels/app/post_metadata_test.go
++++ b/server/channels/app/post_metadata_test.go
+@@ -5,6 +5,7 @@ package app
+ 
+ import (
+ 	"bytes"
++	"errors"
+ 	"fmt"
+ 	"image"
+ 	"image/png"
+@@ -4074,3 +4075,138 @@ func TestFillInPostPropsWithCurrentTeamId(t *testing.T) {
+ 		}
+ 	})
+ }
++
++func TestPreparePostFilesReusesSuccessfulRead(t *testing.T) {
++	for _, tc := range []struct {
++		name                                                                       string
++		opts                                                                       model.PreparePostForClientOpts
++		deleted, hiddenBurn, standalone, firstFailure, allFailures, pendingPreview bool
++		calls                                                                      int
++	}{
++		{name: "ordinary", calls: 1},
++		{name: "new post uses master", opts: model.PreparePostForClientOpts{IsNewPost: true}, calls: 1},
++		{name: "edit uses master", opts: model.PreparePostForClientOpts{IsEditPost: true, IncludeDeleted: true}, calls: 1},
++		{name: "standalone", standalone: true, calls: 1},
++		{name: "deleted wrapper retains final lookup", deleted: true, calls: 1},
++		{name: "deleted retained content", deleted: true, opts: model.PreparePostForClientOpts{RetainContent: true, IncludeDeleted: true}, calls: 1},
++		{name: "unrevealed recipient retains reload", hiddenBurn: true, calls: 2},
++		{name: "first failure retries", firstFailure: true, calls: 2},
++		{name: "failed image preview retains second attempt", pendingPreview: true, calls: 2},
++		{name: "standalone preview failure stays single attempt", standalone: true, pendingPreview: true, calls: 1},
++		{name: "both failures retain original files", firstFailure: true, allFailures: true, calls: 2},
++	} {
++		t.Run(tc.name, func(t *testing.T) {
++			th := SetupWithStoreMock(t)
++			rctx := th.Context.WithSession(&model.Session{UserId: model.NewId()})
++			ids := []string{model.NewId(), model.NewId()}
++			originalFile := &model.FileInfo{Id: model.NewId(), Name: "original"}
++			post := &model.Post{Id: model.NewId(), ChannelId: model.NewId(), UserId: model.NewId(), Message: "files", FileIds: ids, Metadata: &model.PostMetadata{Files: []*model.FileInfo{originalFile}}}
++			if tc.deleted {
++				post.DeleteAt = model.GetMillis()
++			}
++			if tc.hiddenBurn {
++				post.Type = model.PostTypeBurnOnRead
++			}
++			original := post.Clone()
++			first := &model.FileInfo{Id: ids[0], Name: "first.txt", MimeType: "text/plain"}
++			second := &model.FileInfo{Id: ids[1], Name: "second.txt", MimeType: "text/plain"}
++			if tc.pendingPreview {
++				first.Name = "first.png"
++				first.MimeType = "image/png"
++				first.Path = "post-file-metadata/missing-" + ids[0] + ".png"
++			}
++			fileStore := &mocks.FileInfoStore{}
++			fromMaster := tc.opts.IsNewPost || tc.opts.IsEditPost
++			args := []any{ids, tc.opts.IncludeDeleted, true, fromMaster}
++			if tc.firstFailure {
++				fileStore.On("GetByIds", args...).Return(([]*model.FileInfo)(nil), errors.New("temporary failure")).Once()
++			}
++			if tc.allFailures {
++				fileStore.On("GetByIds", args...).Return(([]*model.FileInfo)(nil), errors.New("persistent failure")).Once()
++			} else {
++				fileStore.On("GetByIds", args...).Return([]*model.FileInfo{second, first}, nil)
++			}
++			stores := th.App.Srv().Store().(*mocks.Store)
++			stores.On("FileInfo").Return(fileStore)
++			postStore := &mocks.PostStore{}
++			if fromMaster {
++				postStore.On("GetSingle", mock.Anything, post.Id, tc.opts.IncludeDeleted).Return(post, nil)
++				stores.On("Post").Return(postStore)
++			}
++			var got *model.Post
++			if tc.standalone {
++				got = th.App.PreparePostForClient(rctx, post, &tc.opts)
++			} else {
++				got = th.App.PreparePostForClientWithEmbedsAndImages(rctx, post, &tc.opts)
++			}
++			if tc.allFailures {
++				require.Equal(t, []*model.FileInfo{originalFile}, got.Metadata.Files)
++			} else {
++				require.Equal(t, []*model.FileInfo{first, second}, got.Metadata.Files)
++			}
++			require.Equal(t, original, post, "preparation must not mutate source posts")
++			fileStore.AssertNumberOfCalls(t, "GetByIds", tc.calls)
++			fileStore.AssertExpectations(t)
++			if fromMaster {
++				postStore.AssertNumberOfCalls(t, "GetSingle", tc.calls)
++			}
++		})
++	}
++}
++
++// BenchmarkPostFileMetadata exercises the real app preparation path with text
++// attachments. Warm reads use the existing file cache; new-post reads use master.
++// It excludes HTTP, upload bytes, image decoding and remote link fetching.
++func BenchmarkPostFileMetadata(b *testing.B) {
++	th := Setup(b).InitBasic(b)
++	th.App.UpdateConfig(func(cfg *model.Config) { *cfg.ServiceSettings.EnableLinkPreviews = false })
++	for _, files := range []int{0, 1, 10} {
++		b.Run(fmt.Sprintf("files=%d", files), func(b *testing.B) {
++			post, err := th.App.Srv().Store().Post().Save(th.Context, &model.Post{ChannelId: th.BasicChannel.Id, UserId: th.BasicUser.Id, Message: "attachment benchmark"})
++			if err != nil {
++				b.Fatal(err)
++			}
++			ids := make([]string, files)
++			for i := range ids {
++				info, err := th.App.Srv().Store().FileInfo().Save(th.Context, &model.FileInfo{CreatorId: th.BasicUser.Id, PostId: post.Id, Name: fmt.Sprintf("attachment-%d.txt", i), Path: fmt.Sprintf("benchmark/%s/%d.txt", post.Id, i), MimeType: "text/plain"})
++				if err != nil {
++					b.Fatal(err)
++				}
++				ids[i] = info.Id
++			}
++			updated := post.Clone()
++			updated.FileIds = ids
++			post, err = th.App.Srv().Store().Post().Update(th.Context, updated, post)
++			if err != nil {
++				b.Fatal(err)
++			}
++			for _, mode := range []string{"warm", "master"} {
++				b.Run(mode, func(b *testing.B) {
++					opts := &model.PreparePostForClientOpts{IsNewPost: mode == "master"}
++					// Preflight warms the normal file cache and validates stored attachment order.
++					check := func(p *model.Post) bool {
++						if p.Metadata == nil || len(p.Metadata.Files) != files {
++							return false
++						}
++						for i, info := range p.Metadata.Files {
++							if info.Id != ids[i] {
++								return false
++							}
++						}
++						return true
++					}
++					if !check(th.App.PreparePostForClientWithEmbedsAndImages(th.Context, post, opts)) {
++						b.Fatal("incorrect attachment preflight")
++					}
++					b.ReportAllocs()
++					b.ResetTimer()
++					for i := 0; i < b.N; i++ {
++						if !check(th.App.PreparePostForClientWithEmbedsAndImages(th.Context, post, opts)) {
++							b.Fatal("incorrect attachment metadata")
++						}
++					}
++				})
++			}
++		})
++	}
++}
