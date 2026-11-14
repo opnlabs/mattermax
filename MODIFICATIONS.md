@@ -519,3 +519,13 @@ and channels keep their names. Gates removed: `createChannel` in
 `PluginAPI.CreateChannel` in `app/plugin_api.go`, the webapp selector
 `isAnonymousURLEnabled` that hides the URL editors, and the System Console
 toggle's Enterprise Advanced check.
+
+### slowmode-lookup-index.patch
+
+2026-11-14. Adds a concurrent partial index on post channel, user and creation
+time for the non-system rows used by slowmode. A lookup with no recent matching
+post can otherwise walk the global creation-time index and filter unrelated
+rows. Deleted posts stay in the index so deletion does not reset the cooldown.
+The query and its API behavior are unchanged. This builds on Karan Sharma's
+slowmode work. [The benchmark](docs/benchmarks/slowmode-lookup/README.md) records
+lookup timings, index size and bulk-insert cost on a synthetic fixture.
