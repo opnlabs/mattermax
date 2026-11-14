@@ -1,0 +1,327 @@
+{
+  "status": "passed",
+  "source_sha": "a3ebaebc47f544d7269095f9de42004bb61fb267",
+  "source_tree_sha": "f89076c524c675f31b0f4fab484c270265f29e8c",
+  "go_version": "go version go1.26.10 linux/amd64",
+  "gomaxprocs": 4,
+  "benchmark_filter": "^BenchmarkThreadUnreadReplies$/^PostgreSQL$/^replies=1000$/^all_read$/^reply_total_control$",
+  "expected_cases": 1,
+  "iterations": 5000,
+  "trials": 5,
+  "baseline_sha": "HEAD^",
+  "production_file_sha256": "939319ad62aeb9612787cbbe43747c4a77daca93606f32f0115db254987ba08d",
+  "baseline_file_sha256": "d0fc1c28f67706250968abd4f221dcefb295b5e2bfbf87e94599e751dade3218",
+  "samples": [
+    {
+      "trial": 0,
+      "variant": "before",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./channels/store/sqlstore",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkThreadUnreadReplies$/^PostgreSQL$/^replies=1000$/^all_read$/^reply_total_control$",
+        "-benchtime",
+        "5000x",
+        "-count=1",
+        "-timeout=15m",
+        "-json",
+        "-overlay",
+        "/home/rhnvrm/.bb/thread-storage/thr_jynvcygccx/thread-unread-isolated-reply_count_control/baseline-overlay.json"
+      ],
+      "benchmarks": [
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/all_read/reply_total_control",
+          "iterations": 5000,
+          "ns_op": 766133.0,
+          "bytes_op": 19204.0,
+          "allocs_op": 205.0
+        }
+      ],
+      "log_sha256": "8a9e05260c86c3961650b1a0c07d2b44ee47ac0730c1f3124d128f1649dc9188"
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./channels/store/sqlstore",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkThreadUnreadReplies$/^PostgreSQL$/^replies=1000$/^all_read$/^reply_total_control$",
+        "-benchtime",
+        "5000x",
+        "-count=1",
+        "-timeout=15m",
+        "-json"
+      ],
+      "benchmarks": [
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/all_read/reply_total_control",
+          "iterations": 5000,
+          "ns_op": 764916.0,
+          "bytes_op": 19201.0,
+          "allocs_op": 205.0
+        }
+      ],
+      "log_sha256": "527ef06c8a899360dab2fbd641e09d066d3df3b07f165950955140c2fd4ddc44"
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./channels/store/sqlstore",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkThreadUnreadReplies$/^PostgreSQL$/^replies=1000$/^all_read$/^reply_total_control$",
+        "-benchtime",
+        "5000x",
+        "-count=1",
+        "-timeout=15m",
+        "-json"
+      ],
+      "benchmarks": [
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/all_read/reply_total_control",
+          "iterations": 5000,
+          "ns_op": 619127.0,
+          "bytes_op": 19201.0,
+          "allocs_op": 205.0
+        }
+      ],
+      "log_sha256": "f0eaebdb63b786d2a7b70c0f97b6ebae6072fa1a507698a07f3b1276df6f5d19"
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./channels/store/sqlstore",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkThreadUnreadReplies$/^PostgreSQL$/^replies=1000$/^all_read$/^reply_total_control$",
+        "-benchtime",
+        "5000x",
+        "-count=1",
+        "-timeout=15m",
+        "-json",
+        "-overlay",
+        "/home/rhnvrm/.bb/thread-storage/thr_jynvcygccx/thread-unread-isolated-reply_count_control/baseline-overlay.json"
+      ],
+      "benchmarks": [
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/all_read/reply_total_control",
+          "iterations": 5000,
+          "ns_op": 605644.0,
+          "bytes_op": 19197.0,
+          "allocs_op": 205.0
+        }
+      ],
+      "log_sha256": "5ff191d5ed61073cc05e1752877ddf51f8fbdb51c1e4446fe280b0adf1a6324a"
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./channels/store/sqlstore",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkThreadUnreadReplies$/^PostgreSQL$/^replies=1000$/^all_read$/^reply_total_control$",
+        "-benchtime",
+        "5000x",
+        "-count=1",
+        "-timeout=15m",
+        "-json",
+        "-overlay",
+        "/home/rhnvrm/.bb/thread-storage/thr_jynvcygccx/thread-unread-isolated-reply_count_control/baseline-overlay.json"
+      ],
+      "benchmarks": [
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/all_read/reply_total_control",
+          "iterations": 5000,
+          "ns_op": 582521.0,
+          "bytes_op": 19198.0,
+          "allocs_op": 205.0
+        }
+      ],
+      "log_sha256": "181b840780894171892839999ed602adbdd9dfd97ad6594d6a6b1937838d6ae0"
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./channels/store/sqlstore",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkThreadUnreadReplies$/^PostgreSQL$/^replies=1000$/^all_read$/^reply_total_control$",
+        "-benchtime",
+        "5000x",
+        "-count=1",
+        "-timeout=15m",
+        "-json"
+      ],
+      "benchmarks": [
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/all_read/reply_total_control",
+          "iterations": 5000,
+          "ns_op": 597694.0,
+          "bytes_op": 19200.0,
+          "allocs_op": 205.0
+        }
+      ],
+      "log_sha256": "cec18efee7d689d04c7e3da4a6618bdc84973034c8e1c9b8ac7db89c0b9265ca"
+    },
+    {
+      "trial": 3,
+      "variant": "after",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./channels/store/sqlstore",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkThreadUnreadReplies$/^PostgreSQL$/^replies=1000$/^all_read$/^reply_total_control$",
+        "-benchtime",
+        "5000x",
+        "-count=1",
+        "-timeout=15m",
+        "-json"
+      ],
+      "benchmarks": [
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/all_read/reply_total_control",
+          "iterations": 5000,
+          "ns_op": 628007.0,
+          "bytes_op": 19197.0,
+          "allocs_op": 205.0
+        }
+      ],
+      "log_sha256": "a5dda2a687d2ca64f6d1ee6023085fc76d7c4632749773d35cb900fa27630882"
+    },
+    {
+      "trial": 3,
+      "variant": "before",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./channels/store/sqlstore",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkThreadUnreadReplies$/^PostgreSQL$/^replies=1000$/^all_read$/^reply_total_control$",
+        "-benchtime",
+        "5000x",
+        "-count=1",
+        "-timeout=15m",
+        "-json",
+        "-overlay",
+        "/home/rhnvrm/.bb/thread-storage/thr_jynvcygccx/thread-unread-isolated-reply_count_control/baseline-overlay.json"
+      ],
+      "benchmarks": [
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/all_read/reply_total_control",
+          "iterations": 5000,
+          "ns_op": 606936.0,
+          "bytes_op": 19199.0,
+          "allocs_op": 205.0
+        }
+      ],
+      "log_sha256": "79ef7259463a1715d2fbe39de7508683c5cb6fae022db4009e40716a14a35dba"
+    },
+    {
+      "trial": 4,
+      "variant": "before",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./channels/store/sqlstore",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkThreadUnreadReplies$/^PostgreSQL$/^replies=1000$/^all_read$/^reply_total_control$",
+        "-benchtime",
+        "5000x",
+        "-count=1",
+        "-timeout=15m",
+        "-json",
+        "-overlay",
+        "/home/rhnvrm/.bb/thread-storage/thr_jynvcygccx/thread-unread-isolated-reply_count_control/baseline-overlay.json"
+      ],
+      "benchmarks": [
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/all_read/reply_total_control",
+          "iterations": 5000,
+          "ns_op": 637721.0,
+          "bytes_op": 19201.0,
+          "allocs_op": 205.0
+        }
+      ],
+      "log_sha256": "a5694be07159764a6daa16be32f0c139611e29a6113396a8aaae9e7387cab141"
+    },
+    {
+      "trial": 4,
+      "variant": "after",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./channels/store/sqlstore",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkThreadUnreadReplies$/^PostgreSQL$/^replies=1000$/^all_read$/^reply_total_control$",
+        "-benchtime",
+        "5000x",
+        "-count=1",
+        "-timeout=15m",
+        "-json"
+      ],
+      "benchmarks": [
+        {
+          "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/all_read/reply_total_control",
+          "iterations": 5000,
+          "ns_op": 642391.0,
+          "bytes_op": 19201.0,
+          "allocs_op": 205.0
+        }
+      ],
+      "log_sha256": "a0cd9add936f64beeb33d82bc7a0930df03f967811fc203ee325d6101a7e1daa"
+    }
+  ],
+  "scope": "Serial SQL-store calls on 30 roots and fresh, interleaved reply rows. Before uses the original production file and drops the candidate index before seeding. Each process has a new database from the standard store test harness. Fixture setup, index changes and cleanup are outside timing. Not App/HTTP latency or production capacity."
+}

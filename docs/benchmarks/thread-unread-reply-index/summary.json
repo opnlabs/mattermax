@@ -1,0 +1,1421 @@
+{
+  "source_sha": "a3ebaebc47f544d7269095f9de42004bb61fb267",
+  "source_tree_sha": "f89076c524c675f31b0f4fab484c270265f29e8c",
+  "store": [
+    {
+      "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/mostly_read/count",
+      "before": {
+        "median_ms": 0.251463,
+        "range_ms": [
+          0.236835,
+          0.254462
+        ],
+        "samples_ms": [
+          0.251463,
+          0.236835,
+          0.254462
+        ],
+        "median_allocs": 123.0
+      },
+      "after": {
+        "median_ms": 0.244822,
+        "range_ms": [
+          0.243117,
+          0.249809
+        ],
+        "samples_ms": [
+          0.244822,
+          0.249809,
+          0.243117
+        ],
+        "median_allocs": 123.0
+      },
+      "median_change_percent": -2.6409451887553947
+    },
+    {
+      "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/mostly_read/single",
+      "before": {
+        "median_ms": 0.615605,
+        "range_ms": [
+          0.594388,
+          0.622397
+        ],
+        "samples_ms": [
+          0.615605,
+          0.594388,
+          0.622397
+        ],
+        "median_allocs": 435.0
+      },
+      "after": {
+        "median_ms": 0.620332,
+        "range_ms": [
+          0.601186,
+          0.634501
+        ],
+        "samples_ms": [
+          0.634501,
+          0.601186,
+          0.620332
+        ],
+        "median_allocs": 435.0
+      },
+      "median_change_percent": 0.7678625092388813
+    },
+    {
+      "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/mostly_read/page",
+      "before": {
+        "median_ms": 1.389985,
+        "range_ms": [
+          1.097293,
+          1.442905
+        ],
+        "samples_ms": [
+          1.097293,
+          1.389985,
+          1.442905
+        ],
+        "median_allocs": 1681.0
+      },
+      "after": {
+        "median_ms": 1.308613,
+        "range_ms": [
+          1.122231,
+          1.406767
+        ],
+        "samples_ms": [
+          1.308613,
+          1.406767,
+          1.122231
+        ],
+        "median_allocs": 1681.0
+      },
+      "median_change_percent": -5.8541638938549685
+    },
+    {
+      "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/mostly_read/totals_control",
+      "before": {
+        "median_ms": 0.346268,
+        "range_ms": [
+          0.318981,
+          0.367735
+        ],
+        "samples_ms": [
+          0.346268,
+          0.367735,
+          0.318981
+        ],
+        "median_allocs": 160.0
+      },
+      "after": {
+        "median_ms": 0.347834,
+        "range_ms": [
+          0.295637,
+          0.363395
+        ],
+        "samples_ms": [
+          0.363395,
+          0.347834,
+          0.295637
+        ],
+        "median_allocs": 160.0
+      },
+      "median_change_percent": 0.45225085771714024
+    },
+    {
+      "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/mostly_read/reply_total_control",
+      "before": {
+        "median_ms": 0.235506,
+        "range_ms": [
+          0.226711,
+          0.266851
+        ],
+        "samples_ms": [
+          0.266851,
+          0.226711,
+          0.235506
+        ],
+        "median_allocs": 204.0
+      },
+      "after": {
+        "median_ms": 0.235865,
+        "range_ms": [
+          0.213956,
+          0.275197
+        ],
+        "samples_ms": [
+          0.275197,
+          0.235865,
+          0.213956
+        ],
+        "median_allocs": 204.0
+      },
+      "median_change_percent": 0.15243772982429515
+    },
+    {
+      "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/all_read/count",
+      "before": {
+        "median_ms": 0.149054,
+        "range_ms": [
+          0.135448,
+          0.184888
+        ],
+        "samples_ms": [
+          0.149054,
+          0.184888,
+          0.135448
+        ],
+        "median_allocs": 123.0
+      },
+      "after": {
+        "median_ms": 0.180718,
+        "range_ms": [
+          0.158948,
+          0.184078
+        ],
+        "samples_ms": [
+          0.158948,
+          0.184078,
+          0.180718
+        ],
+        "median_allocs": 123.0
+      },
+      "median_change_percent": 21.243307794490597
+    },
+    {
+      "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/all_read/single",
+      "before": {
+        "median_ms": 0.388009,
+        "range_ms": [
+          0.324647,
+          0.396328
+        ],
+        "samples_ms": [
+          0.324647,
+          0.396328,
+          0.388009
+        ],
+        "median_allocs": 435.0
+      },
+      "after": {
+        "median_ms": 0.365245,
+        "range_ms": [
+          0.341102,
+          0.373736
+        ],
+        "samples_ms": [
+          0.341102,
+          0.365245,
+          0.373736
+        ],
+        "median_allocs": 435.0
+      },
+      "median_change_percent": -5.866874221989693
+    },
+    {
+      "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/all_read/page",
+      "before": {
+        "median_ms": 1.002909,
+        "range_ms": [
+          1.001183,
+          1.043819
+        ],
+        "samples_ms": [
+          1.001183,
+          1.002909,
+          1.043819
+        ],
+        "median_allocs": 1681.0
+      },
+      "after": {
+        "median_ms": 1.044939,
+        "range_ms": [
+          1.025999,
+          1.051908
+        ],
+        "samples_ms": [
+          1.044939,
+          1.025999,
+          1.051908
+        ],
+        "median_allocs": 1681.0
+      },
+      "median_change_percent": 4.190808936802837
+    },
+    {
+      "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/all_read/totals_control",
+      "before": {
+        "median_ms": 0.371832,
+        "range_ms": [
+          0.290359,
+          0.39034
+        ],
+        "samples_ms": [
+          0.290359,
+          0.39034,
+          0.371832
+        ],
+        "median_allocs": 160.0
+      },
+      "after": {
+        "median_ms": 0.316097,
+        "range_ms": [
+          0.295858,
+          0.373631
+        ],
+        "samples_ms": [
+          0.295858,
+          0.316097,
+          0.373631
+        ],
+        "median_allocs": 160.0
+      },
+      "median_change_percent": -14.989296241313276
+    },
+    {
+      "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=0/all_read/reply_total_control",
+      "before": {
+        "median_ms": 0.218907,
+        "range_ms": [
+          0.215392,
+          0.245331
+        ],
+        "samples_ms": [
+          0.218907,
+          0.215392,
+          0.245331
+        ],
+        "median_allocs": 204.0
+      },
+      "after": {
+        "median_ms": 0.240877,
+        "range_ms": [
+          0.196413,
+          0.253777
+        ],
+        "samples_ms": [
+          0.196413,
+          0.240877,
+          0.253777
+        ],
+        "median_allocs": 204.0
+      },
+      "median_change_percent": 10.036225429063483
+    },
+    {
+      "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/mostly_read/count",
+      "before": {
+        "median_ms": 0.164474,
+        "range_ms": [
+          0.154957,
+          0.179966
+        ],
+        "samples_ms": [
+          0.164474,
+          0.179966,
+          0.154957
+        ],
+        "median_allocs": 123.0
+      },
+      "after": {
+        "median_ms": 0.162563,
+        "range_ms": [
+          0.145086,
+          0.165088
+        ],
+        "samples_ms": [
+          0.162563,
+          0.165088,
+          0.145086
+        ],
+        "median_allocs": 123.0
+      },
+      "median_change_percent": -1.161885769179316
+    },
+    {
+      "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/mostly_read/single",
+      "before": {
+        "median_ms": 0.411549,
+        "range_ms": [
+          0.407411,
+          0.458362
+        ],
+        "samples_ms": [
+          0.411549,
+          0.407411,
+          0.458362
+        ],
+        "median_allocs": 435.0
+      },
+      "after": {
+        "median_ms": 0.399052,
+        "range_ms": [
+          0.372967,
+          0.412438
+        ],
+        "samples_ms": [
+          0.399052,
+          0.412438,
+          0.372967
+        ],
+        "median_allocs": 435.0
+      },
+      "median_change_percent": -3.036576446547068
+    },
+    {
+      "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/mostly_read/page",
+      "before": {
+        "median_ms": 1.203622,
+        "range_ms": [
+          1.167486,
+          1.231587
+        ],
+        "samples_ms": [
+          1.167486,
+          1.203622,
+          1.231587
+        ],
+        "median_allocs": 1681.0
+      },
+      "after": {
+        "median_ms": 1.056885,
+        "range_ms": [
+          1.038713,
+          1.07515
+        ],
+        "samples_ms": [
+          1.038713,
+          1.056885,
+          1.07515
+        ],
+        "median_allocs": 1681.0
+      },
+      "median_change_percent": -12.19128596851835
+    },
+    {
+      "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/mostly_read/totals_control",
+      "before": {
+        "median_ms": 0.302463,
+        "range_ms": [
+          0.294848,
+          0.315866
+        ],
+        "samples_ms": [
+          0.315866,
+          0.294848,
+          0.302463
+        ],
+        "median_allocs": 160.0
+      },
+      "after": {
+        "median_ms": 0.292014,
+        "range_ms": [
+          0.288724,
+          0.296089
+        ],
+        "samples_ms": [
+          0.296089,
+          0.292014,
+          0.288724
+        ],
+        "median_allocs": 160.0
+      },
+      "median_change_percent": -3.45463742672657
+    },
+    {
+      "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/mostly_read/reply_total_control",
+      "before": {
+        "median_ms": 0.28462,
+        "range_ms": [
+          0.270063,
+          0.302353
+        ],
+        "samples_ms": [
+          0.28462,
+          0.270063,
+          0.302353
+        ],
+        "median_allocs": 204.0
+      },
+      "after": {
+        "median_ms": 0.26402,
+        "range_ms": [
+          0.252262,
+          0.271793
+        ],
+        "samples_ms": [
+          0.252262,
+          0.271793,
+          0.26402
+        ],
+        "median_allocs": 204.0
+      },
+      "median_change_percent": -7.237720469397802
+    },
+    {
+      "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/all_read/count",
+      "before": {
+        "median_ms": 0.164533,
+        "range_ms": [
+          0.155796,
+          0.182314
+        ],
+        "samples_ms": [
+          0.155796,
+          0.164533,
+          0.182314
+        ],
+        "median_allocs": 123.0
+      },
+      "after": {
+        "median_ms": 0.139109,
+        "range_ms": [
+          0.138859,
+          0.201292
+        ],
+        "samples_ms": [
+          0.139109,
+          0.138859,
+          0.201292
+        ],
+        "median_allocs": 123.0
+      },
+      "median_change_percent": -15.452219311627458
+    },
+    {
+      "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/all_read/single",
+      "before": {
+        "median_ms": 0.350794,
+        "range_ms": [
+          0.34166,
+          0.378835
+        ],
+        "samples_ms": [
+          0.34166,
+          0.378835,
+          0.350794
+        ],
+        "median_allocs": 435.0
+      },
+      "after": {
+        "median_ms": 0.354657,
+        "range_ms": [
+          0.333443,
+          0.371547
+        ],
+        "samples_ms": [
+          0.354657,
+          0.333443,
+          0.371547
+        ],
+        "median_allocs": 435.0
+      },
+      "median_change_percent": 1.1012160983369101
+    },
+    {
+      "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/all_read/page",
+      "before": {
+        "median_ms": 1.082359,
+        "range_ms": [
+          1.044227,
+          1.087386
+        ],
+        "samples_ms": [
+          1.044227,
+          1.082359,
+          1.087386
+        ],
+        "median_allocs": 1681.0
+      },
+      "after": {
+        "median_ms": 1.036,
+        "range_ms": [
+          0.9965,
+          1.077423
+        ],
+        "samples_ms": [
+          0.9965,
+          1.036,
+          1.077423
+        ],
+        "median_allocs": 1681.0
+      },
+      "median_change_percent": -4.283144501962843
+    },
+    {
+      "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/all_read/totals_control",
+      "before": {
+        "median_ms": 0.309727,
+        "range_ms": [
+          0.291298,
+          0.323495
+        ],
+        "samples_ms": [
+          0.323495,
+          0.291298,
+          0.309727
+        ],
+        "median_allocs": 160.0
+      },
+      "after": {
+        "median_ms": 0.305989,
+        "range_ms": [
+          0.300204,
+          0.337864
+        ],
+        "samples_ms": [
+          0.337864,
+          0.300204,
+          0.305989
+        ],
+        "median_allocs": 160.0
+      },
+      "median_change_percent": -1.2068692752004062
+    },
+    {
+      "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=100/all_read/reply_total_control",
+      "before": {
+        "median_ms": 0.275339,
+        "range_ms": [
+          0.259117,
+          0.316388
+        ],
+        "samples_ms": [
+          0.316388,
+          0.275339,
+          0.259117
+        ],
+        "median_allocs": 204.0
+      },
+      "after": {
+        "median_ms": 0.279259,
+        "range_ms": [
+          0.263216,
+          0.282626
+        ],
+        "samples_ms": [
+          0.282626,
+          0.263216,
+          0.279259
+        ],
+        "median_allocs": 204.0
+      },
+      "median_change_percent": 1.4236995122376417
+    },
+    {
+      "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/mostly_read/count",
+      "before": {
+        "median_ms": 0.284385,
+        "range_ms": [
+          0.279796,
+          0.286166
+        ],
+        "samples_ms": [
+          0.284385,
+          0.286166,
+          0.279796
+        ],
+        "median_allocs": 123.0
+      },
+      "after": {
+        "median_ms": 0.176143,
+        "range_ms": [
+          0.163555,
+          0.187962
+        ],
+        "samples_ms": [
+          0.187962,
+          0.163555,
+          0.176143
+        ],
+        "median_allocs": 123.0
+      },
+      "median_change_percent": -38.06178244281519
+    },
+    {
+      "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/mostly_read/single",
+      "before": {
+        "median_ms": 0.571562,
+        "range_ms": [
+          0.55159,
+          0.640668
+        ],
+        "samples_ms": [
+          0.640668,
+          0.571562,
+          0.55159
+        ],
+        "median_allocs": 436.0
+      },
+      "after": {
+        "median_ms": 0.397988,
+        "range_ms": [
+          0.392205,
+          0.499394
+        ],
+        "samples_ms": [
+          0.397988,
+          0.392205,
+          0.499394
+        ],
+        "median_allocs": 436.0
+      },
+      "median_change_percent": -30.368358988176258
+    },
+    {
+      "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/mostly_read/page",
+      "before": {
+        "median_ms": 4.942831,
+        "range_ms": [
+          4.632017,
+          4.974662
+        ],
+        "samples_ms": [
+          4.632017,
+          4.942831,
+          4.974662
+        ],
+        "median_allocs": 1711.0
+      },
+      "after": {
+        "median_ms": 1.799029,
+        "range_ms": [
+          1.685372,
+          1.80211
+        ],
+        "samples_ms": [
+          1.685372,
+          1.799029,
+          1.80211
+        ],
+        "median_allocs": 1711.0
+      },
+      "median_change_percent": -63.603267034620444
+    },
+    {
+      "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/mostly_read/totals_control",
+      "before": {
+        "median_ms": 0.302021,
+        "range_ms": [
+          0.295682,
+          0.306429
+        ],
+        "samples_ms": [
+          0.302021,
+          0.306429,
+          0.295682
+        ],
+        "median_allocs": 160.0
+      },
+      "after": {
+        "median_ms": 0.312026,
+        "range_ms": [
+          0.285284,
+          0.336485
+        ],
+        "samples_ms": [
+          0.285284,
+          0.336485,
+          0.312026
+        ],
+        "median_allocs": 160.0
+      },
+      "median_change_percent": 3.3126835551170464
+    },
+    {
+      "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/mostly_read/reply_total_control",
+      "before": {
+        "median_ms": 0.556036,
+        "range_ms": [
+          0.545255,
+          0.63631
+        ],
+        "samples_ms": [
+          0.545255,
+          0.63631,
+          0.556036
+        ],
+        "median_allocs": 205.0
+      },
+      "after": {
+        "median_ms": 0.58183,
+        "range_ms": [
+          0.567293,
+          0.6232
+        ],
+        "samples_ms": [
+          0.567293,
+          0.58183,
+          0.6232
+        ],
+        "median_allocs": 205.0
+      },
+      "median_change_percent": 4.638908272126252
+    },
+    {
+      "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/all_read/count",
+      "before": {
+        "median_ms": 0.144286,
+        "range_ms": [
+          0.138996,
+          0.145943
+        ],
+        "samples_ms": [
+          0.144286,
+          0.145943,
+          0.138996
+        ],
+        "median_allocs": 123.0
+      },
+      "after": {
+        "median_ms": 0.151586,
+        "range_ms": [
+          0.14539,
+          0.15988
+        ],
+        "samples_ms": [
+          0.15988,
+          0.14539,
+          0.151586
+        ],
+        "median_allocs": 123.0
+      },
+      "median_change_percent": 5.0593959219882745
+    },
+    {
+      "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/all_read/single",
+      "before": {
+        "median_ms": 0.368959,
+        "range_ms": [
+          0.344454,
+          0.406708
+        ],
+        "samples_ms": [
+          0.368959,
+          0.406708,
+          0.344454
+        ],
+        "median_allocs": 436.0
+      },
+      "after": {
+        "median_ms": 0.378514,
+        "range_ms": [
+          0.368174,
+          0.382466
+        ],
+        "samples_ms": [
+          0.378514,
+          0.382466,
+          0.368174
+        ],
+        "median_allocs": 436.0
+      },
+      "median_change_percent": 2.589718640824601
+    },
+    {
+      "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/all_read/page",
+      "before": {
+        "median_ms": 2.782907,
+        "range_ms": [
+          2.638725,
+          2.824081
+        ],
+        "samples_ms": [
+          2.638725,
+          2.782907,
+          2.824081
+        ],
+        "median_allocs": 1711.0
+      },
+      "after": {
+        "median_ms": 1.071397,
+        "range_ms": [
+          1.065845,
+          1.07409
+        ],
+        "samples_ms": [
+          1.071397,
+          1.065845,
+          1.07409
+        ],
+        "median_allocs": 1711.0
+      },
+      "median_change_percent": -61.500797547312935
+    },
+    {
+      "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/all_read/totals_control",
+      "before": {
+        "median_ms": 0.302342,
+        "range_ms": [
+          0.283514,
+          0.30425
+        ],
+        "samples_ms": [
+          0.30425,
+          0.283514,
+          0.302342
+        ],
+        "median_allocs": 160.0
+      },
+      "after": {
+        "median_ms": 0.318558,
+        "range_ms": [
+          0.306788,
+          0.340011
+        ],
+        "samples_ms": [
+          0.318558,
+          0.340011,
+          0.306788
+        ],
+        "median_allocs": 160.0
+      },
+      "median_change_percent": 5.363462568878963
+    },
+    {
+      "name": "BenchmarkThreadUnreadReplies/PostgreSQL/replies=1000/all_read/reply_total_control",
+      "before": {
+        "median_ms": 0.623023,
+        "range_ms": [
+          0.569549,
+          0.634986
+        ],
+        "samples_ms": [
+          0.623023,
+          0.569549,
+          0.634986
+        ],
+        "median_allocs": 205.0
+      },
+      "after": {
+        "median_ms": 0.608002,
+        "range_ms": [
+          0.584134,
+          0.612151
+        ],
+        "samples_ms": [
+          0.612151,
+          0.608002,
+          0.584134
+        ],
+        "median_allocs": 205.0
+      },
+      "median_change_percent": -2.4109864322825914
+    }
+  ],
+  "sql": {
+    "status": "passed",
+    "read_trial_means": {
+      "('vacuumed', False, 0, False, False)": [
+        0.46926666666666667,
+        0.42633333333333334,
+        0.4694
+      ],
+      "('vacuumed', False, 900, False, False)": [
+        0.42666666666666664,
+        0.4076,
+        0.42366666666666664
+      ],
+      "('vacuumed', False, 1000, False, False)": [
+        0.34906666666666664,
+        0.33726666666666666,
+        0.31153333333333333
+      ],
+      "('vacuumed', True, 0, False, False)": [
+        0.4746666666666667,
+        0.47313333333333335,
+        0.4226
+      ],
+      "('vacuumed', True, 900, False, False)": [
+        0.30673333333333336,
+        0.33293333333333336,
+        0.38166666666666665
+      ],
+      "('vacuumed', True, 1000, False, False)": [
+        0.446,
+        0.39093333333333335,
+        0.40373333333333333
+      ],
+      "('vacuumed', False, 0, False, True)": [
+        0.38926666666666665,
+        0.37206666666666666,
+        0.29246666666666665
+      ],
+      "('vacuumed', False, 900, False, True)": [
+        0.26653333333333334,
+        0.3277333333333333,
+        0.263
+      ],
+      "('vacuumed', False, 1000, False, True)": [
+        0.24146666666666666,
+        0.34326666666666666,
+        0.3486
+      ],
+      "('vacuumed', True, 0, False, True)": [
+        0.4898666666666667,
+        0.6004,
+        0.3938
+      ],
+      "('vacuumed', True, 900, False, True)": [
+        0.3198666666666667,
+        0.4043333333333333,
+        0.3641333333333333
+      ],
+      "('vacuumed', True, 1000, False, True)": [
+        0.3422,
+        0.29533333333333334,
+        0.4010666666666667
+      ],
+      "('vacuumed', 'existing_total_reply_count', False)": [
+        0.1236,
+        0.06606666666666666,
+        0.06626666666666667
+      ],
+      "('vacuumed', False, 0, True, False)": [
+        0.4653333333333333,
+        0.4888,
+        0.4586
+      ],
+      "('vacuumed', False, 900, True, False)": [
+        0.08726666666666667,
+        0.051333333333333335,
+        0.07866666666666666
+      ],
+      "('vacuumed', False, 1000, True, False)": [
+        0.0422,
+        0.04186666666666666,
+        0.03933333333333333
+      ],
+      "('vacuumed', True, 0, True, False)": [
+        0.4398666666666667,
+        0.4593333333333333,
+        0.3416666666666667
+      ],
+      "('vacuumed', True, 900, True, False)": [
+        0.13066666666666665,
+        0.14246666666666666,
+        0.168
+      ],
+      "('vacuumed', True, 1000, True, False)": [
+        0.033133333333333334,
+        0.0698,
+        0.07440000000000001
+      ],
+      "('vacuumed', False, 0, True, True)": [
+        0.132,
+        0.1576,
+        0.13353333333333334
+      ],
+      "('vacuumed', False, 900, True, True)": [
+        0.0646,
+        0.03006666666666667,
+        0.027866666666666668
+      ],
+      "('vacuumed', False, 1000, True, True)": [
+        0.0186,
+        0.023066666666666666,
+        0.038933333333333334
+      ],
+      "('vacuumed', True, 0, True, True)": [
+        0.10986666666666667,
+        0.10246666666666666,
+        0.12153333333333334
+      ],
+      "('vacuumed', True, 900, True, True)": [
+        0.0636,
+        0.12646666666666667,
+        0.0456
+      ],
+      "('vacuumed', True, 1000, True, True)": [
+        0.03553333333333333,
+        0.07586666666666667,
+        0.0362
+      ],
+      "('vacuumed', 'existing_total_reply_count', True)": [
+        0.0864,
+        0.1202,
+        0.10813333333333333
+      ],
+      "('changed', False, 0, False, False)": [
+        0.3369333333333333,
+        0.4154,
+        0.31279999999999997
+      ],
+      "('changed', False, 900, False, False)": [
+        0.2790666666666667,
+        0.4116,
+        0.44406666666666667
+      ],
+      "('changed', False, 1000, False, False)": [
+        0.2588666666666667,
+        0.4106666666666667,
+        0.40413333333333334
+      ],
+      "('changed', True, 0, False, False)": [
+        0.49493333333333334,
+        0.5730666666666666,
+        0.504
+      ],
+      "('changed', True, 900, False, False)": [
+        0.46713333333333334,
+        0.4139333333333333,
+        0.3575333333333333
+      ],
+      "('changed', True, 1000, False, False)": [
+        0.3142,
+        0.44966666666666666,
+        0.3338
+      ],
+      "('changed', False, 0, False, True)": [
+        0.3957333333333333,
+        0.4624666666666667,
+        0.378
+      ],
+      "('changed', False, 900, False, True)": [
+        0.4248,
+        0.33853333333333335,
+        0.5264
+      ],
+      "('changed', False, 1000, False, True)": [
+        0.35533333333333333,
+        0.4084,
+        0.35933333333333334
+      ],
+      "('changed', True, 0, False, True)": [
+        0.5853333333333334,
+        0.4265333333333333,
+        0.4663333333333333
+      ],
+      "('changed', True, 900, False, True)": [
+        0.46673333333333333,
+        0.5612,
+        0.39266666666666666
+      ],
+      "('changed', True, 1000, False, True)": [
+        0.4344,
+        0.4394,
+        0.4287333333333333
+      ],
+      "('changed', 'existing_total_reply_count', False)": [
+        0.10106666666666667,
+        0.16666666666666666,
+        0.15406666666666666
+      ],
+      "('changed', False, 0, True, False)": [
+        0.3959333333333333,
+        0.4624,
+        0.5193333333333333
+      ],
+      "('changed', False, 900, True, False)": [
+        0.04633333333333333,
+        0.06,
+        0.0778
+      ],
+      "('changed', False, 1000, True, False)": [
+        0.0394,
+        0.0208,
+        0.0502
+      ],
+      "('changed', True, 0, True, False)": [
+        0.4943333333333333,
+        0.42386666666666667,
+        0.6449333333333334
+      ],
+      "('changed', True, 900, True, False)": [
+        0.1326,
+        0.1296,
+        0.15913333333333335
+      ],
+      "('changed', True, 1000, True, False)": [
+        0.03353333333333333,
+        0.0728,
+        0.08693333333333333
+      ],
+      "('changed', False, 0, True, True)": [
+        0.15446666666666667,
+        0.0946,
+        0.18846666666666667
+      ],
+      "('changed', False, 900, True, True)": [
+        0.0572,
+        0.028133333333333333,
+        0.06833333333333333
+      ],
+      "('changed', False, 1000, True, True)": [
+        0.0332,
+        0.047733333333333336,
+        0.06046666666666667
+      ],
+      "('changed', True, 0, True, True)": [
+        0.1314,
+        0.13126666666666667,
+        0.23966666666666667
+      ],
+      "('changed', True, 900, True, True)": [
+        0.09913333333333334,
+        0.10686666666666667,
+        0.13993333333333333
+      ],
+      "('changed', True, 1000, True, True)": [
+        0.0364,
+        0.0356,
+        0.09086666666666667
+      ],
+      "('changed', 'existing_total_reply_count', True)": [
+        0.08593333333333333,
+        0.0864,
+        0.185
+      ]
+    },
+    "write_summary": {
+      "insert_roots": {
+        "before": {
+          "median_ms": 495.116,
+          "range_ms": [
+            451.769,
+            563.461
+          ],
+          "samples_ms": [
+            563.461,
+            495.116,
+            451.769
+          ],
+          "wal_bytes": [
+            13792208,
+            13792208,
+            13792208
+          ]
+        },
+        "after": {
+          "median_ms": 464.977,
+          "range_ms": [
+            461.327,
+            499.158
+          ],
+          "samples_ms": [
+            499.158,
+            461.327,
+            464.977
+          ],
+          "wal_bytes": [
+            13943588,
+            13943588,
+            13943588
+          ]
+        }
+      },
+      "insert_replies": {
+        "before": {
+          "median_ms": 474.6,
+          "range_ms": [
+            452.18,
+            560.89
+          ],
+          "samples_ms": [
+            452.18,
+            560.89,
+            474.6
+          ],
+          "wal_bytes": [
+            13694375,
+            13674783,
+            13674591
+          ]
+        },
+        "after": {
+          "median_ms": 485.472,
+          "range_ms": [
+            481.591,
+            667.958
+          ],
+          "samples_ms": [
+            481.591,
+            485.472,
+            667.958
+          ],
+          "wal_bytes": [
+            14829319,
+            13740183,
+            13739991
+          ]
+        }
+      },
+      "edit": {
+        "before": {
+          "median_ms": 34.983,
+          "range_ms": [
+            34.435,
+            45.744
+          ],
+          "samples_ms": [
+            34.983,
+            45.744,
+            34.435
+          ],
+          "wal_bytes": [
+            1455086,
+            1455086,
+            1455086
+          ]
+        },
+        "after": {
+          "median_ms": 46.346,
+          "range_ms": [
+            38.688,
+            46.361
+          ],
+          "samples_ms": [
+            46.361,
+            38.688,
+            46.346
+          ],
+          "wal_bytes": [
+            1492866,
+            1492866,
+            1492866
+          ]
+        }
+      },
+      "delete": {
+        "before": {
+          "median_ms": 116.131,
+          "range_ms": [
+            106.994,
+            117.977
+          ],
+          "samples_ms": [
+            106.994,
+            117.977,
+            116.131
+          ],
+          "wal_bytes": [
+            10660616,
+            10660616,
+            10660616
+          ]
+        },
+        "after": {
+          "median_ms": 126.766,
+          "range_ms": [
+            117.539,
+            136.685
+          ],
+          "samples_ms": [
+            136.685,
+            117.539,
+            126.766
+          ],
+          "wal_bytes": [
+            10707616,
+            10707616,
+            10707616
+          ]
+        }
+      }
+    },
+    "baseline_sizes": {
+      "heap_bytes": 300072960,
+      "indexes_bytes": 100753408,
+      "total_bytes": 400949248
+    },
+    "after_sizes": {
+      "heap_bytes": 300072960,
+      "indexes_bytes": 109445120,
+      "total_bytes": 409640960
+    },
+    "index_builds": [
+      {
+        "seconds": 0.2796187990461476,
+        "bytes": 10870784
+      },
+      {
+        "seconds": 0.31901067198487,
+        "bytes": 10870784
+      },
+      {
+        "seconds": 0.2635755779920146,
+        "bytes": 10870784
+      },
+      {
+        "seconds": 0.2870479389675893,
+        "bytes": 10870784
+      },
+      {
+        "seconds": 0.2557216139975935,
+        "bytes": 10870784
+      }
+    ],
+    "cleanup": {
+      "server_stopped": true,
+      "database_removed": true,
+      "runtime_removed": true
+    },
+    "logical_counts_identical_across_variants": true
+  },
+  "isolated": [
+    {
+      "name": "empty_page",
+      "before": {
+        "median_ms": 1.065144,
+        "range_ms": [
+          1.031395,
+          1.437099
+        ],
+        "samples_ms": [
+          1.065144,
+          1.053865,
+          1.031395,
+          1.437099,
+          1.325239
+        ]
+      },
+      "after": {
+        "median_ms": 1.061705,
+        "range_ms": [
+          1.035678,
+          1.314703
+        ],
+        "samples_ms": [
+          1.035678,
+          1.051443,
+          1.061705,
+          1.30481,
+          1.314703
+        ]
+      },
+      "median_change_percent": -0.32286714284642803
+    },
+    {
+      "name": "reply_count_control",
+      "before": {
+        "median_ms": 0.606936,
+        "range_ms": [
+          0.582521,
+          0.766133
+        ],
+        "samples_ms": [
+          0.766133,
+          0.605644,
+          0.582521,
+          0.606936,
+          0.637721
+        ]
+      },
+      "after": {
+        "median_ms": 0.628007,
+        "range_ms": [
+          0.597694,
+          0.764916
+        ],
+        "samples_ms": [
+          0.764916,
+          0.619127,
+          0.597694,
+          0.628007,
+          0.642391
+        ]
+      },
+      "median_change_percent": 3.4717004758326953
+    }
+  ]
+}

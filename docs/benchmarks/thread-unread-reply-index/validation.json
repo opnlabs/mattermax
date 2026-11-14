@@ -1,0 +1,132 @@
+{
+  "status": "passed",
+  "source_sha": "a3ebaebc47f544d7269095f9de42004bb61fb267",
+  "source_tree_sha": "f89076c524c675f31b0f4fab484c270265f29e8c",
+  "baseline_root_sha": "d2b07cc3f7c3200349e32ca167a39bdc85255baf",
+  "tests": [
+    {
+      "name": "sqlstore selected race suites",
+      "package": "sqlstore",
+      "status": "passed",
+      "counts": {
+        "pass": 259,
+        "fail": 0,
+        "skip": 0
+      }
+    },
+    {
+      "name": "api4 selected race suites",
+      "package": "api4",
+      "status": "passed",
+      "counts": {
+        "pass": 43,
+        "fail": 0,
+        "skip": 0
+      }
+    }
+  ],
+  "race_command": [
+    "go",
+    "test",
+    "-race",
+    "-p",
+    "2",
+    "./channels/store/sqlstore",
+    "./channels/api4",
+    "-run",
+    "^(TestThreadStore|TestPostStore|TestThreadUnreadReplyCountCompatibility|TestMigration000244|TestGetThreadsForUser|TestGetThreadsForUser_AfterTeamRemovalAndReinvite|TestFollowThreads|TestReadThreads|TestGetPostsForChannel|TestGetPostThread|TestGetPostsByIds)$",
+    "-count=1",
+    "-timeout=20m",
+    "-json"
+  ],
+  "race_log_sha256": "7b62250ec475e98ab9e29d77bd4c4aed9a6df95a14b8155ee90974a43e846271",
+  "fresh_parent_subtest_pass_events": 302,
+  "coverage": "Complete ThreadStore and PostStore suites, new count/null/deletion/empty-root compatibility and concurrent migration round-trip checks, selected thread and history HTTP API suites.",
+  "patch_check": {
+    "status": "passed",
+    "command": "just check",
+    "patches": 39,
+    "inherited_patch_files_byte_identical": 38,
+    "private_log_sha256": "beab570c027102ef1d8f465f5ae4c7fddbaa4ffc1d552cde44f3454b15df802a"
+  },
+  "backend_build": {
+    "status": "passed",
+    "source_workspace_sha": "a3ebaebc47f544d7269095f9de42004bb61fb267",
+    "command": [
+      "go",
+      "build",
+      "-tags",
+      "production",
+      "-ldflags",
+      "-X github.com/mattermost/mattermost/server/public/model.BuildNumber=12.0.2-1.thread-unread-index -X github.com/mattermost/mattermost/server/public/model.BuildHash=a3ebaebc47f544d7269095f9de42004bb61fb267 -X github.com/mattermost/mattermost/server/public/model.BuildEnterpriseReady=false",
+      "-o",
+      "/tmp/mattermax-thread-unread-index-server",
+      "./cmd/mattermost"
+    ],
+    "build_tags": "production",
+    "forbidden_build_tags": false,
+    "enterprise_symbols_found": false,
+    "binary_sha256": "7dd42515a0cfcec7f1d5ade5c3c4fef4077c1b92ac2fd2843683f10e9fdf35d7",
+    "private_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build_number": "12.0.2-1.thread-unread-index",
+    "build_hash": "a3ebaebc47f544d7269095f9de42004bb61fb267",
+    "build_enterprise_ready": "false",
+    "scope": "Public backend only. No branded frontend/package rebuild, deployment or production load test.",
+    "symbol_tool": "Matching standard SDK cmd/nm via temporary GOROOT; same exclusion criteria as scripts/build-release.sh."
+  },
+  "startup_smoke": {
+    "status": "passed",
+    "database": "mm_thread_unread_index_98fdd67835e6",
+    "runtime_directory": "/tmp/mattermax-thread_unread_index-smoke-uty3rqoq",
+    "database_removed": true,
+    "server_stopped": true,
+    "probes": [
+      {
+        "path": "/api/v4/system/ping",
+        "http_status": 200,
+        "response": {
+          "ActiveSearchBackend": "database",
+          "AndroidLatestVersion": "",
+          "AndroidMinVersion": "",
+          "IosLatestVersion": "",
+          "IosMinVersion": "",
+          "status": "OK"
+        }
+      },
+      {
+        "path": "/api/v4/config/client?format=old",
+        "http_status": 200,
+        "site_name": "Mattermax",
+        "version": "12.0.2",
+        "full_response": "thread-unread-index-client-config.json"
+      }
+    ],
+    "base_url": "http://127.0.0.1:18065",
+    "binary": "/tmp/mattermax-thread-unread-index-server",
+    "environment": "Allowlisted system variables only; configuration comes from the temporary file plus repository overlay.",
+    "verified_build_number": "12.0.2-1.thread-unread-index",
+    "runtime_directory_removed": true
+  },
+  "public_runners_smoke": {
+    "status": "passed",
+    "go_processes": 2,
+    "go_cases_per_process": 30,
+    "sql_read_groups": 52,
+    "sql_write_cases": 8,
+    "sql_cleanup": {
+      "server_stopped": true,
+      "database_removed": true,
+      "runtime_removed": true
+    },
+    "scope": "Execution/output and cleanup checks only; their timings are not performance evidence.",
+    "go_runner_sha256": "af4c9e62c6fa6a772b4092c3176ce1adbfbe5600f8afb36795a0d449c0233952",
+    "sql_runner_sha256": "9c679b880958fa89806b55e2e7b333635279cf0e24bafec67884c11a92de8a09"
+  },
+  "limits": [
+    "Selected race suites do not establish complete HTTP API equivalence.",
+    "Store and SQL measurements are not complete HTTP latency, throughput or production capacity.",
+    "Isolated reply-count controls and SQL writes have costs and variation; not every operation improves.",
+    "Full branded packaging, browser flows, deployment and production load tests were not run."
+  ],
+  "credit": "All 38 inherited patches are byte-identical, preserving original authorship including Karan Sharma (@mr-karan)."
+}

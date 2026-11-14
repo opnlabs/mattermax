@@ -519,3 +519,13 @@ and channels keep their names. Gates removed: `createChannel` in
 `PluginAPI.CreateChannel` in `app/plugin_api.go`, the webapp selector
 `isAnonymousURLEnabled` that hides the URL editors, and the System Console
 toggle's Enterprise Advanced check.
+
+### thread-unread-reply-index.patch
+
+2026-11-14. Extend the RootId/DeleteAt post index with CreateAt for unread-reply
+range scans. Build the replacement concurrently before dropping the original;
+downgrade restores the original before removing the replacement. Use non-null
+primary-key-equivalent COUNT(*) in the three unread-reply queries. Preserve
+existing filters and stored empty-root behavior without another query branch.
+Add compatibility, migration round-trip and real-store benchmarks. No HTTP API,
+configuration or third-party dependency changes.
