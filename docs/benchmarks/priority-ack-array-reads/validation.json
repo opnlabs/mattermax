@@ -1,0 +1,156 @@
+{
+  "status": "passed",
+  "source_workspace_sha": "077134a40d8fe28b54d508a36ebdbc61deacbb4a",
+  "source_tree_sha": "13c2a0082847e993a671cafbd101cbfa164d017f",
+  "race_suites": [
+    {
+      "command": "go test -race -p 2 ./channels/store/sqlstore ./channels/app ./channels/api4 -run '^(TestPriorityAcknowledgementArrayReads|TestPostPriorityStore|TestPostAcknowledgementsStore|TestSqlxSelect|TestSqlxSelectContext|TestPreparePostListForClient|TestPreparePostForClient|TestSanitizePostMetadataForUser|TestPostPriority|TestPostAcknowledgements|TestGetPostsForChannel|TestGetPostThread|TestGetPostsByIds)$' -count=1 -timeout=20m -json",
+      "status": "passed",
+      "counts": {
+        "sqlstore": {
+          "pass": 50,
+          "fail": 0,
+          "skip": 0
+        },
+        "api4": {
+          "pass": 17,
+          "fail": 0,
+          "skip": 0
+        },
+        "app": {
+          "pass": 67,
+          "fail": 0,
+          "skip": 0
+        }
+      },
+      "private_log_sha256": "455c7ad742d93171bc9cbf5a4f24c2184f0566687e98ff6947c9c100df851f27"
+    },
+    {
+      "command": "go test -race -p 2 ./channels/app ./channels/api4 -run '^(TestPostAcknowledgementsApp|TestCreatePostForPriority|TestAcknowledgePost)$' -count=1 -timeout=10m -json",
+      "status": "passed",
+      "counts": {
+        "api4": {
+          "pass": 11,
+          "fail": 0,
+          "skip": 0
+        },
+        "app": {
+          "pass": 10,
+          "fail": 0,
+          "skip": 0
+        }
+      },
+      "private_log_sha256": "445c9984e8f8b376b9250e594fc2d0d24cd5cb464e44b5951051e7f55e789a62"
+    }
+  ],
+  "total_pass_events": 155,
+  "counting": "Disjoint Go parent/subtest events, excluding package summaries. The feature suite supplements the main selected suite.",
+  "environment": {
+    "GOFLAGS": "-p=2",
+    "GOMAXPROCS": "4",
+    "database": "Disposable PostgreSQL 17 service; TEST_DATABASE_POSTGRESQL_DSN set."
+  },
+  "legacy_compatibility": {
+    "status": "passed",
+    "method": "Same new regression test with both production files restored to their legacy implementations using a Go overlay.",
+    "scope": "Nil/empty/missing/escaped IDs, 199/200/201/400/401 boundaries, duplicates within/across chunks, nullable flags, NULL/zero/negative acknowledgements, remote fields and second-batch failure discard.",
+    "private_log_sha256": "761e7a8aac3063e48292cfe641371e17d9cca365b3a190d832778db91158646b"
+  },
+  "query_plan_probe": {
+    "status": "passed",
+    "scope": "Read-only result comparison and EXPLAIN on transaction-local tables matching public migrations 97, 98 and 141, 20000 rows each. No API performance claim.",
+    "transaction_rolled_back": true,
+    "temporary_tables_removed": true,
+    "cases": [
+      {
+        "ids": 1,
+        "acknowledgements": false,
+        "rows_equal": true,
+        "plan_nodes": [
+          "Index Scan",
+          "Index Scan"
+        ]
+      },
+      {
+        "ids": 1,
+        "acknowledgements": true,
+        "rows_equal": true,
+        "plan_nodes": [
+          "Index Scan",
+          "Index Scan"
+        ]
+      },
+      {
+        "ids": 60,
+        "acknowledgements": false,
+        "rows_equal": true,
+        "plan_nodes": [
+          "Index Scan",
+          "Index Scan"
+        ]
+      },
+      {
+        "ids": 60,
+        "acknowledgements": true,
+        "rows_equal": true,
+        "plan_nodes": [
+          "Index Scan",
+          "Index Scan"
+        ]
+      },
+      {
+        "ids": 200,
+        "acknowledgements": false,
+        "rows_equal": true,
+        "plan_nodes": [
+          "Index Scan",
+          "Index Scan"
+        ]
+      },
+      {
+        "ids": 200,
+        "acknowledgements": true,
+        "rows_equal": true,
+        "plan_nodes": [
+          "Index Scan",
+          "Index Scan"
+        ]
+      }
+    ],
+    "private_log_sha256": "609fab9f46ce3178ef25e50cc9fe25e87250f8a5d9970d65cd74c9769eaf8d6f"
+  },
+  "backend_build": {
+    "status": "passed",
+    "source_workspace_sha": "077134a40d8fe28b54d508a36ebdbc61deacbb4a",
+    "command": [
+      "go",
+      "build",
+      "-tags",
+      "production",
+      "-ldflags",
+      "-X github.com/mattermost/mattermost/server/public/model.BuildNumber=12.0.2-1.priority-array-reads -X github.com/mattermost/mattermost/server/public/model.BuildHash=077134a40d8fe28b54d508a36ebdbc61deacbb4a -X github.com/mattermost/mattermost/server/public/model.BuildEnterpriseReady=false",
+      "-o",
+      "/tmp/mattermax-priority-ack-array-server",
+      "./cmd/mattermost"
+    ],
+    "environment": {
+      "GOFLAGS": "-p=2 -buildvcs=false",
+      "GOMAXPROCS": "4"
+    },
+    "build_tags": "production",
+    "forbidden_build_tags": false,
+    "enterprise_symbols_found": false,
+    "build_enterprise_ready": "false",
+    "binary_sha256": "c4511bebcdd9c41cd11a668f43e61105c926b12dcb83532684e4b2b118c44393",
+    "symbol_tool": "Matching SDK standard cmd/nm through temporary GOROOT, same exclusion gates as scripts/build-release.sh.",
+    "scope": "Public backend command; no full branded frontend/package rebuild."
+  },
+  "patch_check": {
+    "status": "passed",
+    "command": "just check",
+    "patches": 39,
+    "inherited_patches_byte_identical": 38,
+    "base_root_sha": "d2b07cc3f7c3200349e32ca167a39bdc85255baf",
+    "private_log_sha256": "beab570c027102ef1d8f465f5ae4c7fddbaa4ffc1d552cde44f3454b15df802a"
+  }
+}

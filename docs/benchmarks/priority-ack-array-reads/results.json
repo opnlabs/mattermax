@@ -1,0 +1,1311 @@
+{
+  "status": "passed",
+  "method": "Alternating-order paired processes. A Go overlay restores only the two store production files for baseline; all other code and fixtures are identical. Fixed iterations keep the leaf benchmark calibration/fixture creation count equal. Store benchmarks execute both priority and acknowledgement reads; complete App history benchmarks use stored, ordered pages with priority reads enabled. Empty/sparse/dense distributions contain zero, one per 20, or all IDs with metadata. Positive results and order are validated. No files, reactions or remote links.",
+  "baseline_workspace_sha": "c9dbbcc480b242f7349cb7f4e9dcb6ea35cf6404",
+  "current_workspace_sha": "077134a40d8fe28b54d508a36ebdbc61deacbb4a",
+  "source_sha256": {
+    "server/channels/store/sqlstore/post_priority_store.go": {
+      "before": "bf1631f86db9015330c3868fd849cceb8082f91d889bcd50f22bf1af291aade5",
+      "after": "71a0834e626affc685b0f1f6d44b15d1c5c196c3440a29af60873179df1f6f8a"
+    },
+    "server/channels/store/sqlstore/post_acknowledgements_store.go": {
+      "before": "cfff6e9914740e3c7b9970f14ff82e448ee7667af8307483355bfce4f28348a3",
+      "after": "501221353300b5f40cb38eb9b2b89de71540a6bee6eb296c1d095fcf86963c47"
+    },
+    "server/channels/store/sqlstore/priority_ack_array_test.go": "ec18332b66051e2faa36dcf6f30cb23cd67f566505a0a303e78f26d0a74fbaa1",
+    "server/channels/app/post_priority_array_test.go": "ff612152754b35e9b4dc009032c42c692aae453087096857a5c9711999e549a5"
+  },
+  "environment": {
+    "platform": "Linux-6.18.55-cachyos-x86_64-with-glibc2.44",
+    "go": "go version go1.26.10 linux/amd64",
+    "GOMAXPROCS": "4",
+    "GOFLAGS": "-p=2",
+    "cpu": "13th Gen Intel(R) Core(TM) i7-1355U"
+  },
+  "settings": {
+    "trials": 3,
+    "iterations": 1000
+  },
+  "samples": [
+    {
+      "trial": 0,
+      "variant": "before",
+      "benchmarks": [
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/empty/ids=1",
+          "iterations": 1000,
+          "ns_per_op": 369698.0,
+          "bytes_per_op": 14473.0,
+          "allocations_per_op": 249.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/empty/ids=1-4         \t    1000\t    369698 ns/op\t   14473 B/op\t     249 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/empty/ids=60",
+          "iterations": 1000,
+          "ns_per_op": 341098.0,
+          "bytes_per_op": 47232.0,
+          "allocations_per_op": 625.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/empty/ids=60-4        \t    1000\t    341098 ns/op\t   47232 B/op\t     625 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/empty/ids=200",
+          "iterations": 1000,
+          "ns_per_op": 617780.0,
+          "bytes_per_op": 154533.0,
+          "allocations_per_op": 1485.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/empty/ids=200-4       \t    1000\t    617780 ns/op\t  154533 B/op\t    1485 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/empty/ids=201",
+          "iterations": 1000,
+          "ns_per_op": 899898.0,
+          "bytes_per_op": 168981.0,
+          "allocations_per_op": 1733.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/empty/ids=201-4       \t    1000\t    899898 ns/op\t  168981 B/op\t    1733 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/sparse/ids=1",
+          "iterations": 1000,
+          "ns_per_op": 270553.0,
+          "bytes_per_op": 15058.0,
+          "allocations_per_op": 280.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/sparse/ids=1-4        \t    1000\t    270553 ns/op\t   15058 B/op\t     280 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/sparse/ids=60",
+          "iterations": 1000,
+          "ns_per_op": 406720.0,
+          "bytes_per_op": 49096.0,
+          "allocations_per_op": 714.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/sparse/ids=60-4       \t    1000\t    406720 ns/op\t   49096 B/op\t     714 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/sparse/ids=200",
+          "iterations": 1000,
+          "ns_per_op": 641375.0,
+          "bytes_per_op": 160866.0,
+          "allocations_per_op": 1767.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/sparse/ids=200-4      \t    1000\t    641375 ns/op\t  160866 B/op\t    1767 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/sparse/ids=201",
+          "iterations": 1000,
+          "ns_per_op": 958372.0,
+          "bytes_per_op": 176219.0,
+          "allocations_per_op": 2046.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/sparse/ids=201-4      \t    1000\t    958372 ns/op\t  176219 B/op\t    2046 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/dense/ids=1",
+          "iterations": 1000,
+          "ns_per_op": 265174.0,
+          "bytes_per_op": 15057.0,
+          "allocations_per_op": 280.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/dense/ids=1-4         \t    1000\t    265174 ns/op\t   15057 B/op\t     280 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/dense/ids=60",
+          "iterations": 1000,
+          "ns_per_op": 539941.0,
+          "bytes_per_op": 84381.0,
+          "allocations_per_op": 2261.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/dense/ids=60-4        \t    1000\t    539941 ns/op\t   84381 B/op\t    2261 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/dense/ids=200",
+          "iterations": 1000,
+          "ns_per_op": 1303684.0,
+          "bytes_per_op": 280861.0,
+          "allocations_per_op": 6906.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/dense/ids=200-4       \t    1000\t   1303684 ns/op\t  280861 B/op\t    6906 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/dense/ids=201",
+          "iterations": 1000,
+          "ns_per_op": 1971194.0,
+          "bytes_per_op": 295895.0,
+          "allocations_per_op": 7183.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/dense/ids=201-4       \t    1000\t   1971194 ns/op\t  295895 B/op\t    7183 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementHistory/empty/posts=1",
+          "iterations": 1000,
+          "ns_per_op": 257862.0,
+          "bytes_per_op": 16285.0,
+          "allocations_per_op": 282.0,
+          "raw": "BenchmarkPriorityAcknowledgementHistory/empty/posts=1-4 \t    1000\t    257862 ns/op\t   16285 B/op\t     282 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementHistory/empty/posts=60",
+          "iterations": 1000,
+          "ns_per_op": 821625.0,
+          "bytes_per_op": 128738.0,
+          "allocations_per_op": 2372.0,
+          "raw": "BenchmarkPriorityAcknowledgementHistory/empty/posts=60-4         \t    1000\t    821625 ns/op\t  128738 B/op\t    2372 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementHistory/sparse/posts=1",
+          "iterations": 1000,
+          "ns_per_op": 265145.0,
+          "bytes_per_op": 17376.0,
+          "allocations_per_op": 313.0,
+          "raw": "BenchmarkPriorityAcknowledgementHistory/sparse/posts=1-4         \t    1000\t    265145 ns/op\t   17376 B/op\t     313 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementHistory/sparse/posts=60",
+          "iterations": 1000,
+          "ns_per_op": 654258.0,
+          "bytes_per_op": 131017.0,
+          "allocations_per_op": 2457.0,
+          "raw": "BenchmarkPriorityAcknowledgementHistory/sparse/posts=60-4        \t    1000\t    654258 ns/op\t  131017 B/op\t    2457 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementHistory/dense/posts=1",
+          "iterations": 1000,
+          "ns_per_op": 355236.0,
+          "bytes_per_op": 17410.0,
+          "allocations_per_op": 314.0,
+          "raw": "BenchmarkPriorityAcknowledgementHistory/dense/posts=1-4          \t    1000\t    355236 ns/op\t   17410 B/op\t     314 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementHistory/dense/posts=60",
+          "iterations": 1000,
+          "ns_per_op": 1030464.0,
+          "bytes_per_op": 180076.0,
+          "allocations_per_op": 3908.0,
+          "raw": "BenchmarkPriorityAcknowledgementHistory/dense/posts=60-4         \t    1000\t   1030464 ns/op\t  180076 B/op\t    3908 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "benchmarks": [
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/empty/ids=1",
+          "iterations": 1000,
+          "ns_per_op": 338549.0,
+          "bytes_per_op": 6027.0,
+          "allocations_per_op": 109.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/empty/ids=1-4         \t    1000\t    338549 ns/op\t    6027 B/op\t     109 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/empty/ids=60",
+          "iterations": 1000,
+          "ns_per_op": 283308.0,
+          "bytes_per_op": 25017.0,
+          "allocations_per_op": 118.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/empty/ids=60-4        \t    1000\t    283308 ns/op\t   25017 B/op\t     118 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/empty/ids=200",
+          "iterations": 1000,
+          "ns_per_op": 404449.0,
+          "bytes_per_op": 92599.0,
+          "allocations_per_op": 124.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/empty/ids=200-4       \t    1000\t    404449 ns/op\t   92599 B/op\t     124 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/empty/ids=201",
+          "iterations": 1000,
+          "ns_per_op": 632838.0,
+          "bytes_per_op": 98594.0,
+          "allocations_per_op": 233.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/empty/ids=201-4       \t    1000\t    632838 ns/op\t   98594 B/op\t     233 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/sparse/ids=1",
+          "iterations": 1000,
+          "ns_per_op": 259208.0,
+          "bytes_per_op": 6605.0,
+          "allocations_per_op": 140.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/sparse/ids=1-4        \t    1000\t    259208 ns/op\t    6605 B/op\t     140 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/sparse/ids=60",
+          "iterations": 1000,
+          "ns_per_op": 224385.0,
+          "bytes_per_op": 26879.0,
+          "allocations_per_op": 208.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/sparse/ids=60-4       \t    1000\t    224385 ns/op\t   26879 B/op\t     208 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/sparse/ids=200",
+          "iterations": 1000,
+          "ns_per_op": 371911.0,
+          "bytes_per_op": 98938.0,
+          "allocations_per_op": 407.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/sparse/ids=200-4      \t    1000\t    371911 ns/op\t   98938 B/op\t     407 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/sparse/ids=201",
+          "iterations": 1000,
+          "ns_per_op": 712917.0,
+          "bytes_per_op": 105851.0,
+          "allocations_per_op": 547.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/sparse/ids=201-4      \t    1000\t    712917 ns/op\t  105851 B/op\t     547 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/dense/ids=1",
+          "iterations": 1000,
+          "ns_per_op": 243453.0,
+          "bytes_per_op": 6608.0,
+          "allocations_per_op": 140.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/dense/ids=1-4         \t    1000\t    243453 ns/op\t    6608 B/op\t     140 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/dense/ids=60",
+          "iterations": 1000,
+          "ns_per_op": 486898.0,
+          "bytes_per_op": 62206.0,
+          "allocations_per_op": 1755.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/dense/ids=60-4        \t    1000\t    486898 ns/op\t   62206 B/op\t    1755 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/dense/ids=200",
+          "iterations": 1000,
+          "ns_per_op": 1128080.0,
+          "bytes_per_op": 218933.0,
+          "allocations_per_op": 5545.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/dense/ids=200-4       \t    1000\t   1128080 ns/op\t  218933 B/op\t    5545 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/dense/ids=201",
+          "iterations": 1000,
+          "ns_per_op": 1219345.0,
+          "bytes_per_op": 225531.0,
+          "allocations_per_op": 5684.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/dense/ids=201-4       \t    1000\t   1219345 ns/op\t  225531 B/op\t    5684 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementHistory/empty/posts=1",
+          "iterations": 1000,
+          "ns_per_op": 227860.0,
+          "bytes_per_op": 7865.0,
+          "allocations_per_op": 142.0,
+          "raw": "BenchmarkPriorityAcknowledgementHistory/empty/posts=1-4 \t    1000\t    227860 ns/op\t    7865 B/op\t     142 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementHistory/empty/posts=60",
+          "iterations": 1000,
+          "ns_per_op": 648748.0,
+          "bytes_per_op": 106534.0,
+          "allocations_per_op": 1865.0,
+          "raw": "BenchmarkPriorityAcknowledgementHistory/empty/posts=60-4         \t    1000\t    648748 ns/op\t  106534 B/op\t    1865 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementHistory/sparse/posts=1",
+          "iterations": 1000,
+          "ns_per_op": 311442.0,
+          "bytes_per_op": 8929.0,
+          "allocations_per_op": 173.0,
+          "raw": "BenchmarkPriorityAcknowledgementHistory/sparse/posts=1-4         \t    1000\t    311442 ns/op\t    8929 B/op\t     173 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementHistory/sparse/posts=60",
+          "iterations": 1000,
+          "ns_per_op": 668148.0,
+          "bytes_per_op": 108815.0,
+          "allocations_per_op": 1951.0,
+          "raw": "BenchmarkPriorityAcknowledgementHistory/sparse/posts=60-4        \t    1000\t    668148 ns/op\t  108815 B/op\t    1951 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementHistory/dense/posts=1",
+          "iterations": 1000,
+          "ns_per_op": 325230.0,
+          "bytes_per_op": 8930.0,
+          "allocations_per_op": 174.0,
+          "raw": "BenchmarkPriorityAcknowledgementHistory/dense/posts=1-4          \t    1000\t    325230 ns/op\t    8930 B/op\t     174 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementHistory/dense/posts=60",
+          "iterations": 1000,
+          "ns_per_op": 903503.0,
+          "bytes_per_op": 157907.0,
+          "allocations_per_op": 3402.0,
+          "raw": "BenchmarkPriorityAcknowledgementHistory/dense/posts=60-4         \t    1000\t    903503 ns/op\t  157907 B/op\t    3402 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "benchmarks": [
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/empty/ids=1",
+          "iterations": 1000,
+          "ns_per_op": 372837.0,
+          "bytes_per_op": 6029.0,
+          "allocations_per_op": 109.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/empty/ids=1-4         \t    1000\t    372837 ns/op\t    6029 B/op\t     109 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/empty/ids=60",
+          "iterations": 1000,
+          "ns_per_op": 261188.0,
+          "bytes_per_op": 25041.0,
+          "allocations_per_op": 119.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/empty/ids=60-4        \t    1000\t    261188 ns/op\t   25041 B/op\t     119 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/empty/ids=200",
+          "iterations": 1000,
+          "ns_per_op": 332927.0,
+          "bytes_per_op": 92594.0,
+          "allocations_per_op": 124.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/empty/ids=200-4       \t    1000\t    332927 ns/op\t   92594 B/op\t     124 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/empty/ids=201",
+          "iterations": 1000,
+          "ns_per_op": 600585.0,
+          "bytes_per_op": 98596.0,
+          "allocations_per_op": 233.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/empty/ids=201-4       \t    1000\t    600585 ns/op\t   98596 B/op\t     233 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/sparse/ids=1",
+          "iterations": 1000,
+          "ns_per_op": 205567.0,
+          "bytes_per_op": 6607.0,
+          "allocations_per_op": 139.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/sparse/ids=1-4        \t    1000\t    205567 ns/op\t    6607 B/op\t     139 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/sparse/ids=60",
+          "iterations": 1000,
+          "ns_per_op": 213758.0,
+          "bytes_per_op": 26878.0,
+          "allocations_per_op": 208.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/sparse/ids=60-4       \t    1000\t    213758 ns/op\t   26878 B/op\t     208 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/sparse/ids=200",
+          "iterations": 1000,
+          "ns_per_op": 360315.0,
+          "bytes_per_op": 98937.0,
+          "allocations_per_op": 406.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/sparse/ids=200-4      \t    1000\t    360315 ns/op\t   98937 B/op\t     406 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/sparse/ids=201",
+          "iterations": 1000,
+          "ns_per_op": 587434.0,
+          "bytes_per_op": 105848.0,
+          "allocations_per_op": 547.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/sparse/ids=201-4      \t    1000\t    587434 ns/op\t  105848 B/op\t     547 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/dense/ids=1",
+          "iterations": 1000,
+          "ns_per_op": 211236.0,
+          "bytes_per_op": 6604.0,
+          "allocations_per_op": 139.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/dense/ids=1-4         \t    1000\t    211236 ns/op\t    6604 B/op\t     139 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/dense/ids=60",
+          "iterations": 1000,
+          "ns_per_op": 449538.0,
+          "bytes_per_op": 62193.0,
+          "allocations_per_op": 1755.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/dense/ids=60-4        \t    1000\t    449538 ns/op\t   62193 B/op\t    1755 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/dense/ids=200",
+          "iterations": 1000,
+          "ns_per_op": 1116699.0,
+          "bytes_per_op": 218932.0,
+          "allocations_per_op": 5545.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/dense/ids=200-4       \t    1000\t   1116699 ns/op\t  218932 B/op\t    5545 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/dense/ids=201",
+          "iterations": 1000,
+          "ns_per_op": 1241801.0,
+          "bytes_per_op": 225535.0,
+          "allocations_per_op": 5684.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/dense/ids=201-4       \t    1000\t   1241801 ns/op\t  225535 B/op\t    5684 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementHistory/empty/posts=1",
+          "iterations": 1000,
+          "ns_per_op": 229731.0,
+          "bytes_per_op": 7844.0,
+          "allocations_per_op": 142.0,
+          "raw": "BenchmarkPriorityAcknowledgementHistory/empty/posts=1-4 \t    1000\t    229731 ns/op\t    7844 B/op\t     142 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementHistory/empty/posts=60",
+          "iterations": 1000,
+          "ns_per_op": 470274.0,
+          "bytes_per_op": 106545.0,
+          "allocations_per_op": 1865.0,
+          "raw": "BenchmarkPriorityAcknowledgementHistory/empty/posts=60-4         \t    1000\t    470274 ns/op\t  106545 B/op\t    1865 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementHistory/sparse/posts=1",
+          "iterations": 1000,
+          "ns_per_op": 212954.0,
+          "bytes_per_op": 8971.0,
+          "allocations_per_op": 174.0,
+          "raw": "BenchmarkPriorityAcknowledgementHistory/sparse/posts=1-4         \t    1000\t    212954 ns/op\t    8971 B/op\t     174 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementHistory/sparse/posts=60",
+          "iterations": 1000,
+          "ns_per_op": 465297.0,
+          "bytes_per_op": 108823.0,
+          "allocations_per_op": 1951.0,
+          "raw": "BenchmarkPriorityAcknowledgementHistory/sparse/posts=60-4        \t    1000\t    465297 ns/op\t  108823 B/op\t    1951 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementHistory/dense/posts=1",
+          "iterations": 1000,
+          "ns_per_op": 215043.0,
+          "bytes_per_op": 8937.0,
+          "allocations_per_op": 174.0,
+          "raw": "BenchmarkPriorityAcknowledgementHistory/dense/posts=1-4          \t    1000\t    215043 ns/op\t    8937 B/op\t     174 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementHistory/dense/posts=60",
+          "iterations": 1000,
+          "ns_per_op": 872045.0,
+          "bytes_per_op": 157881.0,
+          "allocations_per_op": 3402.0,
+          "raw": "BenchmarkPriorityAcknowledgementHistory/dense/posts=60-4         \t    1000\t    872045 ns/op\t  157881 B/op\t    3402 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "benchmarks": [
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/empty/ids=1",
+          "iterations": 1000,
+          "ns_per_op": 345585.0,
+          "bytes_per_op": 14483.0,
+          "allocations_per_op": 249.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/empty/ids=1-4         \t    1000\t    345585 ns/op\t   14483 B/op\t     249 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/empty/ids=60",
+          "iterations": 1000,
+          "ns_per_op": 398915.0,
+          "bytes_per_op": 47220.0,
+          "allocations_per_op": 624.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/empty/ids=60-4        \t    1000\t    398915 ns/op\t   47220 B/op\t     624 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/empty/ids=200",
+          "iterations": 1000,
+          "ns_per_op": 684120.0,
+          "bytes_per_op": 154524.0,
+          "allocations_per_op": 1484.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/empty/ids=200-4       \t    1000\t    684120 ns/op\t  154524 B/op\t    1484 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/empty/ids=201",
+          "iterations": 1000,
+          "ns_per_op": 851083.0,
+          "bytes_per_op": 168981.0,
+          "allocations_per_op": 1733.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/empty/ids=201-4       \t    1000\t    851083 ns/op\t  168981 B/op\t    1733 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/sparse/ids=1",
+          "iterations": 1000,
+          "ns_per_op": 233917.0,
+          "bytes_per_op": 15058.0,
+          "allocations_per_op": 280.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/sparse/ids=1-4        \t    1000\t    233917 ns/op\t   15058 B/op\t     280 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/sparse/ids=60",
+          "iterations": 1000,
+          "ns_per_op": 399149.0,
+          "bytes_per_op": 49093.0,
+          "allocations_per_op": 713.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/sparse/ids=60-4       \t    1000\t    399149 ns/op\t   49093 B/op\t     713 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/sparse/ids=200",
+          "iterations": 1000,
+          "ns_per_op": 657198.0,
+          "bytes_per_op": 160861.0,
+          "allocations_per_op": 1767.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/sparse/ids=200-4      \t    1000\t    657198 ns/op\t  160861 B/op\t    1767 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/sparse/ids=201",
+          "iterations": 1000,
+          "ns_per_op": 979046.0,
+          "bytes_per_op": 176225.0,
+          "allocations_per_op": 2047.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/sparse/ids=201-4      \t    1000\t    979046 ns/op\t  176225 B/op\t    2047 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/dense/ids=1",
+          "iterations": 1000,
+          "ns_per_op": 283891.0,
+          "bytes_per_op": 15057.0,
+          "allocations_per_op": 280.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/dense/ids=1-4         \t    1000\t    283891 ns/op\t   15057 B/op\t     280 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/dense/ids=60",
+          "iterations": 1000,
+          "ns_per_op": 551205.0,
+          "bytes_per_op": 84389.0,
+          "allocations_per_op": 2261.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/dense/ids=60-4        \t    1000\t    551205 ns/op\t   84389 B/op\t    2261 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/dense/ids=200",
+          "iterations": 1000,
+          "ns_per_op": 1388463.0,
+          "bytes_per_op": 280870.0,
+          "allocations_per_op": 6906.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/dense/ids=200-4       \t    1000\t   1388463 ns/op\t  280870 B/op\t    6906 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/dense/ids=201",
+          "iterations": 1000,
+          "ns_per_op": 1961854.0,
+          "bytes_per_op": 295901.0,
+          "allocations_per_op": 7184.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/dense/ids=201-4       \t    1000\t   1961854 ns/op\t  295901 B/op\t    7184 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementHistory/empty/posts=1",
+          "iterations": 1000,
+          "ns_per_op": 303535.0,
+          "bytes_per_op": 16287.0,
+          "allocations_per_op": 282.0,
+          "raw": "BenchmarkPriorityAcknowledgementHistory/empty/posts=1-4 \t    1000\t    303535 ns/op\t   16287 B/op\t     282 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementHistory/empty/posts=60",
+          "iterations": 1000,
+          "ns_per_op": 1128022.0,
+          "bytes_per_op": 128781.0,
+          "allocations_per_op": 2372.0,
+          "raw": "BenchmarkPriorityAcknowledgementHistory/empty/posts=60-4         \t    1000\t   1128022 ns/op\t  128781 B/op\t    2372 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementHistory/sparse/posts=1",
+          "iterations": 1000,
+          "ns_per_op": 400871.0,
+          "bytes_per_op": 17374.0,
+          "allocations_per_op": 314.0,
+          "raw": "BenchmarkPriorityAcknowledgementHistory/sparse/posts=1-4         \t    1000\t    400871 ns/op\t   17374 B/op\t     314 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementHistory/sparse/posts=60",
+          "iterations": 1000,
+          "ns_per_op": 627627.0,
+          "bytes_per_op": 130973.0,
+          "allocations_per_op": 2457.0,
+          "raw": "BenchmarkPriorityAcknowledgementHistory/sparse/posts=60-4        \t    1000\t    627627 ns/op\t  130973 B/op\t    2457 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementHistory/dense/posts=1",
+          "iterations": 1000,
+          "ns_per_op": 263665.0,
+          "bytes_per_op": 17378.0,
+          "allocations_per_op": 314.0,
+          "raw": "BenchmarkPriorityAcknowledgementHistory/dense/posts=1-4          \t    1000\t    263665 ns/op\t   17378 B/op\t     314 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementHistory/dense/posts=60",
+          "iterations": 1000,
+          "ns_per_op": 988455.0,
+          "bytes_per_op": 180106.0,
+          "allocations_per_op": 3908.0,
+          "raw": "BenchmarkPriorityAcknowledgementHistory/dense/posts=60-4         \t    1000\t    988455 ns/op\t  180106 B/op\t    3908 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "benchmarks": [
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/empty/ids=1",
+          "iterations": 1000,
+          "ns_per_op": 348543.0,
+          "bytes_per_op": 14476.0,
+          "allocations_per_op": 249.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/empty/ids=1-4         \t    1000\t    348543 ns/op\t   14476 B/op\t     249 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/empty/ids=60",
+          "iterations": 1000,
+          "ns_per_op": 348508.0,
+          "bytes_per_op": 47231.0,
+          "allocations_per_op": 625.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/empty/ids=60-4        \t    1000\t    348508 ns/op\t   47231 B/op\t     625 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/empty/ids=200",
+          "iterations": 1000,
+          "ns_per_op": 556161.0,
+          "bytes_per_op": 154539.0,
+          "allocations_per_op": 1485.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/empty/ids=200-4       \t    1000\t    556161 ns/op\t  154539 B/op\t    1485 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/empty/ids=201",
+          "iterations": 1000,
+          "ns_per_op": 905927.0,
+          "bytes_per_op": 168972.0,
+          "allocations_per_op": 1734.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/empty/ids=201-4       \t    1000\t    905927 ns/op\t  168972 B/op\t    1734 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/sparse/ids=1",
+          "iterations": 1000,
+          "ns_per_op": 268586.0,
+          "bytes_per_op": 15055.0,
+          "allocations_per_op": 280.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/sparse/ids=1-4        \t    1000\t    268586 ns/op\t   15055 B/op\t     280 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/sparse/ids=60",
+          "iterations": 1000,
+          "ns_per_op": 377995.0,
+          "bytes_per_op": 49095.0,
+          "allocations_per_op": 714.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/sparse/ids=60-4       \t    1000\t    377995 ns/op\t   49095 B/op\t     714 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/sparse/ids=200",
+          "iterations": 1000,
+          "ns_per_op": 687188.0,
+          "bytes_per_op": 160863.0,
+          "allocations_per_op": 1766.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/sparse/ids=200-4      \t    1000\t    687188 ns/op\t  160863 B/op\t    1766 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/sparse/ids=201",
+          "iterations": 1000,
+          "ns_per_op": 930732.0,
+          "bytes_per_op": 176229.0,
+          "allocations_per_op": 2047.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/sparse/ids=201-4      \t    1000\t    930732 ns/op\t  176229 B/op\t    2047 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/dense/ids=1",
+          "iterations": 1000,
+          "ns_per_op": 234657.0,
+          "bytes_per_op": 15059.0,
+          "allocations_per_op": 280.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/dense/ids=1-4         \t    1000\t    234657 ns/op\t   15059 B/op\t     280 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/dense/ids=60",
+          "iterations": 1000,
+          "ns_per_op": 582042.0,
+          "bytes_per_op": 84389.0,
+          "allocations_per_op": 2261.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/dense/ids=60-4        \t    1000\t    582042 ns/op\t   84389 B/op\t    2261 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/dense/ids=200",
+          "iterations": 1000,
+          "ns_per_op": 1290379.0,
+          "bytes_per_op": 280858.0,
+          "allocations_per_op": 6906.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/dense/ids=200-4       \t    1000\t   1290379 ns/op\t  280858 B/op\t    6906 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/dense/ids=201",
+          "iterations": 1000,
+          "ns_per_op": 1839022.0,
+          "bytes_per_op": 295896.0,
+          "allocations_per_op": 7183.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/dense/ids=201-4       \t    1000\t   1839022 ns/op\t  295896 B/op\t    7183 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementHistory/empty/posts=1",
+          "iterations": 1000,
+          "ns_per_op": 263324.0,
+          "bytes_per_op": 16338.0,
+          "allocations_per_op": 282.0,
+          "raw": "BenchmarkPriorityAcknowledgementHistory/empty/posts=1-4 \t    1000\t    263324 ns/op\t   16338 B/op\t     282 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementHistory/empty/posts=60",
+          "iterations": 1000,
+          "ns_per_op": 752250.0,
+          "bytes_per_op": 128758.0,
+          "allocations_per_op": 2371.0,
+          "raw": "BenchmarkPriorityAcknowledgementHistory/empty/posts=60-4         \t    1000\t    752250 ns/op\t  128758 B/op\t    2371 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementHistory/sparse/posts=1",
+          "iterations": 1000,
+          "ns_per_op": 327870.0,
+          "bytes_per_op": 17414.0,
+          "allocations_per_op": 314.0,
+          "raw": "BenchmarkPriorityAcknowledgementHistory/sparse/posts=1-4         \t    1000\t    327870 ns/op\t   17414 B/op\t     314 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementHistory/sparse/posts=60",
+          "iterations": 1000,
+          "ns_per_op": 693287.0,
+          "bytes_per_op": 130973.0,
+          "allocations_per_op": 2457.0,
+          "raw": "BenchmarkPriorityAcknowledgementHistory/sparse/posts=60-4        \t    1000\t    693287 ns/op\t  130973 B/op\t    2457 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementHistory/dense/posts=1",
+          "iterations": 1000,
+          "ns_per_op": 236105.0,
+          "bytes_per_op": 17414.0,
+          "allocations_per_op": 314.0,
+          "raw": "BenchmarkPriorityAcknowledgementHistory/dense/posts=1-4          \t    1000\t    236105 ns/op\t   17414 B/op\t     314 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementHistory/dense/posts=60",
+          "iterations": 1000,
+          "ns_per_op": 961284.0,
+          "bytes_per_op": 180106.0,
+          "allocations_per_op": 3908.0,
+          "raw": "BenchmarkPriorityAcknowledgementHistory/dense/posts=60-4         \t    1000\t    961284 ns/op\t  180106 B/op\t    3908 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "benchmarks": [
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/empty/ids=1",
+          "iterations": 1000,
+          "ns_per_op": 303099.0,
+          "bytes_per_op": 6007.0,
+          "allocations_per_op": 108.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/empty/ids=1-4         \t    1000\t    303099 ns/op\t    6007 B/op\t     108 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/empty/ids=60",
+          "iterations": 1000,
+          "ns_per_op": 325804.0,
+          "bytes_per_op": 25033.0,
+          "allocations_per_op": 119.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/empty/ids=60-4        \t    1000\t    325804 ns/op\t   25033 B/op\t     119 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/empty/ids=200",
+          "iterations": 1000,
+          "ns_per_op": 345254.0,
+          "bytes_per_op": 92601.0,
+          "allocations_per_op": 124.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/empty/ids=200-4       \t    1000\t    345254 ns/op\t   92601 B/op\t     124 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/empty/ids=201",
+          "iterations": 1000,
+          "ns_per_op": 652647.0,
+          "bytes_per_op": 98594.0,
+          "allocations_per_op": 233.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/empty/ids=201-4       \t    1000\t    652647 ns/op\t   98594 B/op\t     233 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/sparse/ids=1",
+          "iterations": 1000,
+          "ns_per_op": 248930.0,
+          "bytes_per_op": 6607.0,
+          "allocations_per_op": 139.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/sparse/ids=1-4        \t    1000\t    248930 ns/op\t    6607 B/op\t     139 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/sparse/ids=60",
+          "iterations": 1000,
+          "ns_per_op": 256072.0,
+          "bytes_per_op": 26883.0,
+          "allocations_per_op": 207.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/sparse/ids=60-4       \t    1000\t    256072 ns/op\t   26883 B/op\t     207 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/sparse/ids=200",
+          "iterations": 1000,
+          "ns_per_op": 466164.0,
+          "bytes_per_op": 98937.0,
+          "allocations_per_op": 407.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/sparse/ids=200-4      \t    1000\t    466164 ns/op\t   98937 B/op\t     407 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/sparse/ids=201",
+          "iterations": 1000,
+          "ns_per_op": 707076.0,
+          "bytes_per_op": 105850.0,
+          "allocations_per_op": 547.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/sparse/ids=201-4      \t    1000\t    707076 ns/op\t  105850 B/op\t     547 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/dense/ids=1",
+          "iterations": 1000,
+          "ns_per_op": 214583.0,
+          "bytes_per_op": 6606.0,
+          "allocations_per_op": 139.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/dense/ids=1-4         \t    1000\t    214583 ns/op\t    6606 B/op\t     139 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/dense/ids=60",
+          "iterations": 1000,
+          "ns_per_op": 439506.0,
+          "bytes_per_op": 62194.0,
+          "allocations_per_op": 1755.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/dense/ids=60-4        \t    1000\t    439506 ns/op\t   62194 B/op\t    1755 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/dense/ids=200",
+          "iterations": 1000,
+          "ns_per_op": 1097626.0,
+          "bytes_per_op": 218932.0,
+          "allocations_per_op": 5545.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/dense/ids=200-4       \t    1000\t   1097626 ns/op\t  218932 B/op\t    5545 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/dense/ids=201",
+          "iterations": 1000,
+          "ns_per_op": 1395628.0,
+          "bytes_per_op": 225540.0,
+          "allocations_per_op": 5684.0,
+          "raw": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/dense/ids=201-4       \t    1000\t   1395628 ns/op\t  225540 B/op\t    5684 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementHistory/empty/posts=1",
+          "iterations": 1000,
+          "ns_per_op": 306687.0,
+          "bytes_per_op": 7838.0,
+          "allocations_per_op": 142.0,
+          "raw": "BenchmarkPriorityAcknowledgementHistory/empty/posts=1-4 \t    1000\t    306687 ns/op\t    7838 B/op\t     142 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementHistory/empty/posts=60",
+          "iterations": 1000,
+          "ns_per_op": 651034.0,
+          "bytes_per_op": 106537.0,
+          "allocations_per_op": 1865.0,
+          "raw": "BenchmarkPriorityAcknowledgementHistory/empty/posts=60-4         \t    1000\t    651034 ns/op\t  106537 B/op\t    1865 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementHistory/sparse/posts=1",
+          "iterations": 1000,
+          "ns_per_op": 352172.0,
+          "bytes_per_op": 8926.0,
+          "allocations_per_op": 174.0,
+          "raw": "BenchmarkPriorityAcknowledgementHistory/sparse/posts=1-4         \t    1000\t    352172 ns/op\t    8926 B/op\t     174 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementHistory/sparse/posts=60",
+          "iterations": 1000,
+          "ns_per_op": 542882.0,
+          "bytes_per_op": 108823.0,
+          "allocations_per_op": 1951.0,
+          "raw": "BenchmarkPriorityAcknowledgementHistory/sparse/posts=60-4        \t    1000\t    542882 ns/op\t  108823 B/op\t    1951 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementHistory/dense/posts=1",
+          "iterations": 1000,
+          "ns_per_op": 286235.0,
+          "bytes_per_op": 8931.0,
+          "allocations_per_op": 174.0,
+          "raw": "BenchmarkPriorityAcknowledgementHistory/dense/posts=1-4          \t    1000\t    286235 ns/op\t    8931 B/op\t     174 allocs/op"
+        },
+        {
+          "name": "BenchmarkPriorityAcknowledgementHistory/dense/posts=60",
+          "iterations": 1000,
+          "ns_per_op": 865645.0,
+          "bytes_per_op": 157859.0,
+          "allocations_per_op": 3402.0,
+          "raw": "BenchmarkPriorityAcknowledgementHistory/dense/posts=60-4         \t    1000\t    865645 ns/op\t  157859 B/op\t    3402 allocs/op"
+        }
+      ]
+    }
+  ],
+  "summary": [
+    {
+      "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/empty/ids=1",
+      "before": {
+        "ns_per_op": 348543.0,
+        "bytes_per_op": 14476.0,
+        "allocations_per_op": 249.0,
+        "ns_per_op_range": [
+          345585.0,
+          369698.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 338549.0,
+        "bytes_per_op": 6027.0,
+        "allocations_per_op": 109.0,
+        "ns_per_op_range": [
+          303099.0,
+          372837.0
+        ]
+      }
+    },
+    {
+      "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/empty/ids=60",
+      "before": {
+        "ns_per_op": 348508.0,
+        "bytes_per_op": 47231.0,
+        "allocations_per_op": 625.0,
+        "ns_per_op_range": [
+          341098.0,
+          398915.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 283308.0,
+        "bytes_per_op": 25033.0,
+        "allocations_per_op": 119.0,
+        "ns_per_op_range": [
+          261188.0,
+          325804.0
+        ]
+      }
+    },
+    {
+      "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/empty/ids=200",
+      "before": {
+        "ns_per_op": 617780.0,
+        "bytes_per_op": 154533.0,
+        "allocations_per_op": 1485.0,
+        "ns_per_op_range": [
+          556161.0,
+          684120.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 345254.0,
+        "bytes_per_op": 92599.0,
+        "allocations_per_op": 124.0,
+        "ns_per_op_range": [
+          332927.0,
+          404449.0
+        ]
+      }
+    },
+    {
+      "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/empty/ids=201",
+      "before": {
+        "ns_per_op": 899898.0,
+        "bytes_per_op": 168981.0,
+        "allocations_per_op": 1733.0,
+        "ns_per_op_range": [
+          851083.0,
+          905927.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 632838.0,
+        "bytes_per_op": 98594.0,
+        "allocations_per_op": 233.0,
+        "ns_per_op_range": [
+          600585.0,
+          652647.0
+        ]
+      }
+    },
+    {
+      "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/sparse/ids=1",
+      "before": {
+        "ns_per_op": 268586.0,
+        "bytes_per_op": 15058.0,
+        "allocations_per_op": 280.0,
+        "ns_per_op_range": [
+          233917.0,
+          270553.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 248930.0,
+        "bytes_per_op": 6607.0,
+        "allocations_per_op": 139.0,
+        "ns_per_op_range": [
+          205567.0,
+          259208.0
+        ]
+      }
+    },
+    {
+      "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/sparse/ids=60",
+      "before": {
+        "ns_per_op": 399149.0,
+        "bytes_per_op": 49095.0,
+        "allocations_per_op": 714.0,
+        "ns_per_op_range": [
+          377995.0,
+          406720.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 224385.0,
+        "bytes_per_op": 26879.0,
+        "allocations_per_op": 208.0,
+        "ns_per_op_range": [
+          213758.0,
+          256072.0
+        ]
+      }
+    },
+    {
+      "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/sparse/ids=200",
+      "before": {
+        "ns_per_op": 657198.0,
+        "bytes_per_op": 160863.0,
+        "allocations_per_op": 1767.0,
+        "ns_per_op_range": [
+          641375.0,
+          687188.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 371911.0,
+        "bytes_per_op": 98937.0,
+        "allocations_per_op": 407.0,
+        "ns_per_op_range": [
+          360315.0,
+          466164.0
+        ]
+      }
+    },
+    {
+      "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/sparse/ids=201",
+      "before": {
+        "ns_per_op": 958372.0,
+        "bytes_per_op": 176225.0,
+        "allocations_per_op": 2047.0,
+        "ns_per_op_range": [
+          930732.0,
+          979046.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 707076.0,
+        "bytes_per_op": 105850.0,
+        "allocations_per_op": 547.0,
+        "ns_per_op_range": [
+          587434.0,
+          712917.0
+        ]
+      }
+    },
+    {
+      "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/dense/ids=1",
+      "before": {
+        "ns_per_op": 265174.0,
+        "bytes_per_op": 15057.0,
+        "allocations_per_op": 280.0,
+        "ns_per_op_range": [
+          234657.0,
+          283891.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 214583.0,
+        "bytes_per_op": 6606.0,
+        "allocations_per_op": 139.0,
+        "ns_per_op_range": [
+          211236.0,
+          243453.0
+        ]
+      }
+    },
+    {
+      "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/dense/ids=60",
+      "before": {
+        "ns_per_op": 551205.0,
+        "bytes_per_op": 84389.0,
+        "allocations_per_op": 2261.0,
+        "ns_per_op_range": [
+          539941.0,
+          582042.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 449538.0,
+        "bytes_per_op": 62194.0,
+        "allocations_per_op": 1755.0,
+        "ns_per_op_range": [
+          439506.0,
+          486898.0
+        ]
+      }
+    },
+    {
+      "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/dense/ids=200",
+      "before": {
+        "ns_per_op": 1303684.0,
+        "bytes_per_op": 280861.0,
+        "allocations_per_op": 6906.0,
+        "ns_per_op_range": [
+          1290379.0,
+          1388463.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 1116699.0,
+        "bytes_per_op": 218932.0,
+        "allocations_per_op": 5545.0,
+        "ns_per_op_range": [
+          1097626.0,
+          1128080.0
+        ]
+      }
+    },
+    {
+      "name": "BenchmarkPriorityAcknowledgementReads/PostgreSQL/dense/ids=201",
+      "before": {
+        "ns_per_op": 1961854.0,
+        "bytes_per_op": 295896.0,
+        "allocations_per_op": 7183.0,
+        "ns_per_op_range": [
+          1839022.0,
+          1971194.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 1241801.0,
+        "bytes_per_op": 225535.0,
+        "allocations_per_op": 5684.0,
+        "ns_per_op_range": [
+          1219345.0,
+          1395628.0
+        ]
+      }
+    },
+    {
+      "name": "BenchmarkPriorityAcknowledgementHistory/empty/posts=1",
+      "before": {
+        "ns_per_op": 263324.0,
+        "bytes_per_op": 16287.0,
+        "allocations_per_op": 282.0,
+        "ns_per_op_range": [
+          257862.0,
+          303535.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 229731.0,
+        "bytes_per_op": 7844.0,
+        "allocations_per_op": 142.0,
+        "ns_per_op_range": [
+          227860.0,
+          306687.0
+        ]
+      }
+    },
+    {
+      "name": "BenchmarkPriorityAcknowledgementHistory/empty/posts=60",
+      "before": {
+        "ns_per_op": 821625.0,
+        "bytes_per_op": 128758.0,
+        "allocations_per_op": 2372.0,
+        "ns_per_op_range": [
+          752250.0,
+          1128022.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 648748.0,
+        "bytes_per_op": 106537.0,
+        "allocations_per_op": 1865.0,
+        "ns_per_op_range": [
+          470274.0,
+          651034.0
+        ]
+      }
+    },
+    {
+      "name": "BenchmarkPriorityAcknowledgementHistory/sparse/posts=1",
+      "before": {
+        "ns_per_op": 327870.0,
+        "bytes_per_op": 17376.0,
+        "allocations_per_op": 314.0,
+        "ns_per_op_range": [
+          265145.0,
+          400871.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 311442.0,
+        "bytes_per_op": 8929.0,
+        "allocations_per_op": 174.0,
+        "ns_per_op_range": [
+          212954.0,
+          352172.0
+        ]
+      }
+    },
+    {
+      "name": "BenchmarkPriorityAcknowledgementHistory/sparse/posts=60",
+      "before": {
+        "ns_per_op": 654258.0,
+        "bytes_per_op": 130973.0,
+        "allocations_per_op": 2457.0,
+        "ns_per_op_range": [
+          627627.0,
+          693287.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 542882.0,
+        "bytes_per_op": 108823.0,
+        "allocations_per_op": 1951.0,
+        "ns_per_op_range": [
+          465297.0,
+          668148.0
+        ]
+      }
+    },
+    {
+      "name": "BenchmarkPriorityAcknowledgementHistory/dense/posts=1",
+      "before": {
+        "ns_per_op": 263665.0,
+        "bytes_per_op": 17410.0,
+        "allocations_per_op": 314.0,
+        "ns_per_op_range": [
+          236105.0,
+          355236.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 286235.0,
+        "bytes_per_op": 8931.0,
+        "allocations_per_op": 174.0,
+        "ns_per_op_range": [
+          215043.0,
+          325230.0
+        ]
+      }
+    },
+    {
+      "name": "BenchmarkPriorityAcknowledgementHistory/dense/posts=60",
+      "before": {
+        "ns_per_op": 988455.0,
+        "bytes_per_op": 180106.0,
+        "allocations_per_op": 3908.0,
+        "ns_per_op_range": [
+          961284.0,
+          1030464.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 872045.0,
+        "bytes_per_op": 157881.0,
+        "allocations_per_op": 3402.0,
+        "ns_per_op_range": [
+          865645.0,
+          903503.0
+        ]
+      }
+    }
+  ]
+}

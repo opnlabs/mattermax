@@ -1,0 +1,362 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: rhnvrm <hello@rohanverma.net>
+Date: Sat, 14 Nov 2026 18:30:35 +0530
+Subject: [PATCH] perf: use fixed array queries for priority metadata
+
+Replace per-request IN-list query construction with fixed SQL and existing lib/pq array parameters. Preserve the 200-ID batches, nullable fields, acknowledgement filtering, replica and timeout/trace wrappers, and partial-failure handling.
+
+Add real-store boundary, duplicate, legacy NULL and failure regressions, plus store and ordered-history benchmarks with positive metadata validation.
+
+Mattermax-Patch: priority-ack-array-reads.patch
+---
+ .../channels/app/post_priority_array_test.go  |  80 ++++++++
+ .../sqlstore/post_acknowledgements_store.go   |  14 +-
+ .../store/sqlstore/post_priority_store.go     |  10 +-
+ .../store/sqlstore/priority_ack_array_test.go | 189 ++++++++++++++++++
+ 4 files changed, 278 insertions(+), 15 deletions(-)
+ create mode 100644 server/channels/app/post_priority_array_test.go
+ create mode 100644 server/channels/store/sqlstore/priority_ack_array_test.go
+
+diff --git a/server/channels/app/post_priority_array_test.go b/server/channels/app/post_priority_array_test.go
+new file mode 100644
+index 000000000000..004f44b3ac7c
+--- /dev/null
++++ b/server/channels/app/post_priority_array_test.go
+@@ -0,0 +1,80 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++package app
++
++import (
++	"fmt"
++	"testing"
++
++	"github.com/mattermost/mattermost/server/public/model"
++)
++
++// BenchmarkPriorityAcknowledgementHistory validates real metadata on stored,
++// ordered pages. Priority reads are enabled; no files, reactions or links.
++func BenchmarkPriorityAcknowledgementHistory(b *testing.B) {
++	th := Setup(b).InitBasic(b)
++	th.App.UpdateConfig(func(cfg *model.Config) { *cfg.ServiceSettings.EnableLinkPreviews = false })
++	if !th.App.IsPostPriorityEnabled() {
++		b.Fatal("priority reads must be enabled")
++	}
++	for _, density := range []string{"empty", "sparse", "dense"} {
++		b.Run(density, func(b *testing.B) {
++			for _, size := range []int{1, 60} {
++				b.Run(fmt.Sprintf("posts=%d", size), func(b *testing.B) {
++					list := model.NewPostList()
++					hasPriority := map[string]bool{}
++					for i := range size {
++						post, err := th.App.Srv().Store().Post().Save(th.Context, &model.Post{ChannelId: th.BasicChannel.Id, UserId: th.BasicUser.Id, Message: "query metadata"})
++						if err != nil {
++							b.Fatal(err)
++						}
++						list.AddPost(post)
++						list.AddOrder(post.Id)
++						if density == "empty" || (density == "sparse" && i%20 != 0) {
++							continue
++						}
++						_, err = th.App.Srv().Store().PostPriority().Save(&model.PostPriority{PostId: post.Id, ChannelId: post.ChannelId, Priority: new("important"), RequestedAck: new(true), PersistentNotifications: new(false)})
++						if err != nil {
++							b.Fatal(err)
++						}
++						_, err = th.App.Srv().Store().PostAcknowledgement().SaveWithModel(&model.PostAcknowledgement{PostId: post.Id, UserId: post.UserId, ChannelId: post.ChannelId, AcknowledgedAt: 1234})
++						if err != nil {
++							b.Fatal(err)
++						}
++						hasPriority[post.Id] = true
++					}
++					check := func(result *model.PostList) {
++						if len(result.Order) != size || len(result.Posts) != size {
++							b.Fatal("incorrect page size")
++						}
++						for i, id := range list.Order {
++							p := result.Posts[id]
++							if result.Order[i] != id || p == nil || p.Metadata == nil || p.Message != "query metadata" {
++								b.Fatal("incorrect ordered page")
++							}
++							if hasPriority[id] {
++								priority := p.Metadata.Priority
++								if priority == nil || priority.PostId != id || priority.ChannelId != th.BasicChannel.Id || priority.Priority == nil || *priority.Priority != "important" || priority.RequestedAck == nil || !*priority.RequestedAck || priority.PersistentNotifications == nil || *priority.PersistentNotifications {
++									b.Fatal("incorrect priority metadata")
++								}
++								acks := p.Metadata.Acknowledgements
++								if len(acks) != 1 || acks[0].PostId != id || acks[0].UserId != th.BasicUser.Id || acks[0].ChannelId != th.BasicChannel.Id || acks[0].AcknowledgedAt != 1234 {
++									b.Fatal("incorrect acknowledgement metadata")
++								}
++							} else if p.Metadata.Priority != nil || len(p.Metadata.Acknowledgements) != 0 {
++								b.Fatal("unexpected metadata")
++							}
++						}
++					}
++					check(th.App.PreparePostListForClient(th.Context, list))
++					b.ReportAllocs()
++					b.ResetTimer()
++					for range b.N {
++						check(th.App.PreparePostListForClient(th.Context, list))
++					}
++				})
++			}
++		})
++	}
++}
+diff --git a/server/channels/store/sqlstore/post_acknowledgements_store.go b/server/channels/store/sqlstore/post_acknowledgements_store.go
+index 3375344e73d9..3ca1297dd348 100644
+--- a/server/channels/store/sqlstore/post_acknowledgements_store.go
++++ b/server/channels/store/sqlstore/post_acknowledgements_store.go
+@@ -6,6 +6,7 @@ package sqlstore
+ import (
+ 	"database/sql"
+ 
++	"github.com/lib/pq"
+ 	sq "github.com/mattermost/squirrel"
+ 	"github.com/pkg/errors"
+ 
+@@ -144,16 +145,11 @@ func (s *SqlPostAcknowledgementStore) GetForPosts(postIds []string) ([]*model.Po
+ 	for i := 0; i < len(postIds); i += perPage {
+ 		j := min(len(postIds), i+perPage)
+ 
+-		query := s.getQueryBuilder().
+-			Select("PostId", "UserId", "ChannelId", "AcknowledgedAt", "RemoteId").
+-			From("PostAcknowledgements").
+-			Where(sq.And{
+-				sq.Eq{"PostId": postIds[i:j]},
+-				sq.NotEq{"AcknowledgedAt": 0},
+-			})
+-
+ 		var acknowledgementsBatch []*model.PostAcknowledgement
+-		err := s.GetReplica().SelectBuilder(&acknowledgementsBatch, query)
++		err := s.GetReplica().Select(&acknowledgementsBatch,
++			`SELECT PostId, UserId, ChannelId, AcknowledgedAt, RemoteId
++			 FROM PostAcknowledgements WHERE PostId = ANY($1) AND AcknowledgedAt <> $2`,
++			pq.Array(postIds[i:j]), 0)
+ 		if err != nil {
+ 			return nil, errors.Wrapf(err, "failed to get PostAcknowledgements for post list")
+ 		}
+diff --git a/server/channels/store/sqlstore/post_priority_store.go b/server/channels/store/sqlstore/post_priority_store.go
+index 452310c83fb2..af1fd30300ca 100644
+--- a/server/channels/store/sqlstore/post_priority_store.go
++++ b/server/channels/store/sqlstore/post_priority_store.go
+@@ -4,6 +4,7 @@
+ package sqlstore
+ 
+ import (
++	"github.com/lib/pq"
+ 	sq "github.com/mattermost/squirrel"
+ 	"github.com/pkg/errors"
+ 
+@@ -49,13 +50,10 @@ func (s *SqlPostPriorityStore) GetForPosts(postIds []string) ([]*model.PostPrior
+ 	for i := 0; i < len(postIds); i += perPage {
+ 		j := min(len(postIds), i+perPage)
+ 
+-		query := s.getQueryBuilder().
+-			Select("PostId", "ChannelId", "Priority", "RequestedAck", "PersistentNotifications").
+-			From("PostsPriority").
+-			Where(sq.Eq{"PostId": postIds[i:j]})
+-
+ 		var priorityBatch []*model.PostPriority
+-		err := s.GetReplica().SelectBuilder(&priorityBatch, query)
++		err := s.GetReplica().Select(&priorityBatch,
++			`SELECT PostId, ChannelId, Priority, RequestedAck, PersistentNotifications
++			 FROM PostsPriority WHERE PostId = ANY($1)`, pq.Array(postIds[i:j]))
+ 
+ 		if err != nil {
+ 			return nil, err
+diff --git a/server/channels/store/sqlstore/priority_ack_array_test.go b/server/channels/store/sqlstore/priority_ack_array_test.go
+new file mode 100644
+index 000000000000..2b15b1edf292
+--- /dev/null
++++ b/server/channels/store/sqlstore/priority_ack_array_test.go
+@@ -0,0 +1,189 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++package sqlstore
++
++import (
++	"fmt"
++	"testing"
++
++	"github.com/stretchr/testify/require"
++
++	"github.com/mattermost/mattermost/server/public/model"
++	"github.com/mattermost/mattermost/server/public/shared/request"
++	"github.com/mattermost/mattermost/server/v8/channels/store"
++	"github.com/mattermost/mattermost/server/v8/channels/store/storetest"
++)
++
++func TestPriorityAcknowledgementArrayReads(t *testing.T) {
++	StoreTestWithSqlStore(t, func(t *testing.T, rctx request.CTX, ss store.Store, db storetest.SqlStore) {
++		channel := model.NewId()
++		ids := make([]string, 401)
++		for i := range ids {
++			ids[i] = model.NewId()
++		}
++		priorities := map[string]*model.PostPriority{}
++		acks := map[string][]*model.PostAcknowledgement{}
++		t.Cleanup(func() {
++			_, err := db.GetMaster().Exec("DELETE FROM PostsPriority WHERE ChannelId = ?", channel)
++			require.NoError(t, err)
++			_, err = db.GetMaster().Exec("DELETE FROM PostAcknowledgements WHERE ChannelId = ?", channel)
++			require.NoError(t, err)
++		})
++		for n, position := range []int{0, 199, 200, 399, 400} {
++			id := ids[position]
++			p := &model.PostPriority{PostId: id, ChannelId: channel, Priority: new("important")}
++			if n > 0 {
++				p.RequestedAck = new(n == 1 || n == 4)
++				p.PersistentNotifications = new(n == 2 || n == 4)
++			}
++			_, err := db.GetMaster().Exec("INSERT INTO PostsPriority(PostId,ChannelId,Priority,RequestedAck,PersistentNotifications) VALUES (?,?,?,?,?)", id, channel, *p.Priority, p.RequestedAck, p.PersistentNotifications)
++			require.NoError(t, err)
++			priorities[id] = p
++			for j, timestamp := range []any{int64(10), int64(-10), int64(0), nil} {
++				user := model.NewId()
++				var remote *string
++				if j%2 != 0 {
++					remote = new("")
++				}
++				if n%2 != 0 {
++					remote = new(model.NewId())
++				}
++				_, err = db.GetMaster().Exec("INSERT INTO PostAcknowledgements(PostId,UserId,ChannelId,AcknowledgedAt,RemoteId) VALUES (?,?,?,?,?)", id, user, channel, timestamp, remote)
++				require.NoError(t, err)
++				if j < 2 {
++					acks[id] = append(acks[id], &model.PostAcknowledgement{PostId: id, UserId: user, ChannelId: channel, AcknowledgedAt: timestamp.(int64), RemoteId: remote})
++				}
++			}
++		}
++		cases := []struct {
++			name string
++			ids  []string
++		}{
++			{"nil", nil}, {"empty", []string{}}, {"missing", []string{model.NewId()}},
++			{"escaped missing IDs", []string{"", "quote'id", "comma,id", `back\slash`, "{braces}"}},
++			{"one", ids[:1]}, {"199", ids[:199]}, {"200", ids[:200]}, {"201", ids[:201]}, {"400", ids[:400]}, {"401", ids},
++			{"same batch duplicates", []string{ids[0], ids[0], ids[199]}},
++			{"cross batch duplicate", append(append([]string{}, ids[:200]...), ids[0])},
++		}
++		for _, tc := range cases {
++			t.Run(tc.name, func(t *testing.T) {
++				var wantPriority []*model.PostPriority
++				var wantAcks []*model.PostAcknowledgement
++				for start := 0; start < len(tc.ids); start += 200 {
++					end := min(start+200, len(tc.ids))
++					seen := map[string]bool{}
++					for _, id := range tc.ids[start:end] {
++						if seen[id] {
++							continue
++						}
++						seen[id] = true
++						if p := priorities[id]; p != nil {
++							wantPriority = append(wantPriority, p)
++						}
++						wantAcks = append(wantAcks, acks[id]...)
++					}
++				}
++				gotPriority, err := ss.PostPriority().GetForPosts(tc.ids)
++				require.NoError(t, err)
++				require.ElementsMatch(t, wantPriority, gotPriority)
++				gotAcks, err := ss.PostAcknowledgement().GetForPosts(tc.ids)
++				require.NoError(t, err)
++				require.ElementsMatch(t, wantAcks, gotAcks)
++				if len(tc.ids) == 0 {
++					require.Nil(t, gotPriority)
++					require.Nil(t, gotAcks)
++				}
++			})
++		}
++		// A second-batch database failure must discard successful first-batch rows.
++		bad := append(append([]string{}, ids[:200]...), string([]byte{0xff}))
++		gotPriority, err := ss.PostPriority().GetForPosts(bad)
++		require.Error(t, err)
++		require.Nil(t, gotPriority)
++		gotAcks, err := ss.PostAcknowledgement().GetForPosts(bad)
++		require.Error(t, err)
++		require.Nil(t, gotAcks)
++	})
++}
++
++func BenchmarkPriorityAcknowledgementReads(b *testing.B) {
++	for _, st := range storeTypes {
++		b.Run(st.Name, func(b *testing.B) {
++			for _, density := range []string{"empty", "sparse", "dense"} {
++				b.Run(density, func(b *testing.B) {
++					for _, size := range []int{1, 60, 200, 201} {
++						b.Run(fmt.Sprintf("ids=%d", size), func(b *testing.B) {
++							channel := model.NewId()
++							ids := make([]string, size)
++							var wantPriority []*model.PostPriority
++							var wantAcks []*model.PostAcknowledgement
++							b.Cleanup(func() {
++								_, err := st.SqlStore.GetMaster().Exec("DELETE FROM PostsPriority WHERE ChannelId = ?", channel)
++								if err != nil {
++									b.Error(err)
++								}
++								_, err = st.SqlStore.GetMaster().Exec("DELETE FROM PostAcknowledgements WHERE ChannelId = ?", channel)
++								if err != nil {
++									b.Error(err)
++								}
++							})
++							for i := range ids {
++								ids[i] = model.NewId()
++								if density == "empty" || (density == "sparse" && i%20 != 0) {
++									continue
++								}
++								p := &model.PostPriority{PostId: ids[i], ChannelId: channel, Priority: new("important"), RequestedAck: new(true), PersistentNotifications: new(false)}
++								_, err := st.SqlStore.GetMaster().Exec("INSERT INTO PostsPriority(PostId,ChannelId,Priority,RequestedAck,PersistentNotifications) VALUES (?,?,?,?,?)", p.PostId, channel, *p.Priority, *p.RequestedAck, *p.PersistentNotifications)
++								if err != nil {
++									b.Fatal(err)
++								}
++								wantPriority = append(wantPriority, p)
++								ack := &model.PostAcknowledgement{PostId: ids[i], UserId: model.NewId(), ChannelId: channel, AcknowledgedAt: 1234, RemoteId: new(model.NewId())}
++								_, err = st.SqlStore.GetMaster().Exec("INSERT INTO PostAcknowledgements(PostId,UserId,ChannelId,AcknowledgedAt,RemoteId) VALUES (?,?,?,?,?)", ack.PostId, ack.UserId, channel, ack.AcknowledgedAt, *ack.RemoteId)
++								if err != nil {
++									b.Fatal(err)
++								}
++								wantAcks = append(wantAcks, ack)
++							}
++							ackByPost := map[string]*model.PostAcknowledgement{}
++							for _, ack := range wantAcks {
++								ackByPost[ack.PostId] = ack
++							}
++							priorityIDs := map[string]bool{}
++							for _, p := range wantPriority {
++								priorityIDs[p.PostId] = true
++							}
++							check := func() {
++								priorities, err := st.Store.PostPriority().GetForPosts(ids)
++								if err != nil || len(priorities) != len(wantPriority) {
++									b.Fatal("incorrect priority rows", err)
++								}
++								acknowledgements, err := st.Store.PostAcknowledgement().GetForPosts(ids)
++								if err != nil || len(acknowledgements) != len(wantAcks) {
++									b.Fatal("incorrect acknowledgement rows", err)
++								}
++								for _, p := range priorities {
++									if !priorityIDs[p.PostId] || p.ChannelId != channel || p.Priority == nil || *p.Priority != "important" || p.RequestedAck == nil || !*p.RequestedAck || p.PersistentNotifications == nil || *p.PersistentNotifications {
++										b.Fatal("incorrect priority metadata")
++									}
++								}
++								for _, a := range acknowledgements {
++									if !priorityIDs[a.PostId] || a.ChannelId != channel || a.AcknowledgedAt != 1234 || a.RemoteId == nil || ackByPost[a.PostId] == nil || a.UserId != ackByPost[a.PostId].UserId || *a.RemoteId != *ackByPost[a.PostId].RemoteId {
++										b.Fatal("incorrect acknowledgement metadata")
++									}
++								}
++							}
++							check()
++							b.ReportAllocs()
++							b.ResetTimer()
++							for range b.N {
++								check()
++							}
++						})
++					}
++				})
++			}
++		})
++	}
++}

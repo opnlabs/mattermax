@@ -519,3 +519,15 @@ and channels keep their names. Gates removed: `createChannel` in
 `PluginAPI.CreateChannel` in `app/plugin_api.go`, the webapp selector
 `isAnonymousURLEnabled` that hides the URL editors, and the System Console
 toggle's Enterprise Advanced check.
+
+### priority-ack-array-reads.patch
+
+2026-11-14. Uses fixed PostgreSQL queries and existing array parameters for
+batched priority and acknowledgement reads. Avoids building one placeholder
+per ID while retaining the 200-ID boundaries, cross-batch duplicates, NULL
+flags, acknowledgement filtering, remote fields, replica selection and SQL
+wrapper behavior. Adds legacy-query compatibility, batch/error regressions
+and paired store/ordered-history benchmarks with positive metadata checks.
+No new dependency, public API, schema or configuration change. Existing feature
+patches and author credits remain unchanged.
+[Measured results](docs/benchmarks/priority-ack-array-reads/README.md).
