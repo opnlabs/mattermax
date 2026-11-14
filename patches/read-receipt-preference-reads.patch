@@ -1,0 +1,401 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: rhnvrm <hello@rohanverma.net>
+Date: Sat, 14 Nov 2026 12:16:11 +0530
+Subject: [PATCH] perf: batch read receipt privacy preference reads
+
+Load the requested member preferences with one array-bound query instead of one read per member. Preserve missing-row defaults, privacy timestamp parsing and fail-closed database errors. Add store, app and benchmark coverage without schema changes or caches.
+
+Builds on Karan Sharma (mr-karan) and the read-receipts feature in opnlabs/mattermax#20. Existing feature patch authorship remains unchanged.
+
+Mattermax-Patch: read-receipt-preference-reads.patch
+---
+ server/channels/app/read_receipts.go          |  17 ++-
+ server/channels/app/read_receipts_test.go     |  69 +++++++++++
+ .../channels/store/retrylayer/retrylayer.go   |  21 ++++
+ .../store/sqlstore/preference_store.go        |  17 +++
+ .../store/sqlstore/preference_store_test.go   | 113 ++++++++++++++++++
+ server/channels/store/store.go                |   1 +
+ .../store/storetest/mocks/PreferenceStore.go  |  30 +++++
+ .../channels/store/timerlayer/timerlayer.go   |  16 +++
+ 8 files changed, 278 insertions(+), 6 deletions(-)
+ create mode 100644 server/channels/app/read_receipts_test.go
+
+diff --git a/server/channels/app/read_receipts.go b/server/channels/app/read_receipts.go
+index 1c3f2c031f78..fa46787b98d8 100644
+--- a/server/channels/app/read_receipts.go
++++ b/server/channels/app/read_receipts.go
+@@ -28,13 +28,18 @@ func (a *App) loadReadReceiptInputs(rctx request.CTX, channelID string) (*model.
+ 	}
+ 
+ 	now := model.GetMillis()
++	userIDs := make([]string, len(members))
+ 	prefs := make(map[string]model.ReadReceiptsPref, len(members))
+-	for _, m := range members {
+-		pref, err := a.Srv().Store().Preference().Get(m.UserId, model.PreferenceCategoryDisplaySettings, model.PreferenceNameReadReceipts)
+-		if err != nil && !isNotFoundError(err) {
+-			return nil, nil, nil, model.NewAppError("loadReadReceiptInputs", "app.preference.get.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
+-		}
+-		prefs[m.UserId] = model.ParseReadReceiptsPref(pref, now)
++	for i, m := range members {
++		userIDs[i] = m.UserId
++		prefs[m.UserId] = model.ParseReadReceiptsPref(nil, now)
++	}
++	stored, err := a.Srv().Store().Preference().GetCategoryAndNameForUsers(userIDs, model.PreferenceCategoryDisplaySettings, model.PreferenceNameReadReceipts)
++	if err != nil {
++		return nil, nil, nil, model.NewAppError("loadReadReceiptInputs", "app.preference.get.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
++	}
++	for i := range stored {
++		prefs[stored[i].UserId] = model.ParseReadReceiptsPref(&stored[i], now)
+ 	}
+ 
+ 	return channel, members, prefs, nil
+diff --git a/server/channels/app/read_receipts_test.go b/server/channels/app/read_receipts_test.go
+new file mode 100644
+index 000000000000..b38676da234f
+--- /dev/null
++++ b/server/channels/app/read_receipts_test.go
+@@ -0,0 +1,69 @@
++// Copyright (c) 2026-present the Mattermax authors.
++// See LICENSE.txt for license information.
++
++package app
++
++import (
++	"errors"
++	"net/http"
++	"testing"
++
++	"github.com/stretchr/testify/mock"
++	"github.com/stretchr/testify/require"
++
++	"github.com/mattermost/mattermost/server/public/model"
++	"github.com/mattermost/mattermost/server/v8/channels/store/storetest/mocks"
++)
++
++func TestReadReceiptBulkInputs(t *testing.T) {
++	for _, fail := range []bool{false, true} {
++		name := "preferences and defaults"
++		if fail {
++			name = "database failure"
++		}
++		t.Run(name, func(t *testing.T) {
++			th := SetupWithStoreMock(t)
++			channel := &model.Channel{Id: model.NewId(), Type: model.ChannelTypeGroup}
++			ids := []string{model.NewId(), model.NewId(), model.NewId(), model.NewId()}
++			members := make([]*model.ChannelMemberLastViewed, len(ids))
++			for i, id := range ids {
++				members[i] = &model.ChannelMemberLastViewed{UserId: id}
++			}
++			channels := &mocks.ChannelStore{}
++			channels.On("Get", channel.Id, true).Return(channel, nil).Once()
++			channels.On("GetMembersWithLastViewedAtSince", mock.Anything, channel.Id, int64(0), "", 0).Return(members, nil).Once()
++			preferences := &mocks.PreferenceStore{}
++			stored := model.Preferences{
++				{UserId: ids[0], Value: "false"},
++				{UserId: ids[1], Value: "123"},
++				{UserId: ids[2], Value: "invalid"},
++			}
++			var err error
++			if fail {
++				err = errors.New("database unavailable")
++			}
++			preferences.On("GetCategoryAndNameForUsers", ids, model.PreferenceCategoryDisplaySettings, model.PreferenceNameReadReceipts).Return(stored, err).Once()
++			stores := th.App.Srv().Store().(*mocks.Store)
++			stores.On("Channel").Return(channels)
++			stores.On("Preference").Return(preferences)
++			gotChannel, gotMembers, prefs, appErr := th.App.loadReadReceiptInputs(th.Context, channel.Id)
++			if fail {
++				require.NotNil(t, appErr)
++				require.Equal(t, "app.preference.get.app_error", appErr.Id)
++				require.Equal(t, http.StatusInternalServerError, appErr.StatusCode)
++				require.Nil(t, gotChannel)
++				require.Nil(t, gotMembers)
++				require.Nil(t, prefs, "failed reads must not expose partially defaulted inputs")
++			} else {
++				require.Nil(t, appErr)
++				require.Equal(t, channel, gotChannel)
++				require.Equal(t, members, gotMembers)
++				require.Equal(t, map[string]model.ReadReceiptsPref{
++					ids[0]: {}, ids[1]: {On: true, Since: 123}, ids[2]: {}, ids[3]: {On: true},
++				}, prefs)
++			}
++			channels.AssertExpectations(t)
++			preferences.AssertExpectations(t)
++		})
++	}
++}
+diff --git a/server/channels/store/retrylayer/retrylayer.go b/server/channels/store/retrylayer/retrylayer.go
+index 468cfba8d54e..02d32a05185b 100644
+--- a/server/channels/store/retrylayer/retrylayer.go
++++ b/server/channels/store/retrylayer/retrylayer.go
+@@ -10684,6 +10684,27 @@ func (s *RetryLayerPreferenceStore) GetCategoryAndName(category string, name str
+ 
+ }
+ 
++func (s *RetryLayerPreferenceStore) GetCategoryAndNameForUsers(userIDs []string, category string, name string) (model.Preferences, error) {
++
++	tries := 0
++	for {
++		result, err := s.PreferenceStore.GetCategoryAndNameForUsers(userIDs, category, name)
++		if err == nil {
++			return result, nil
++		}
++		if !isRepeatableError(err) {
++			return result, err
++		}
++		tries++
++		if tries >= 3 {
++			err = errors.Wrap(err, "giving up after 3 consecutive repeatable transaction failures")
++			return result, err
++		}
++		timepkg.Sleep(100 * timepkg.Millisecond)
++	}
++
++}
++
+ func (s *RetryLayerPreferenceStore) PermanentDeleteByUser(userID string) error {
+ 
+ 	tries := 0
+diff --git a/server/channels/store/sqlstore/preference_store.go b/server/channels/store/sqlstore/preference_store.go
+index e923c0175e9c..4d8f63d66734 100644
+--- a/server/channels/store/sqlstore/preference_store.go
++++ b/server/channels/store/sqlstore/preference_store.go
+@@ -4,6 +4,7 @@
+ package sqlstore
+ 
+ import (
++	"github.com/lib/pq"
+ 	sq "github.com/mattermost/squirrel"
+ 	"github.com/pkg/errors"
+ 
+@@ -136,6 +137,22 @@ func (s SqlPreferenceStore) GetCategoryAndName(category string, name string) (mo
+ 	return preferences, nil
+ }
+ 
++// GetCategoryAndNameForUsers returns only stored preferences for the requested
++// users. Missing rows are omitted; callers apply their existing defaults.
++func (s SqlPreferenceStore) GetCategoryAndNameForUsers(userIDs []string, category string, name string) (model.Preferences, error) {
++	preferences := model.Preferences{}
++	if len(userIDs) == 0 {
++		return preferences, nil
++	}
++	query := s.preferenceSelectQuery.
++		Where("UserId = ANY(?)", pq.Array(userIDs)).
++		Where(sq.Eq{"Category": category, "Name": name})
++	if err := s.GetReplica().SelectBuilder(&preferences, query); err != nil {
++		return nil, errors.Wrap(err, "failed to find preferences for users")
++	}
++	return preferences, nil
++}
++
+ func (s SqlPreferenceStore) GetCategory(userId string, category string) (model.Preferences, error) {
+ 	var preferences model.Preferences
+ 	query := s.preferenceSelectQuery.
+diff --git a/server/channels/store/sqlstore/preference_store_test.go b/server/channels/store/sqlstore/preference_store_test.go
+index a64cebb2b0cd..2470ca77d874 100644
+--- a/server/channels/store/sqlstore/preference_store_test.go
++++ b/server/channels/store/sqlstore/preference_store_test.go
+@@ -4,6 +4,10 @@
+ package sqlstore
+ 
+ import (
++	"database/sql"
++	"errors"
++	"fmt"
++	"reflect"
+ 	"testing"
+ 
+ 	"github.com/stretchr/testify/require"
+@@ -82,3 +86,112 @@ func TestDeleteUnusedFeatures(t *testing.T) {
+ 		}
+ 	})
+ }
++
++func TestPreferenceUsersLookup(t *testing.T) {
++	StoreTest(t, func(t *testing.T, _ request.CTX, ss store.Store) {
++		users := []string{model.NewId(), model.NewId(), model.NewId()}
++		category, name := model.PreferenceCategoryDisplaySettings, model.PreferenceNameReadReceipts
++		wanted := model.Preferences{
++			{UserId: users[0], Category: category, Name: name, Value: "false"},
++			{UserId: users[1], Category: category, Name: name, Value: "123"},
++		}
++		fixture := append(model.Preferences{}, wanted...)
++		fixture = append(fixture,
++			model.Preference{UserId: users[0], Category: category, Name: "unrelated", Value: "x"},
++			model.Preference{UserId: users[1], Category: "unrelated", Name: name, Value: "x"},
++			model.Preference{UserId: model.NewId(), Category: category, Name: name, Value: "x"},
++		)
++		require.NoError(t, ss.Preference().Save(fixture))
++		got, err := ss.Preference().GetCategoryAndNameForUsers(append(users, users[0]), category, name)
++		require.NoError(t, err)
++		require.ElementsMatch(t, wanted, got, "missing users are omitted; duplicate IDs do not duplicate rows")
++		empty, err := ss.Preference().GetCategoryAndNameForUsers(nil, category, name)
++		require.NoError(t, err)
++		require.Empty(t, empty)
++		missing, err := ss.Preference().GetCategoryAndNameForUsers([]string{users[2]}, category, name)
++		require.NoError(t, err)
++		require.Empty(t, missing)
++	})
++}
++
++// BenchmarkReadReceiptPreferenceInputs measures only preference loading/parsing
++// through the SQL store, excluding channel membership, HTTP and event delivery.
++func BenchmarkReadReceiptPreferenceInputs(b *testing.B) {
++	if len(storeTypes) == 0 {
++		b.Fatal("PostgreSQL store is required")
++	}
++	for _, st := range storeTypes {
++		b.Run(st.Name, func(b *testing.B) {
++			for _, members := range []int{2, 4, 8} {
++				b.Run(fmt.Sprintf("members=%d", members), func(b *testing.B) {
++					users := make([]string, members)
++					category, name := model.PreferenceCategoryDisplaySettings, model.PreferenceNameReadReceipts
++					expected := make(map[string]model.ReadReceiptsPref, members)
++					for i := range users {
++						users[i] = model.NewId()
++						pref := model.Preference{UserId: users[i], Category: category, Name: name, Value: "0"}
++						if i%3 == 0 {
++							pref.Value = "false"
++						}
++						if i%3 == 1 {
++							expected[users[i]] = model.ParseReadReceiptsPref(nil, model.GetMillis())
++							continue
++						}
++						if err := st.Store.Preference().Save(model.Preferences{pref}); err != nil {
++							b.Fatal(err)
++						}
++						expected[users[i]] = model.ParseReadReceiptsPref(&pref, model.GetMillis())
++					}
++					b.Cleanup(func() {
++						for _, id := range users {
++							if err := st.Store.Preference().PermanentDeleteByUser(id); err != nil {
++								b.Error(err)
++							}
++						}
++					})
++					for _, variant := range []string{"legacy", "batch"} {
++						b.Run(variant, func(b *testing.B) {
++							lookup := func() (map[string]model.ReadReceiptsPref, error) {
++								now := model.GetMillis()
++								result := make(map[string]model.ReadReceiptsPref, len(users))
++								if variant == "legacy" {
++									for _, id := range users {
++										pref, err := st.Store.Preference().Get(id, category, name)
++										if err != nil && !errors.Is(err, sql.ErrNoRows) {
++											return nil, err
++										}
++										result[id] = model.ParseReadReceiptsPref(pref, now)
++									}
++								} else {
++									for _, id := range users {
++										result[id] = model.ParseReadReceiptsPref(nil, now)
++									}
++									stored, err := st.Store.Preference().GetCategoryAndNameForUsers(users, category, name)
++									if err != nil {
++										return nil, err
++									}
++									for i := range stored {
++										result[stored[i].UserId] = model.ParseReadReceiptsPref(&stored[i], now)
++									}
++								}
++								return result, nil
++							}
++							got, err := lookup()
++							if err != nil || !reflect.DeepEqual(expected, got) {
++								b.Fatalf("preferences=%v expected=%v error=%v", got, expected, err)
++							}
++							b.ReportAllocs()
++							b.ResetTimer()
++							for i := 0; i < b.N; i++ {
++								got, err := lookup()
++								if err != nil || len(got) != members {
++									b.Fatalf("preferences=%v error=%v", got, err)
++								}
++							}
++						})
++					}
++				})
++			}
++		})
++	}
++}
+diff --git a/server/channels/store/store.go b/server/channels/store/store.go
+index c117ffd453f4..9d70c67c4ce8 100644
+--- a/server/channels/store/store.go
++++ b/server/channels/store/store.go
+@@ -719,6 +719,7 @@ type PreferenceStore interface {
+ 	Save(preferences model.Preferences) error
+ 	GetCategory(userID string, category string) (model.Preferences, error)
+ 	GetCategoryAndName(category string, name string) (model.Preferences, error)
++	GetCategoryAndNameForUsers(userIDs []string, category string, name string) (model.Preferences, error)
+ 	Get(userID string, category string, name string) (*model.Preference, error)
+ 	GetAll(userID string) (model.Preferences, error)
+ 	Delete(userID, category, name string) error
+diff --git a/server/channels/store/storetest/mocks/PreferenceStore.go b/server/channels/store/storetest/mocks/PreferenceStore.go
+index 074695d7a74f..a60386938757 100644
+--- a/server/channels/store/storetest/mocks/PreferenceStore.go
++++ b/server/channels/store/storetest/mocks/PreferenceStore.go
+@@ -272,6 +272,36 @@ func (_m *PreferenceStore) GetCategoryAndName(category string, name string) (mod
+ 	return r0, r1
+ }
+ 
++// GetCategoryAndNameForUsers provides a mock function with given fields: userIDs, category, name
++func (_m *PreferenceStore) GetCategoryAndNameForUsers(userIDs []string, category string, name string) (model.Preferences, error) {
++	ret := _m.Called(userIDs, category, name)
++
++	if len(ret) == 0 {
++		panic("no return value specified for GetCategoryAndNameForUsers")
++	}
++
++	var r0 model.Preferences
++	var r1 error
++	if rf, ok := ret.Get(0).(func([]string, string, string) (model.Preferences, error)); ok {
++		return rf(userIDs, category, name)
++	}
++	if rf, ok := ret.Get(0).(func([]string, string, string) model.Preferences); ok {
++		r0 = rf(userIDs, category, name)
++	} else {
++		if ret.Get(0) != nil {
++			r0 = ret.Get(0).(model.Preferences)
++		}
++	}
++
++	if rf, ok := ret.Get(1).(func([]string, string, string) error); ok {
++		r1 = rf(userIDs, category, name)
++	} else {
++		r1 = ret.Error(1)
++	}
++
++	return r0, r1
++}
++
+ // PermanentDeleteByUser provides a mock function with given fields: userID
+ func (_m *PreferenceStore) PermanentDeleteByUser(userID string) error {
+ 	ret := _m.Called(userID)
+diff --git a/server/channels/store/timerlayer/timerlayer.go b/server/channels/store/timerlayer/timerlayer.go
+index 46d600e1e0c6..b12e59205d7d 100644
+--- a/server/channels/store/timerlayer/timerlayer.go
++++ b/server/channels/store/timerlayer/timerlayer.go
+@@ -8568,6 +8568,22 @@ func (s *TimerLayerPreferenceStore) GetCategoryAndName(category string, name str
+ 	return result, err
+ }
+ 
++func (s *TimerLayerPreferenceStore) GetCategoryAndNameForUsers(userIDs []string, category string, name string) (model.Preferences, error) {
++	start := time.Now()
++
++	result, err := s.PreferenceStore.GetCategoryAndNameForUsers(userIDs, category, name)
++
++	elapsed := float64(time.Since(start)) / float64(time.Second)
++	if s.Root.Metrics != nil {
++		success := "false"
++		if err == nil {
++			success = "true"
++		}
++		s.Root.Metrics.ObserveStoreMethodDuration("PreferenceStore.GetCategoryAndNameForUsers", success, elapsed)
++	}
++	return result, err
++}
++
+ func (s *TimerLayerPreferenceStore) PermanentDeleteByUser(userID string) error {
+ 	start := time.Now()
+ 

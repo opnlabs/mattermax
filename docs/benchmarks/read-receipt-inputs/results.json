@@ -1,0 +1,266 @@
+{
+  "status": "passed",
+  "method": "Same real SQL store and full migrated schema. Legacy individual preference reads versus one batched read, including parsing/default-map construction. Synthetic 2-, 4- and 8-member ID sets with off, absent and enabled-since-zero preferences. Timed loops exclude channel/member reads, HTTP and event delivery. Alternating-order paired processes; median ns/op across trials.",
+  "workspace_sha": "1ba2cd708ac289e1412711593b06e4be2a6447e3",
+  "source_sha256": {
+    "channels/store/sqlstore/preference_store.go": "cd9ca699c01e02f4aa22d9ab126d082bf2a5dacf5edc75dd8d07e7379527aee8",
+    "channels/store/sqlstore/preference_store_test.go": "c92ec8daab674da10a413345bc6bb3d53bddc6baec6b5807cbc5e2eea0258969",
+    "channels/app/read_receipts.go": "d1e62d38b8ba4fc7ae7e3ec41a8ad0ba2006f7712b6ac132643c0688f299a3e8"
+  },
+  "environment": {
+    "platform": "Linux-6.18.55-cachyos-x86_64-with-glibc2.44",
+    "go": "go version go1.26.10 linux/amd64",
+    "cpu": "13th Gen Intel(R) Core(TM) i7-1355U"
+  },
+  "settings": {
+    "iterations": 500,
+    "trials": 3
+  },
+  "samples": [
+    {
+      "trial": 0,
+      "variant": "legacy",
+      "benchmarks": [
+        {
+          "members": 2,
+          "iterations": 500,
+          "ns_per_op": 403741.0,
+          "bytes_per_op": 14949.0,
+          "allocations_per_op": 263.0,
+          "raw": "BenchmarkReadReceiptPreferenceInputs/PostgreSQL/members=2/legacy-12  \t     500\t    403741 ns/op\t   14949 B/op\t     263 allocs/op"
+        },
+        {
+          "members": 4,
+          "iterations": 500,
+          "ns_per_op": 699430.0,
+          "bytes_per_op": 29154.0,
+          "allocations_per_op": 522.0,
+          "raw": "BenchmarkReadReceiptPreferenceInputs/PostgreSQL/members=4/legacy-12  \t     500\t    699430 ns/op\t   29154 B/op\t     522 allocs/op"
+        },
+        {
+          "members": 8,
+          "iterations": 500,
+          "ns_per_op": 1062885.0,
+          "bytes_per_op": 58279.0,
+          "allocations_per_op": 1043.0,
+          "raw": "BenchmarkReadReceiptPreferenceInputs/PostgreSQL/members=8/legacy-12  \t     500\t   1062885 ns/op\t   58279 B/op\t    1043 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 0,
+      "variant": "batch",
+      "benchmarks": [
+        {
+          "members": 2,
+          "iterations": 500,
+          "ns_per_op": 212215.0,
+          "bytes_per_op": 6699.0,
+          "allocations_per_op": 123.0,
+          "raw": "BenchmarkReadReceiptPreferenceInputs/PostgreSQL/members=2/batch-12   \t     500\t    212215 ns/op\t    6699 B/op\t     123 allocs/op"
+        },
+        {
+          "members": 4,
+          "iterations": 500,
+          "ns_per_op": 138458.0,
+          "bytes_per_op": 7800.0,
+          "allocations_per_op": 145.0,
+          "raw": "BenchmarkReadReceiptPreferenceInputs/PostgreSQL/members=4/batch-12   \t     500\t    138458 ns/op\t    7800 B/op\t     145 allocs/op"
+        },
+        {
+          "members": 8,
+          "iterations": 500,
+          "ns_per_op": 153345.0,
+          "bytes_per_op": 9792.0,
+          "allocations_per_op": 168.0,
+          "raw": "BenchmarkReadReceiptPreferenceInputs/PostgreSQL/members=8/batch-12   \t     500\t    153345 ns/op\t    9792 B/op\t     168 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 1,
+      "variant": "batch",
+      "benchmarks": [
+        {
+          "members": 2,
+          "iterations": 500,
+          "ns_per_op": 220289.0,
+          "bytes_per_op": 6702.0,
+          "allocations_per_op": 123.0,
+          "raw": "BenchmarkReadReceiptPreferenceInputs/PostgreSQL/members=2/batch-12   \t     500\t    220289 ns/op\t    6702 B/op\t     123 allocs/op"
+        },
+        {
+          "members": 4,
+          "iterations": 500,
+          "ns_per_op": 219644.0,
+          "bytes_per_op": 7786.0,
+          "allocations_per_op": 145.0,
+          "raw": "BenchmarkReadReceiptPreferenceInputs/PostgreSQL/members=4/batch-12   \t     500\t    219644 ns/op\t    7786 B/op\t     145 allocs/op"
+        },
+        {
+          "members": 8,
+          "iterations": 500,
+          "ns_per_op": 239195.0,
+          "bytes_per_op": 9793.0,
+          "allocations_per_op": 168.0,
+          "raw": "BenchmarkReadReceiptPreferenceInputs/PostgreSQL/members=8/batch-12   \t     500\t    239195 ns/op\t    9793 B/op\t     168 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 1,
+      "variant": "legacy",
+      "benchmarks": [
+        {
+          "members": 2,
+          "iterations": 500,
+          "ns_per_op": 440627.0,
+          "bytes_per_op": 14926.0,
+          "allocations_per_op": 262.0,
+          "raw": "BenchmarkReadReceiptPreferenceInputs/PostgreSQL/members=2/legacy-12  \t     500\t    440627 ns/op\t   14926 B/op\t     262 allocs/op"
+        },
+        {
+          "members": 4,
+          "iterations": 500,
+          "ns_per_op": 685621.0,
+          "bytes_per_op": 29120.0,
+          "allocations_per_op": 522.0,
+          "raw": "BenchmarkReadReceiptPreferenceInputs/PostgreSQL/members=4/legacy-12  \t     500\t    685621 ns/op\t   29120 B/op\t     522 allocs/op"
+        },
+        {
+          "members": 8,
+          "iterations": 500,
+          "ns_per_op": 1130573.0,
+          "bytes_per_op": 58323.0,
+          "allocations_per_op": 1043.0,
+          "raw": "BenchmarkReadReceiptPreferenceInputs/PostgreSQL/members=8/legacy-12  \t     500\t   1130573 ns/op\t   58323 B/op\t    1043 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 2,
+      "variant": "legacy",
+      "benchmarks": [
+        {
+          "members": 2,
+          "iterations": 500,
+          "ns_per_op": 410468.0,
+          "bytes_per_op": 14929.0,
+          "allocations_per_op": 262.0,
+          "raw": "BenchmarkReadReceiptPreferenceInputs/PostgreSQL/members=2/legacy-12  \t     500\t    410468 ns/op\t   14929 B/op\t     262 allocs/op"
+        },
+        {
+          "members": 4,
+          "iterations": 500,
+          "ns_per_op": 570732.0,
+          "bytes_per_op": 29163.0,
+          "allocations_per_op": 522.0,
+          "raw": "BenchmarkReadReceiptPreferenceInputs/PostgreSQL/members=4/legacy-12  \t     500\t    570732 ns/op\t   29163 B/op\t     522 allocs/op"
+        },
+        {
+          "members": 8,
+          "iterations": 500,
+          "ns_per_op": 896818.0,
+          "bytes_per_op": 58281.0,
+          "allocations_per_op": 1043.0,
+          "raw": "BenchmarkReadReceiptPreferenceInputs/PostgreSQL/members=8/legacy-12  \t     500\t    896818 ns/op\t   58281 B/op\t    1043 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 2,
+      "variant": "batch",
+      "benchmarks": [
+        {
+          "members": 2,
+          "iterations": 500,
+          "ns_per_op": 219236.0,
+          "bytes_per_op": 6702.0,
+          "allocations_per_op": 123.0,
+          "raw": "BenchmarkReadReceiptPreferenceInputs/PostgreSQL/members=2/batch-12   \t     500\t    219236 ns/op\t    6702 B/op\t     123 allocs/op"
+        },
+        {
+          "members": 4,
+          "iterations": 500,
+          "ns_per_op": 215178.0,
+          "bytes_per_op": 7781.0,
+          "allocations_per_op": 145.0,
+          "raw": "BenchmarkReadReceiptPreferenceInputs/PostgreSQL/members=4/batch-12   \t     500\t    215178 ns/op\t    7781 B/op\t     145 allocs/op"
+        },
+        {
+          "members": 8,
+          "iterations": 500,
+          "ns_per_op": 214178.0,
+          "bytes_per_op": 9801.0,
+          "allocations_per_op": 168.0,
+          "raw": "BenchmarkReadReceiptPreferenceInputs/PostgreSQL/members=8/batch-12   \t     500\t    214178 ns/op\t    9801 B/op\t     168 allocs/op"
+        }
+      ]
+    }
+  ],
+  "summary": [
+    {
+      "members": 2,
+      "legacy": {
+        "ns_per_op": 410468.0,
+        "bytes_per_op": 14929.0,
+        "allocations_per_op": 262.0,
+        "ns_per_op_range": [
+          403741.0,
+          440627.0
+        ]
+      },
+      "batch": {
+        "ns_per_op": 219236.0,
+        "bytes_per_op": 6702.0,
+        "allocations_per_op": 123.0,
+        "ns_per_op_range": [
+          212215.0,
+          220289.0
+        ]
+      }
+    },
+    {
+      "members": 4,
+      "legacy": {
+        "ns_per_op": 685621.0,
+        "bytes_per_op": 29154.0,
+        "allocations_per_op": 522.0,
+        "ns_per_op_range": [
+          570732.0,
+          699430.0
+        ]
+      },
+      "batch": {
+        "ns_per_op": 215178.0,
+        "bytes_per_op": 7786.0,
+        "allocations_per_op": 145.0,
+        "ns_per_op_range": [
+          138458.0,
+          219644.0
+        ]
+      }
+    },
+    {
+      "members": 8,
+      "legacy": {
+        "ns_per_op": 1062885.0,
+        "bytes_per_op": 58281.0,
+        "allocations_per_op": 1043.0,
+        "ns_per_op_range": [
+          896818.0,
+          1130573.0
+        ]
+      },
+      "batch": {
+        "ns_per_op": 214178.0,
+        "bytes_per_op": 9793.0,
+        "allocations_per_op": 168.0,
+        "ns_per_op_range": [
+          153345.0,
+          239195.0
+        ]
+      }
+    }
+  ]
+}
