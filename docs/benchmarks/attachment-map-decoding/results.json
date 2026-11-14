@@ -1,0 +1,818 @@
+{
+  "status": "passed",
+  "source_sha": "9e85f87af81bbf7ae1e85d0ea330f4b02ca59cef",
+  "baseline_source_sha": "c9dbbcc480b242f7349cb7f4e9dcb6ea35cf6404",
+  "source_tree_sha": "baa143e158e0663eca40552dfe1db2c1b24ed20a",
+  "file_sha256": {
+    "server/channels/app/attachment_map_history_test.go": "806649c3e4398f2ef0f2f0e60a17afb0b01fdddb46472fe96761c0d3abeb7bc5",
+    "server/public/model/attachment_map_decode_test.go": "dbe50611e1b007652d1e3fa6ea5fdfd21e744815ebdf0eaa0e81958b100b4c24",
+    "server/public/model/message_attachment_decode.go": "7754d5f0c37d9c62602f08b736cbe3bdf672a4be47220c027fd4b3dfae7370df",
+    "server/public/model/post.go": "141bebd1e20ed4842fc781f3c15050ab0344cddc01865077198bf1b4ee36d9b9"
+  },
+  "baseline_post_sha256": "c5daa453034a64bb7d0ec1f8b968b08a817f8f42d1713fd4457aa735209b279e",
+  "runner_sha256": "a4e9b742a61f6abeedc6bb1bcd9f0fb321527d592b3bb7d2610a71dc2cb7b234",
+  "trials": 3,
+  "history_iterations": 200,
+  "go_version": "go version go1.26.10 linux/amd64",
+  "environment": {
+    "GOMAXPROCS": "4",
+    "GOGC": "100",
+    "GOMEMLIMIT": null,
+    "TZ": "UTC"
+  },
+  "samples": [
+    {
+      "trial": 0,
+      "variant": "before",
+      "group": "model",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./public/model",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkAttachmentMapDecode$",
+        "-benchtime=300ms",
+        "-count=1",
+        "-timeout=10m",
+        "-json",
+        "-overlay",
+        "/tmp/mattermax-attachment-map-3b1c02ys/overlay.json"
+      ],
+      "benchmarks": [
+        {
+          "name": "BenchmarkAttachmentMapDecode/plain",
+          "ns_per_op": 26.83,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/typed",
+          "ns_per_op": 14.01,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/fields=0",
+          "ns_per_op": 3472.0,
+          "bytes_per_op": 1368,
+          "allocs_per_op": 32
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/fields=8",
+          "ns_per_op": 12153.0,
+          "bytes_per_op": 4508,
+          "allocs_per_op": 125
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/fields=64",
+          "ns_per_op": 72138.0,
+          "bytes_per_op": 26832,
+          "allocs_per_op": 744
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/actions",
+          "ns_per_op": 13399.0,
+          "bytes_per_op": 5092,
+          "allocs_per_op": 139
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/unknown",
+          "ns_per_op": 12802.0,
+          "bytes_per_op": 4604,
+          "allocs_per_op": 127
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/structured",
+          "ns_per_op": 12427.0,
+          "bytes_per_op": 4924,
+          "allocs_per_op": 131
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/malformed",
+          "ns_per_op": 12244.0,
+          "bytes_per_op": 4510,
+          "allocs_per_op": 121
+        }
+      ],
+      "raw_log_sha256": "dc890b3b891decee0eaf659e8fc558f556484332cfc7ecf3a4d80f423b9adb98"
+    },
+    {
+      "trial": 0,
+      "variant": "before",
+      "group": "history",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./channels/app",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkAttachmentMapHistory$",
+        "-benchtime=200x",
+        "-count=1",
+        "-timeout=10m",
+        "-json",
+        "-overlay",
+        "/tmp/mattermax-attachment-map-3b1c02ys/overlay.json"
+      ],
+      "benchmarks": [
+        {
+          "name": "BenchmarkAttachmentMapHistory/plain",
+          "ns_per_op": 754037.0,
+          "bytes_per_op": 128953,
+          "allocs_per_op": 2373
+        },
+        {
+          "name": "BenchmarkAttachmentMapHistory/fields=0",
+          "ns_per_op": 2886494.0,
+          "bytes_per_op": 624164,
+          "allocs_per_op": 14374
+        },
+        {
+          "name": "BenchmarkAttachmentMapHistory/fields=8",
+          "ns_per_op": 5862100.0,
+          "bytes_per_op": 1603577,
+          "allocs_per_op": 42874
+        },
+        {
+          "name": "BenchmarkAttachmentMapHistory/fields=64",
+          "ns_per_op": 20254289.0,
+          "bytes_per_op": 8401619,
+          "allocs_per_op": 235177
+        },
+        {
+          "name": "BenchmarkAttachmentMapHistory/actions",
+          "ns_per_op": 6276773.0,
+          "bytes_per_op": 1759274,
+          "allocs_per_op": 46834
+        }
+      ],
+      "raw_log_sha256": "96aba90b91fec49bc9e887d4b42c59eca43d68684393f536dad30180fd79919b"
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "group": "model",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./public/model",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkAttachmentMapDecode$",
+        "-benchtime=300ms",
+        "-count=1",
+        "-timeout=10m",
+        "-json"
+      ],
+      "benchmarks": [
+        {
+          "name": "BenchmarkAttachmentMapDecode/plain",
+          "ns_per_op": 29.89,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/typed",
+          "ns_per_op": 15.28,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/fields=0",
+          "ns_per_op": 531.4,
+          "bytes_per_op": 296,
+          "allocs_per_op": 2
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/fields=8",
+          "ns_per_op": 1770.0,
+          "bytes_per_op": 744,
+          "allocs_per_op": 11
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/fields=64",
+          "ns_per_op": 9761.0,
+          "bytes_per_op": 3880,
+          "allocs_per_op": 67
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/actions",
+          "ns_per_op": 14307.0,
+          "bytes_per_op": 5093,
+          "allocs_per_op": 139
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/unknown",
+          "ns_per_op": 12680.0,
+          "bytes_per_op": 4604,
+          "allocs_per_op": 127
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/structured",
+          "ns_per_op": 12639.0,
+          "bytes_per_op": 4925,
+          "allocs_per_op": 131
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/malformed",
+          "ns_per_op": 12152.0,
+          "bytes_per_op": 4510,
+          "allocs_per_op": 121
+        }
+      ],
+      "raw_log_sha256": "072b11b0bb496e43de181fa34f5d44529815db579e5b10332192281bc6176aaa"
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "group": "history",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./channels/app",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkAttachmentMapHistory$",
+        "-benchtime=200x",
+        "-count=1",
+        "-timeout=10m",
+        "-json"
+      ],
+      "benchmarks": [
+        {
+          "name": "BenchmarkAttachmentMapHistory/plain",
+          "ns_per_op": 787395.0,
+          "bytes_per_op": 128804,
+          "allocs_per_op": 2374
+        },
+        {
+          "name": "BenchmarkAttachmentMapHistory/fields=0",
+          "ns_per_op": 1365769.0,
+          "bytes_per_op": 292957,
+          "allocs_per_op": 6094
+        },
+        {
+          "name": "BenchmarkAttachmentMapHistory/fields=8",
+          "ns_per_op": 2391535.0,
+          "bytes_per_op": 788494,
+          "allocs_per_op": 19474
+        },
+        {
+          "name": "BenchmarkAttachmentMapHistory/fields=64",
+          "ns_per_op": 9330098.0,
+          "bytes_per_op": 4027110,
+          "allocs_per_op": 110434
+        },
+        {
+          "name": "BenchmarkAttachmentMapHistory/actions",
+          "ns_per_op": 6073386.0,
+          "bytes_per_op": 1758873,
+          "allocs_per_op": 46834
+        }
+      ],
+      "raw_log_sha256": "b6c34b232fba677e4e98b68fa64338621878f206b807a72a05c58fd8fb01c2c9"
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "group": "model",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./public/model",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkAttachmentMapDecode$",
+        "-benchtime=300ms",
+        "-count=1",
+        "-timeout=10m",
+        "-json"
+      ],
+      "benchmarks": [
+        {
+          "name": "BenchmarkAttachmentMapDecode/plain",
+          "ns_per_op": 28.69,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/typed",
+          "ns_per_op": 14.83,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/fields=0",
+          "ns_per_op": 544.2,
+          "bytes_per_op": 296,
+          "allocs_per_op": 2
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/fields=8",
+          "ns_per_op": 1658.0,
+          "bytes_per_op": 744,
+          "allocs_per_op": 11
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/fields=64",
+          "ns_per_op": 9978.0,
+          "bytes_per_op": 3880,
+          "allocs_per_op": 67
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/actions",
+          "ns_per_op": 14897.0,
+          "bytes_per_op": 5092,
+          "allocs_per_op": 139
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/unknown",
+          "ns_per_op": 12926.0,
+          "bytes_per_op": 4604,
+          "allocs_per_op": 127
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/structured",
+          "ns_per_op": 13360.0,
+          "bytes_per_op": 4924,
+          "allocs_per_op": 131
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/malformed",
+          "ns_per_op": 12216.0,
+          "bytes_per_op": 4510,
+          "allocs_per_op": 121
+        }
+      ],
+      "raw_log_sha256": "a64c499db62ec134721109a098096dc9b635461e95a966c7ef234b5aa31be421"
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "group": "history",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./channels/app",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkAttachmentMapHistory$",
+        "-benchtime=200x",
+        "-count=1",
+        "-timeout=10m",
+        "-json"
+      ],
+      "benchmarks": [
+        {
+          "name": "BenchmarkAttachmentMapHistory/plain",
+          "ns_per_op": 774298.0,
+          "bytes_per_op": 128770,
+          "allocs_per_op": 2373
+        },
+        {
+          "name": "BenchmarkAttachmentMapHistory/fields=0",
+          "ns_per_op": 1344856.0,
+          "bytes_per_op": 292940,
+          "allocs_per_op": 6094
+        },
+        {
+          "name": "BenchmarkAttachmentMapHistory/fields=8",
+          "ns_per_op": 2672795.0,
+          "bytes_per_op": 788296,
+          "allocs_per_op": 19474
+        },
+        {
+          "name": "BenchmarkAttachmentMapHistory/fields=64",
+          "ns_per_op": 9542737.0,
+          "bytes_per_op": 4026367,
+          "allocs_per_op": 110434
+        },
+        {
+          "name": "BenchmarkAttachmentMapHistory/actions",
+          "ns_per_op": 6307826.0,
+          "bytes_per_op": 1759105,
+          "allocs_per_op": 46834
+        }
+      ],
+      "raw_log_sha256": "0eebe4b60e47de859afc4c5b8dec25521a2ff6fbe6105c91145f8db613457652"
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "group": "model",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./public/model",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkAttachmentMapDecode$",
+        "-benchtime=300ms",
+        "-count=1",
+        "-timeout=10m",
+        "-json",
+        "-overlay",
+        "/tmp/mattermax-attachment-map-3b1c02ys/overlay.json"
+      ],
+      "benchmarks": [
+        {
+          "name": "BenchmarkAttachmentMapDecode/plain",
+          "ns_per_op": 27.41,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/typed",
+          "ns_per_op": 14.52,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/fields=0",
+          "ns_per_op": 3217.0,
+          "bytes_per_op": 1368,
+          "allocs_per_op": 32
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/fields=8",
+          "ns_per_op": 13045.0,
+          "bytes_per_op": 4508,
+          "allocs_per_op": 125
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/fields=64",
+          "ns_per_op": 80113.0,
+          "bytes_per_op": 26850,
+          "allocs_per_op": 744
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/actions",
+          "ns_per_op": 14098.0,
+          "bytes_per_op": 5092,
+          "allocs_per_op": 139
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/unknown",
+          "ns_per_op": 12684.0,
+          "bytes_per_op": 4603,
+          "allocs_per_op": 127
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/structured",
+          "ns_per_op": 13537.0,
+          "bytes_per_op": 4925,
+          "allocs_per_op": 131
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/malformed",
+          "ns_per_op": 11471.0,
+          "bytes_per_op": 4510,
+          "allocs_per_op": 121
+        }
+      ],
+      "raw_log_sha256": "9addad41818ec9bae34522170e0a6a554560c9b554269fad8c0d1d114c1873a7"
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "group": "history",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./channels/app",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkAttachmentMapHistory$",
+        "-benchtime=200x",
+        "-count=1",
+        "-timeout=10m",
+        "-json",
+        "-overlay",
+        "/tmp/mattermax-attachment-map-3b1c02ys/overlay.json"
+      ],
+      "benchmarks": [
+        {
+          "name": "BenchmarkAttachmentMapHistory/plain",
+          "ns_per_op": 790004.0,
+          "bytes_per_op": 128829,
+          "allocs_per_op": 2374
+        },
+        {
+          "name": "BenchmarkAttachmentMapHistory/fields=0",
+          "ns_per_op": 2943373.0,
+          "bytes_per_op": 624361,
+          "allocs_per_op": 14374
+        },
+        {
+          "name": "BenchmarkAttachmentMapHistory/fields=8",
+          "ns_per_op": 5923918.0,
+          "bytes_per_op": 1603976,
+          "allocs_per_op": 42874
+        },
+        {
+          "name": "BenchmarkAttachmentMapHistory/fields=64",
+          "ns_per_op": 20365650.0,
+          "bytes_per_op": 8402559,
+          "allocs_per_op": 235177
+        },
+        {
+          "name": "BenchmarkAttachmentMapHistory/actions",
+          "ns_per_op": 5809283.0,
+          "bytes_per_op": 1759476,
+          "allocs_per_op": 46834
+        }
+      ],
+      "raw_log_sha256": "3c12032b54921f41b1468e1cca23977f90ede22dc32e93cf8ee1e4ccdd0dcdd2"
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "group": "model",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./public/model",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkAttachmentMapDecode$",
+        "-benchtime=300ms",
+        "-count=1",
+        "-timeout=10m",
+        "-json",
+        "-overlay",
+        "/tmp/mattermax-attachment-map-3b1c02ys/overlay.json"
+      ],
+      "benchmarks": [
+        {
+          "name": "BenchmarkAttachmentMapDecode/plain",
+          "ns_per_op": 27.25,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/typed",
+          "ns_per_op": 14.4,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/fields=0",
+          "ns_per_op": 3337.0,
+          "bytes_per_op": 1368,
+          "allocs_per_op": 32
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/fields=8",
+          "ns_per_op": 12110.0,
+          "bytes_per_op": 4508,
+          "allocs_per_op": 125
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/fields=64",
+          "ns_per_op": 76719.0,
+          "bytes_per_op": 26827,
+          "allocs_per_op": 744
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/actions",
+          "ns_per_op": 14149.0,
+          "bytes_per_op": 5092,
+          "allocs_per_op": 139
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/unknown",
+          "ns_per_op": 13168.0,
+          "bytes_per_op": 4604,
+          "allocs_per_op": 127
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/structured",
+          "ns_per_op": 12529.0,
+          "bytes_per_op": 4924,
+          "allocs_per_op": 131
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/malformed",
+          "ns_per_op": 12313.0,
+          "bytes_per_op": 4511,
+          "allocs_per_op": 121
+        }
+      ],
+      "raw_log_sha256": "a382bb6a9111a1b65a5b8bf82ee090dfe4eb90732105ebc01073526710003068"
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "group": "history",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./channels/app",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkAttachmentMapHistory$",
+        "-benchtime=200x",
+        "-count=1",
+        "-timeout=10m",
+        "-json",
+        "-overlay",
+        "/tmp/mattermax-attachment-map-3b1c02ys/overlay.json"
+      ],
+      "benchmarks": [
+        {
+          "name": "BenchmarkAttachmentMapHistory/plain",
+          "ns_per_op": 766810.0,
+          "bytes_per_op": 128769,
+          "allocs_per_op": 2373
+        },
+        {
+          "name": "BenchmarkAttachmentMapHistory/fields=0",
+          "ns_per_op": 2757235.0,
+          "bytes_per_op": 624131,
+          "allocs_per_op": 14374
+        },
+        {
+          "name": "BenchmarkAttachmentMapHistory/fields=8",
+          "ns_per_op": 5847703.0,
+          "bytes_per_op": 1603375,
+          "allocs_per_op": 42874
+        },
+        {
+          "name": "BenchmarkAttachmentMapHistory/fields=64",
+          "ns_per_op": 20688036.0,
+          "bytes_per_op": 8402276,
+          "allocs_per_op": 235176
+        },
+        {
+          "name": "BenchmarkAttachmentMapHistory/actions",
+          "ns_per_op": 6361433.0,
+          "bytes_per_op": 1759873,
+          "allocs_per_op": 46834
+        }
+      ],
+      "raw_log_sha256": "5ee18141dab49fedc4254cbefd6ce410672c419e457ebf4ab88a204755194e21"
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "group": "model",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./public/model",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkAttachmentMapDecode$",
+        "-benchtime=300ms",
+        "-count=1",
+        "-timeout=10m",
+        "-json"
+      ],
+      "benchmarks": [
+        {
+          "name": "BenchmarkAttachmentMapDecode/plain",
+          "ns_per_op": 28.15,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/typed",
+          "ns_per_op": 14.43,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/fields=0",
+          "ns_per_op": 525.2,
+          "bytes_per_op": 296,
+          "allocs_per_op": 2
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/fields=8",
+          "ns_per_op": 1655.0,
+          "bytes_per_op": 744,
+          "allocs_per_op": 11
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/fields=64",
+          "ns_per_op": 9232.0,
+          "bytes_per_op": 3880,
+          "allocs_per_op": 67
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/actions",
+          "ns_per_op": 14697.0,
+          "bytes_per_op": 5092,
+          "allocs_per_op": 139
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/unknown",
+          "ns_per_op": 15218.0,
+          "bytes_per_op": 4604,
+          "allocs_per_op": 127
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/structured",
+          "ns_per_op": 12625.0,
+          "bytes_per_op": 4924,
+          "allocs_per_op": 131
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/malformed",
+          "ns_per_op": 11892.0,
+          "bytes_per_op": 4510,
+          "allocs_per_op": 121
+        }
+      ],
+      "raw_log_sha256": "24fa8c8e22619aecc33cc676964f47276d5f970b13aca960d60f354834f0ef62"
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "group": "history",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./channels/app",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkAttachmentMapHistory$",
+        "-benchtime=200x",
+        "-count=1",
+        "-timeout=10m",
+        "-json"
+      ],
+      "benchmarks": [
+        {
+          "name": "BenchmarkAttachmentMapHistory/plain",
+          "ns_per_op": 551771.0,
+          "bytes_per_op": 128767,
+          "allocs_per_op": 2373
+        },
+        {
+          "name": "BenchmarkAttachmentMapHistory/fields=0",
+          "ns_per_op": 1136849.0,
+          "bytes_per_op": 292958,
+          "allocs_per_op": 6094
+        },
+        {
+          "name": "BenchmarkAttachmentMapHistory/fields=8",
+          "ns_per_op": 2394681.0,
+          "bytes_per_op": 788289,
+          "allocs_per_op": 19473
+        },
+        {
+          "name": "BenchmarkAttachmentMapHistory/fields=64",
+          "ns_per_op": 9288958.0,
+          "bytes_per_op": 4027122,
+          "allocs_per_op": 110434
+        },
+        {
+          "name": "BenchmarkAttachmentMapHistory/actions",
+          "ns_per_op": 6170530.0,
+          "bytes_per_op": 1758904,
+          "allocs_per_op": 46834
+        }
+      ],
+      "raw_log_sha256": "de377534570e61ebeadc7d3b7621a25b4020657e4cb895705900a8fdd353becb"
+    }
+  ],
+  "scope": "Standalone original 38-patch parent. Model accessor plus 60-post stored history preparation. History validates raw props and prepared metadata without invoking the decoder again in the timed check. Fixtures are read back through SQL as []any. Warm caches, priority/custom emoji reads enabled; no files, remote previews or image proxy. Before overlays only the original Post.Attachments production file; helper/test files are identical. These are local synthetic component/preparation measurements, not HTTP throughput."
+}

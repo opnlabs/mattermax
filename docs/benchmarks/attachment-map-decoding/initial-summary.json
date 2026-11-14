@@ -1,0 +1,274 @@
+{
+  "status": "passed",
+  "source_sha": "c0953e036522da5fb81a477f355b7449a2f0b0bd",
+  "trials": 3,
+  "cases": [
+    {
+      "name": "BenchmarkAttachmentMapDecode/plain",
+      "before": {
+        "ns_per_op": 27.63,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      "after": {
+        "ns_per_op": 28.29,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      "median_ns_change_percent": 2.3887079261672106,
+      "paired_ns_changes_percent": [
+        5.242369838420102,
+        2.3887079261672106,
+        2.212389380530966
+      ]
+    },
+    {
+      "name": "BenchmarkAttachmentMapDecode/typed",
+      "before": {
+        "ns_per_op": 14.33,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      "after": {
+        "ns_per_op": 14.91,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      "median_ns_change_percent": 4.04745289602233,
+      "paired_ns_changes_percent": [
+        6.456140350877182,
+        3.830083565459619,
+        1.3956734124214831
+      ]
+    },
+    {
+      "name": "BenchmarkAttachmentMapDecode/fields=0",
+      "before": {
+        "ns_per_op": 3465.0,
+        "bytes_per_op": 1368,
+        "allocs_per_op": 32
+      },
+      "after": {
+        "ns_per_op": 556.5,
+        "bytes_per_op": 296,
+        "allocs_per_op": 2
+      },
+      "median_ns_change_percent": -83.93939393939394,
+      "paired_ns_changes_percent": [
+        -84.3958944281525,
+        -84.07269605037206,
+        -83.79220779220779
+      ]
+    },
+    {
+      "name": "BenchmarkAttachmentMapDecode/fields=8",
+      "before": {
+        "ns_per_op": 13690.0,
+        "bytes_per_op": 4508,
+        "allocs_per_op": 125
+      },
+      "after": {
+        "ns_per_op": 1661.0,
+        "bytes_per_op": 744,
+        "allocs_per_op": 11
+      },
+      "median_ns_change_percent": -87.86705624543463,
+      "paired_ns_changes_percent": [
+        -87.07996266334786,
+        -87.38568732762376,
+        -88.41490138787435
+      ]
+    },
+    {
+      "name": "BenchmarkAttachmentMapDecode/fields=64",
+      "before": {
+        "ns_per_op": 74675.0,
+        "bytes_per_op": 26836,
+        "allocs_per_op": 744
+      },
+      "after": {
+        "ns_per_op": 8772.0,
+        "bytes_per_op": 3880,
+        "allocs_per_op": 67
+      },
+      "median_ns_change_percent": -88.25309675259457,
+      "paired_ns_changes_percent": [
+        -88.09074493938118,
+        -87.45363240709743,
+        -88.62702875144555
+      ]
+    },
+    {
+      "name": "BenchmarkAttachmentMapDecode/actions",
+      "before": {
+        "ns_per_op": 14091.0,
+        "bytes_per_op": 5092,
+        "allocs_per_op": 139
+      },
+      "after": {
+        "ns_per_op": 14355.0,
+        "bytes_per_op": 5093,
+        "allocs_per_op": 139
+      },
+      "median_ns_change_percent": 1.87353629976581,
+      "paired_ns_changes_percent": [
+        1.87353629976581,
+        4.8656867714140795,
+        -7.9986500168747865
+      ]
+    },
+    {
+      "name": "BenchmarkAttachmentMapDecode/unknown",
+      "before": {
+        "ns_per_op": 12894.0,
+        "bytes_per_op": 4604,
+        "allocs_per_op": 127
+      },
+      "after": {
+        "ns_per_op": 12989.0,
+        "bytes_per_op": 4604,
+        "allocs_per_op": 127
+      },
+      "median_ns_change_percent": 0.7367767954087112,
+      "paired_ns_changes_percent": [
+        0.06204436171863836,
+        3.0379348339367285,
+        -1.2393552311435574
+      ]
+    },
+    {
+      "name": "BenchmarkAttachmentMapDecode/structured",
+      "before": {
+        "ns_per_op": 13097.0,
+        "bytes_per_op": 4924,
+        "allocs_per_op": 131
+      },
+      "after": {
+        "ns_per_op": 13874.0,
+        "bytes_per_op": 4925,
+        "allocs_per_op": 131
+      },
+      "median_ns_change_percent": 5.932656333511499,
+      "paired_ns_changes_percent": [
+        5.894479651828655,
+        9.189996267263911,
+        6.567324679314845
+      ]
+    },
+    {
+      "name": "BenchmarkAttachmentMapDecode/malformed",
+      "before": {
+        "ns_per_op": 11860.0,
+        "bytes_per_op": 4510,
+        "allocs_per_op": 121
+      },
+      "after": {
+        "ns_per_op": 12908.0,
+        "bytes_per_op": 4510,
+        "allocs_per_op": 121
+      },
+      "median_ns_change_percent": 8.836424957841494,
+      "paired_ns_changes_percent": [
+        4.088379969357314,
+        13.557398515931919,
+        7.099494097807768
+      ]
+    },
+    {
+      "name": "BenchmarkAttachmentMapHistory/plain",
+      "before": {
+        "ns_per_op": 782308.0,
+        "bytes_per_op": 128832,
+        "allocs_per_op": 2374
+      },
+      "after": {
+        "ns_per_op": 775401.0,
+        "bytes_per_op": 128891,
+        "allocs_per_op": 2374
+      },
+      "median_ns_change_percent": -0.8829003410421477,
+      "paired_ns_changes_percent": [
+        -5.778734422338894,
+        -0.8829003410421477,
+        -0.08976371250333237
+      ]
+    },
+    {
+      "name": "BenchmarkAttachmentMapHistory/fields=0",
+      "before": {
+        "ns_per_op": 2929269.0,
+        "bytes_per_op": 624327,
+        "allocs_per_op": 14374
+      },
+      "after": {
+        "ns_per_op": 1309791.0,
+        "bytes_per_op": 292926,
+        "allocs_per_op": 6093
+      },
+      "median_ns_change_percent": -55.28607990594241,
+      "paired_ns_changes_percent": [
+        -55.28607990594241,
+        -54.935985061691994,
+        -54.3185849595631
+      ]
+    },
+    {
+      "name": "BenchmarkAttachmentMapHistory/fields=8",
+      "before": {
+        "ns_per_op": 5952797.0,
+        "bytes_per_op": 1603771,
+        "allocs_per_op": 42874
+      },
+      "after": {
+        "ns_per_op": 2547873.0,
+        "bytes_per_op": 788318,
+        "allocs_per_op": 19474
+      },
+      "median_ns_change_percent": -57.198725237900774,
+      "paired_ns_changes_percent": [
+        -57.77802569130912,
+        -55.857003018916984,
+        -58.045926193046114
+      ]
+    },
+    {
+      "name": "BenchmarkAttachmentMapHistory/fields=64",
+      "before": {
+        "ns_per_op": 20696184.0,
+        "bytes_per_op": 8402441,
+        "allocs_per_op": 235177
+      },
+      "after": {
+        "ns_per_op": 9221997.0,
+        "bytes_per_op": 4026197,
+        "allocs_per_op": 110434
+      },
+      "median_ns_change_percent": -55.44107551421074,
+      "paired_ns_changes_percent": [
+        -54.670507682500016,
+        -55.613201510306794,
+        -55.924029279987074
+      ]
+    },
+    {
+      "name": "BenchmarkAttachmentMapHistory/actions",
+      "before": {
+        "ns_per_op": 6239575.0,
+        "bytes_per_op": 1758888,
+        "allocs_per_op": 46834
+      },
+      "after": {
+        "ns_per_op": 6287342.0,
+        "bytes_per_op": 1759063,
+        "allocs_per_op": 46834
+      },
+      "median_ns_change_percent": 0.7655489356246159,
+      "paired_ns_changes_percent": [
+        -0.4148941480008328,
+        12.006012908693208,
+        0.7655489356246159
+      ]
+    }
+  ],
+  "scope": "Standalone original 38-patch parent. Model accessor plus 60-post stored history preparation. History validates raw props and prepared metadata without invoking the decoder again in the timed check. Fixtures are read back through SQL as []any. Warm caches, priority/custom emoji reads enabled; no files, remote previews or image proxy. Before overlays only the original Post.Attachments production file; helper/test files are identical. These are local synthetic component/preparation measurements, not HTTP throughput."
+}

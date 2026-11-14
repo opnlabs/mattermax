@@ -1,0 +1,144 @@
+// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
+// See LICENSE.txt for license information.
+
+package model
+
+import (
+	"math"
+	"unicode/utf8"
+)
+
+// decodeAttachmentMap handles ordinary decoded JSON maps. Unsupported shapes
+// retain Attachments' JSON round-trip, including its coercions and errors.
+// Validate before allocating so fallback does not create a discarded object.
+func decodeAttachmentMap(value any) (*MessageAttachment, bool) {
+	m, ok := value.(map[string]any)
+	if !ok {
+		return nil, false
+	}
+	for key := range m {
+		switch key {
+		case "id", "fallback", "color", "pretext", "author_name", "author_link", "author_icon", "title", "title_link", "text", "fields", "image_url", "thumb_url", "footer", "footer_icon", "ts", "actions":
+		default:
+			return nil, false
+		}
+	}
+	// Nonempty actions have their own nested decoding behavior. Keep that path
+	// unchanged, while preserving nil versus empty/all-null action arrays.
+	actions, ok := m["actions"].([]any)
+	if m["actions"] != nil && !ok {
+		return nil, false
+	}
+	for _, action := range actions {
+		if action != nil {
+			return nil, false
+		}
+	}
+	id, ok := attachmentMapID(m["id"])
+	if !ok {
+		return nil, false
+	}
+	for _, key := range [...]string{"fallback", "color", "pretext", "author_name", "author_link", "author_icon", "title", "title_link", "text", "image_url", "thumb_url", "footer", "footer_icon"} {
+		if !attachmentMapString(m[key]) {
+			return nil, false
+		}
+	}
+	if !attachmentMapAtom(m["ts"]) {
+		return nil, false
+	}
+	fields, ok := m["fields"].([]any)
+	if m["fields"] != nil && !ok {
+		return nil, false
+	}
+	for _, value := range fields {
+		if value == nil {
+			continue
+		}
+		field, ok := value.(map[string]any)
+		if !ok || field == nil {
+			return nil, false
+		}
+		for key := range field {
+			switch key {
+			case "title", "value", "short":
+			default:
+				return nil, false
+			}
+		}
+		if !attachmentMapString(field["title"]) || !attachmentMapAtom(field["value"]) {
+			return nil, false
+		}
+		if short, exists := field["short"]; exists {
+			if _, ok := short.(bool); !ok {
+				return nil, false
+			}
+		}
+	}
+
+	decoded := &MessageAttachment{
+		Id: id, Fallback: attachmentMapText(m["fallback"]), Color: attachmentMapText(m["color"]),
+		Pretext: attachmentMapText(m["pretext"]), AuthorName: attachmentMapText(m["author_name"]),
+		AuthorLink: attachmentMapText(m["author_link"]), AuthorIcon: attachmentMapText(m["author_icon"]),
+		Title: attachmentMapText(m["title"]), TitleLink: attachmentMapText(m["title_link"]),
+		Text: attachmentMapText(m["text"]), ImageURL: attachmentMapText(m["image_url"]),
+		ThumbURL: attachmentMapText(m["thumb_url"]), Footer: attachmentMapText(m["footer"]),
+		FooterIcon: attachmentMapText(m["footer_icon"]), Timestamp: m["ts"],
+	}
+	if fields != nil {
+		decoded.Fields = make([]*MessageAttachmentField, 0, len(fields))
+		for _, value := range fields {
+			if value == nil {
+				continue
+			}
+			field := value.(map[string]any)
+			short, _ := field["short"].(bool)
+			decoded.Fields = append(decoded.Fields, &MessageAttachmentField{
+				Title: attachmentMapText(field["title"]), Value: field["value"], Short: SlackCompatibleBool(short),
+			})
+		}
+	}
+	if actions != nil {
+		decoded.Actions = make([]*PostAction, 0, len(actions))
+	}
+	return decoded, true
+}
+
+func attachmentMapString(value any) bool {
+	if value == nil {
+		return true
+	}
+	s, ok := value.(string)
+	return ok && utf8.ValidString(s)
+}
+
+// Only used after validation. JSON null leaves a string field empty.
+func attachmentMapText(value any) string {
+	s, _ := value.(string)
+	return s
+}
+
+func attachmentMapAtom(value any) bool {
+	switch v := value.(type) {
+	case nil, bool:
+		return true
+	case string:
+		return utf8.ValidString(v)
+	case float64:
+		return !math.IsNaN(v) && !math.IsInf(v, 0)
+	default:
+		return false
+	}
+}
+
+func attachmentMapID(value any) (int64, bool) {
+	if value == nil {
+		return 0, true
+	}
+	n, ok := value.(float64)
+	// Larger floats can marshal to a shortest decimal that differs from an
+	// int64 conversion. Leave those and other numeric types to encoding/json.
+	if !ok || math.Abs(n) > 1<<53 || math.IsNaN(n) || math.Trunc(n) != n {
+		return 0, false
+	}
+	return int64(n), true
+}

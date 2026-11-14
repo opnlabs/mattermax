@@ -1,0 +1,117 @@
+{
+  "status": "passed",
+  "source_sha": "9e85f87af81bbf7ae1e85d0ea330f4b02ca59cef",
+  "model_race": {
+    "counts": {
+      "pass": 87
+    },
+    "private_log_sha256": "576e1b6411c585d01c9fdfab97f08f49e6e136cb4b979e96f48ad423e304daa3"
+  },
+  "app_api_race": {
+    "status": "passed",
+    "source_sha": "9e85f87af81bbf7ae1e85d0ea330f4b02ca59cef",
+    "command": [
+      "go",
+      "test",
+      "-race",
+      "-p",
+      "2",
+      "./channels/app",
+      "./channels/api4",
+      "-run",
+      "^(TestPreparePostListForClient|TestPreparePostForClient|TestPreparePostForClientWithImageProxy|TestGetImagesForPost|TestGetEmojiNamesForPost|TestGetCustomEmojisForPost|TestParseImages|TestGetPostThread|TestGetPostsForChannel|TestGetPostsByIds|TestCreatePost|TestUpdatePost|TestHandleIncomingWebhookRootId|TestHandleIncomingWebhookInteractiveContentWithoutText|TestGetExplicitMentions)$",
+      "-bench",
+      "^BenchmarkAttachmentMapHistory$",
+      "-benchtime=1x",
+      "-count=1",
+      "-timeout=20m",
+      "-json"
+    ],
+    "tests": [
+      {
+        "package": "app",
+        "counts": {
+          "pass": 226,
+          "fail": 0,
+          "skip": 0
+        }
+      },
+      {
+        "package": "api4",
+        "counts": {
+          "pass": 66,
+          "fail": 0,
+          "skip": 0
+        }
+      }
+    ],
+    "private_log_sha256": "642e866b259a732b9fb0a82815add154f3629656149d975a47a5cd43a083f90d"
+  },
+  "fuzz": {
+    "seconds": 30,
+    "executions": 272177,
+    "private_log_sha256": "08777e94491cc259c737c1149e59a67c6ed6e4d8f62a3e9399c44e5837d510af"
+  },
+  "public_backend_builds": {
+    "status": "passed",
+    "source_sha": "9e85f87af81bbf7ae1e85d0ea330f4b02ca59cef",
+    "baseline_source_sha": "c9dbbcc480b242f7349cb7f4e9dcb6ea35cf6404",
+    "source_tree_sha": "baa143e158e0663eca40552dfe1db2c1b24ed20a",
+    "production_sha256": "141bebd1e20ed4842fc781f3c15050ab0344cddc01865077198bf1b4ee36d9b9",
+    "baseline_sha256": "c5daa453034a64bb7d0ec1f8b968b08a817f8f42d1713fd4457aa735209b279e",
+    "helper_sha256": "7754d5f0c37d9c62602f08b736cbe3bdf672a4be47220c027fd4b3dfae7370df",
+    "go_version": "go version go1.26.10 linux/amd64",
+    "variants": {
+      "before": {
+        "binary_sha256": "62e0a6cb632c51f79b3a8701739584f54285a1d7eaceec126c66599132adb3c7",
+        "build_hash": "c9dbbcc480b242f7349cb7f4e9dcb6ea35cf6404",
+        "build_number": "12.0.2-1.attachment-http-before",
+        "build_enterprise_ready": false,
+        "command": [
+          "go",
+          "build",
+          "-tags",
+          "production",
+          "-ldflags",
+          "-X github.com/mattermost/mattermost/server/public/model.BuildNumber=12.0.2-1.attachment-http-before -X github.com/mattermost/mattermost/server/public/model.BuildHash=c9dbbcc480b242f7349cb7f4e9dcb6ea35cf6404 -X github.com/mattermost/mattermost/server/public/model.BuildEnterpriseReady=false",
+          "-o",
+          "/home/rhnvrm/.bb/thread-storage/thr_jynvcygccx/attachment-map-http-build/server-before",
+          "-overlay",
+          "/tmp/mattermax-attachment-http-build-4mvp79kj/overlay.json",
+          "./cmd/mattermost"
+        ],
+        "forbidden_tags": false,
+        "enterprise_symbols": false,
+        "buildinfo_sha256": "bb0247e3a456b98bf41536db2c1102c43ef5c7b7a9f71fe79f2bd9a412d60ed8",
+        "build_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "after": {
+        "binary_sha256": "6be6e22989b9c90556f4761b05babae69e3bbe97907fbc095226ddc9711cfec4",
+        "build_hash": "9e85f87af81bbf7ae1e85d0ea330f4b02ca59cef",
+        "build_number": "12.0.2-1.attachment-http-after",
+        "build_enterprise_ready": false,
+        "command": [
+          "go",
+          "build",
+          "-tags",
+          "production",
+          "-ldflags",
+          "-X github.com/mattermost/mattermost/server/public/model.BuildNumber=12.0.2-1.attachment-http-after -X github.com/mattermost/mattermost/server/public/model.BuildHash=9e85f87af81bbf7ae1e85d0ea330f4b02ca59cef -X github.com/mattermost/mattermost/server/public/model.BuildEnterpriseReady=false",
+          "-o",
+          "/home/rhnvrm/.bb/thread-storage/thr_jynvcygccx/attachment-map-http-build/server-after",
+          "./cmd/mattermost"
+        ],
+        "forbidden_tags": false,
+        "enterprise_symbols": false,
+        "buildinfo_sha256": "ab73baef978fad801c2a4ae6d19711a5c3ab9ff5998927e4a97fde6081c9430d",
+        "build_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    }
+  },
+  "patch_check": {
+    "patch_count": 39,
+    "status": "passed",
+    "private_log_sha256": "beab570c027102ef1d8f465f5ae4c7fddbaa4ffc1d552cde44f3454b15df802a"
+  },
+  "scope": "Selected model/app/API tests and public backend builds. The app benchmark under race is execution coverage only, not performance evidence. No frontend/full release or combined-stack validation claimed."
+}

@@ -1,0 +1,621 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: rhnvrm <hello@rohanverma.net>
+Date: Sun, 15 Nov 2026 03:55:38 +0530
+Subject: [PATCH] perf: decode ordinary attachment maps without JSON
+ round-trips
+
+Copy validated JSON scalar fields into fresh attachment objects. Preserve the existing JSON decoder for unsupported maps, nested values and actions, unusual numeric forms, invalid UTF-8 and Slack boolean coercions. Keep the typed attachment path unchanged.
+
+Mattermax-Patch: attachment-map-decoding.patch
+---
+ .../app/attachment_map_history_test.go        | 126 ++++++++
+ .../model/attachment_map_decode_test.go       | 287 ++++++++++++++++++
+ .../public/model/message_attachment_decode.go | 156 ++++++++++
+ server/public/model/post.go                   |   4 +
+ 4 files changed, 573 insertions(+)
+ create mode 100644 server/channels/app/attachment_map_history_test.go
+ create mode 100644 server/public/model/attachment_map_decode_test.go
+ create mode 100644 server/public/model/message_attachment_decode.go
+
+diff --git a/server/channels/app/attachment_map_history_test.go b/server/channels/app/attachment_map_history_test.go
+new file mode 100644
+index 000000000000..a124ab9e2f04
+--- /dev/null
++++ b/server/channels/app/attachment_map_history_test.go
+@@ -0,0 +1,126 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++package app
++
++import (
++	"fmt"
++	"reflect"
++	"testing"
++
++	"github.com/mattermost/mattermost/server/public/model"
++)
++
++// BenchmarkAttachmentMapHistory prepares real stored, ordered pages. Props are
++// read back through SQL so attachments have the same []any shape as wire data.
++func BenchmarkAttachmentMapHistory(b *testing.B) {
++	th := Setup(b).InitBasic(b)
++	th.App.UpdateConfig(func(c *model.Config) { *c.ServiceSettings.EnableLinkPreviews = false })
++	if !th.App.IsPostPriorityEnabled() || !*th.App.Config().ServiceSettings.EnableCustomEmoji {
++		b.Fatal("expected normal priority/custom emoji reads")
++	}
++	for _, kind := range []string{"plain", "fields=0", "fields=8", "fields=64", "actions"} {
++		b.Run(kind, func(b *testing.B) {
++			channel := th.CreateChannel(b, th.BasicTeam)
++			fields := 0
++			switch kind {
++			case "fields=8", "actions":
++				fields = 8
++			case "fields=64":
++				fields = 64
++			}
++			fieldValues := make([]any, fields)
++			fieldTitles := make([]string, fields)
++			for i := range fields {
++				fieldTitles[i] = fmt.Sprintf("Metric %d", i)
++				fieldValues[i] = map[string]any{"title": fieldTitles[i], "value": "observed value", "short": true}
++			}
++			attachment := map[string]any{"fallback": "monitoring report", "color": "good", "author_name": "Monitor", "title": "Report", "text": "observations", "footer": "local fixture", "fields": fieldValues}
++			if kind == "actions" {
++				attachment["actions"] = []any{map[string]any{"id": "view", "type": "button", "name": "View", "integration": map[string]any{"url": "https://action.example.test/callback"}}}
++			}
++			expected := map[string]bool{}
++			for range 60 {
++				post := &model.Post{ChannelId: channel.Id, UserId: th.BasicUser.Id, Message: "attachment history"}
++				if kind != "plain" {
++					post.Props = model.StringInterface{model.PostPropsAttachments: []any{attachment}}
++				}
++				saved, err := th.App.Srv().Store().Post().Save(th.Context, post)
++				if err != nil {
++					b.Fatal(err)
++				}
++				expected[saved.Id] = true
++			}
++			list, err := th.App.Srv().Store().Post().GetPosts(th.Context, model.GetPostsOptions{ChannelId: channel.Id, PerPage: 60}, false, map[string]bool{})
++			if err != nil {
++				b.Fatal(err)
++			}
++			if len(list.Posts) != 60 || len(list.Order) != 60 {
++				b.Fatal("incorrect stored page")
++			}
++			for id, post := range list.Posts {
++				if !expected[id] {
++					b.Fatal("unexpected stored post")
++				}
++				if kind != "plain" {
++					if a, ok := post.GetProp(model.PostPropsAttachments).([]any); !ok || len(a) != 1 {
++						b.Fatal("expected wire-format attachment")
++					}
++				}
++			}
++			check := func(got *model.PostList) {
++				if len(got.Posts) != 60 || !reflect.DeepEqual(got.Order, list.Order) {
++					b.Fatal("incorrect ordered page")
++				}
++				for _, id := range list.Order {
++					post := got.Posts[id]
++					if post == nil || post.Message != "attachment history" || post.Metadata == nil {
++						b.Fatal("incorrect prepared post")
++					}
++					if len(post.Metadata.Emojis) != 0 || len(post.Metadata.Images) != 0 {
++						b.Fatal("unexpected emoji/image metadata")
++					}
++					if kind != "plain" {
++						raw, ok := post.GetProp(model.PostPropsAttachments).([]any)
++						if !ok || len(raw) != 1 {
++							b.Fatal("incorrect attachment props")
++						}
++						attachment, ok := raw[0].(map[string]any)
++						if !ok || attachment["text"] != "observations" {
++							b.Fatal("incorrect attachment text")
++						}
++						values, ok := attachment["fields"].([]any)
++						if !ok || len(values) != fields {
++							b.Fatal("incorrect attachment fields")
++						}
++						if len(post.Metadata.Embeds) != 1 || post.Metadata.Embeds[0].Type != model.PostEmbedMessageAttachment {
++							b.Fatal("incorrect attachment embed")
++						}
++						if kind == "actions" {
++							actions, ok := attachment["actions"].([]any)
++							if !ok || len(actions) != 1 {
++								b.Fatal("incorrect action count")
++							}
++							action, ok := actions[0].(map[string]any)
++							if !ok || action["id"] != "view" {
++								b.Fatal("incorrect action")
++							}
++						}
++						for i, value := range values {
++							field, ok := value.(map[string]any)
++							if !ok || field["title"] != fieldTitles[i] || field["value"] != "observed value" || field["short"] != true {
++								b.Fatal("incorrect field")
++							}
++						}
++					}
++				}
++			}
++			check(th.App.PreparePostListForClient(th.Context, list))
++			b.ReportAllocs()
++			b.ResetTimer()
++			for range b.N {
++				check(th.App.PreparePostListForClient(th.Context, list))
++			}
++		})
++	}
++}
+diff --git a/server/public/model/attachment_map_decode_test.go b/server/public/model/attachment_map_decode_test.go
+new file mode 100644
+index 000000000000..b81d11bf8d4e
+--- /dev/null
++++ b/server/public/model/attachment_map_decode_test.go
+@@ -0,0 +1,287 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++package model
++
++import (
++	"encoding/json"
++	"fmt"
++	"math"
++	"math/rand"
++	"reflect"
++	"testing"
++)
++
++func legacyAttachmentMaps(o *Post) []*MessageAttachment {
++	if attachments, ok := o.GetProp(PostPropsAttachments).([]*MessageAttachment); ok {
++		return attachments
++	}
++	var ret []*MessageAttachment
++	if attachments, ok := o.GetProp(PostPropsAttachments).([]any); ok {
++		for _, attachment := range attachments {
++			if enc, err := json.Marshal(attachment); err == nil {
++				var decoded MessageAttachment
++				if json.Unmarshal(enc, &decoded) == nil {
++					// Ignoring nil actions
++					i := 0
++					for _, action := range decoded.Actions {
++						if action != nil {
++							decoded.Actions[i] = action
++							i++
++						}
++					}
++					decoded.Actions = decoded.Actions[:i]
++
++					// Ignoring nil fields
++					i = 0
++					for _, field := range decoded.Fields {
++						if field != nil {
++							decoded.Fields[i] = field
++							i++
++						}
++					}
++					decoded.Fields = decoded.Fields[:i]
++					ret = append(ret, &decoded)
++				}
++			}
++		}
++	}
++	return ret
++}
++
++func attachmentMapPost(value any) *Post {
++	return &Post{Props: StringInterface{PostPropsAttachments: value}}
++}
++
++func TestAttachmentMapDecode(t *testing.T) {
++	cases := []any{
++		nil, []any{}, []any{nil}, []any{map[string]any(nil)}, []any{map[string]any{}},
++		[]any{map[string]any{"fields": nil, "actions": nil}},
++		[]any{map[string]any{"fields": []any{}, "actions": []any{}}},
++		[]any{map[string]any{"fields": []any{nil, nil}, "actions": []any{nil, nil}}},
++		[]any{map[string]any{"fields": []any{map[string]any{"title": nil, "value": nil, "short": true}}}},
++		[]any{map[string]any{"fields": []any{map[string]any{"short": nil}}}},
++		[]any{map[string]any{"fields": []any{map[string]any{"short": "TRUE"}}}},
++		[]any{map[string]any{"text": "bad\xff bytes"}},
++		[]any{map[string]any{"text": "escaped \" \n \x00 <>& \u2028"}},
++		[]any{"bad", float64(5), map[string]any{"text": "ok"}, nil},
++		[]any{map[string]any{"unknown": func() {}, "text": "skipped"}},
++		[]any{map[string]any{"actions": []any{nil, map[string]any{"id": "view", "name": "View", "type": "button"}}}},
++	}
++	// Include actual invalid UTF-8 and control/Unicode bytes, not escaped spellings.
++	cases = append(cases, []any{map[string]any{"text": string([]byte{0xff, 0xc3, 0x28})}}, []any{map[string]any{"title": "\x00\n\u2028"}})
++	for _, id := range []any{float64(1 << 53), float64(-(1 << 53)), float64(1 << 63), -float64(1 << 63), math.MaxFloat64, math.SmallestNonzeroFloat64, math.Copysign(0, -1), 1.25, json.Number("9223372036854775807"), int64(math.MaxInt64), nil} {
++		cases = append(cases, []any{map[string]any{"id": id}})
++	}
++	for i, value := range cases {
++		t.Run(fmt.Sprint(i), func(t *testing.T) {
++			p := attachmentMapPost(value)
++			got, want := p.Attachments(), legacyAttachmentMaps(p)
++			if !reflect.DeepEqual(got, want) {
++				t.Fatalf("got %#v, want %#v", got, want)
++			}
++			g, e := json.Marshal(got)
++			w, f := json.Marshal(want)
++			if (e == nil) != (f == nil) || string(g) != string(w) {
++				t.Fatalf("JSON mismatch: %s != %s", g, w)
++			}
++		})
++	}
++	typed := []*MessageAttachment{{Text: "typed"}, nil}
++	p := attachmentMapPost(typed)
++	got := p.Attachments()
++	if len(got) != 2 || got[0] != typed[0] || got[1] != nil {
++		t.Fatal("typed path must retain original pointers/nil entries")
++	}
++}
++
++func TestAttachmentMapDecodeGenerated(t *testing.T) {
++	rng := rand.New(rand.NewSource(42))
++	fast := 0
++	for n := 0; n < 200000; n++ {
++		fields := make([]any, rng.Intn(8))
++		for i := range fields {
++			fields[i] = map[string]any{"title": fmt.Sprintf("Field %d", i), "value": "value", "short": rng.Intn(2) == 0}
++		}
++		m := map[string]any{"id": float64(rng.Intn(1000)), "title": "Title \u2028", "text": "body", "fields": fields, "ts": float64(rng.Intn(100000))}
++		var item any = m
++		if n%4 == 0 {
++			switch rng.Intn(17) {
++			case 0:
++				m["unknown"] = true
++			case 1:
++				m["title"] = string([]byte{0xff})
++			case 2:
++				m["id"] = 1.25
++			case 3:
++				m["id"] = float64(1 << 63)
++			case 4:
++				m["ts"] = []any{"nested", true}
++			case 5:
++				m["fields"] = []any{nil, nil}
++			case 6:
++				m["actions"] = []any{nil, map[string]any{"id": "button", "type": "button", "name": "Button"}}
++			case 7:
++				m["fields"] = []any{map[string]any{"short": nil}}
++			case 8:
++				m["fields"] = []any{map[string]any{"short": "true"}}
++			case 9:
++				m["fields"] = []any{map[string]any{"value": map[string]any{"nested": true}}}
++			case 10:
++				m["fields"] = []any{map[string]any{"title": 5}}
++			case 11:
++				m["id"] = int64(math.MaxInt64)
++			case 12:
++				m["fields"] = []any{map[string]any{"value": math.NaN()}}
++			case 13:
++				item = nil
++			case 14:
++				m["fields"] = []any(nil)
++			case 15:
++				m["fields"] = []any{map[string]any(nil)}
++			case 16:
++				m["Title"] = "uppercase key"
++			}
++		}
++		if _, ok := decodeAttachmentMap(item); ok {
++			fast++
++		}
++		p := attachmentMapPost([]any{item, map[string]any{"text": "last"}})
++		got, want := p.Attachments(), legacyAttachmentMaps(p)
++		if !reflect.DeepEqual(got, want) {
++			g, _ := json.Marshal(got)
++			w, _ := json.Marshal(want)
++			t.Fatalf("iteration %d input %#v: %s != %s", n, item, g, w)
++		}
++	}
++	if fast < 100000 {
++		t.Fatalf("fast path insufficiently exercised: %d", fast)
++	}
++}
++
++func TestAttachmentMapDecodeOwnership(t *testing.T) {
++	field := map[string]any{"title": "original", "value": "value", "short": true}
++	p := attachmentMapPost([]any{map[string]any{"fields": []any{field}}})
++	first, second := p.Attachments(), p.Attachments()
++	first[0].Fields[0].Title = "changed"
++	first[0].Fields[0].Value = "changed"
++	if second[0].Fields[0].Title != "original" || field["title"] != "original" || field["value"] != "value" {
++		t.Fatal("decoded fields share mutable state")
++	}
++	nested := map[string]any{"value": "original"}
++	p = attachmentMapPost([]any{map[string]any{"fields": []any{map[string]any{"value": nested}}}})
++	got := p.Attachments()
++	got[0].Fields[0].Value.(map[string]any)["value"] = "changed"
++	if nested["value"] != "original" || p.Attachments()[0].Fields[0].Value.(map[string]any)["value"] != "original" {
++		t.Fatal("fallback must retain deep ownership")
++	}
++}
++
++type attachmentMapMarshalProbe struct{ Calls *int }
++
++func (p attachmentMapMarshalProbe) MarshalJSON() ([]byte, error) {
++	*p.Calls++
++	return []byte(`"from probe"`), nil
++}
++func TestAttachmentMapDecodeCustomMarshal(t *testing.T) {
++	calls := 0
++	p := attachmentMapPost([]any{map[string]any{"text": attachmentMapMarshalProbe{&calls}}})
++	want := legacyAttachmentMaps(p)
++	count := calls
++	calls = 0
++	got := p.Attachments()
++	if len(got) != 1 || got[0].Text != "from probe" || !reflect.DeepEqual(got, want) || calls != count || calls != 1 {
++		t.Fatalf("fallback changed custom marshaling: calls=%d, want=%d", calls, count)
++	}
++}
++
++func FuzzAttachmentMapDecode(f *testing.F) {
++	for _, input := range []string{`[]`, `[null]`, `[{"fields":[]}]`, `[{"fields":[null],"actions":[null]}]`, `[{"id":9223372036854775807}]`, `[{"text":"hello","fields":[{"short":"true"}]}]`} {
++		f.Add(input)
++	}
++	f.Fuzz(func(t *testing.T, input string) {
++		var value any
++		if json.Unmarshal([]byte(input), &value) != nil {
++			return
++		}
++		p := attachmentMapPost(value)
++		if !reflect.DeepEqual(p.Attachments(), legacyAttachmentMaps(p)) {
++			t.Fatalf("mismatch for %s", input)
++		}
++	})
++}
++
++func TestAttachmentMapDecodeAllFields(t *testing.T) {
++	value := map[string]any{"id": float64(42), "ts": float64(1700000000), "fields": []any{map[string]any{"title": "field title", "value": "field value", "short": true}}, "actions": []any{nil}}
++	typ := reflect.TypeOf(MessageAttachment{})
++	for i := 0; i < typ.NumField(); i++ {
++		field := typ.Field(i)
++		if field.Type.Kind() == reflect.String {
++			value[field.Tag.Get("json")] = field.Name + " \u2028"
++		}
++	}
++	if _, ok := decodeAttachmentMap(value); !ok {
++		t.Fatal("all ordinary string fields should use direct decoding")
++	}
++	p := attachmentMapPost([]any{value})
++	if !reflect.DeepEqual(p.Attachments(), legacyAttachmentMaps(p)) {
++		t.Fatal("field copy differs from JSON decoder")
++	}
++	for _, number := range []float64{math.MaxFloat64, math.SmallestNonzeroFloat64, math.Copysign(0, -1), 1.25, -1.25} {
++		p = attachmentMapPost([]any{map[string]any{"ts": number, "fields": []any{map[string]any{"value": number}}}})
++		got, want := p.Attachments(), legacyAttachmentMaps(p)
++		if !reflect.DeepEqual(got, want) {
++			t.Fatal("numeric value mismatch")
++		}
++		g, _ := json.Marshal(got)
++		w, _ := json.Marshal(want)
++		if string(g) != string(w) {
++			t.Fatalf("numeric JSON mismatch: %s != %s", g, w)
++		}
++	}
++}
++
++var attachmentMapBenchmarkResult []*MessageAttachment
++
++func BenchmarkAttachmentMapDecode(b *testing.B) {
++	for _, kind := range []string{"plain", "typed", "fields=0", "fields=8", "fields=64", "actions", "unknown", "structured", "malformed"} {
++		b.Run(kind, func(b *testing.B) {
++			n := 8
++			if kind == "fields=0" {
++				n = 0
++			}
++			if kind == "fields=64" {
++				n = 64
++			}
++			fields := make([]any, n)
++			for i := range fields {
++				fields[i] = map[string]any{"title": fmt.Sprintf("Metric %d", i), "value": "observed value", "short": true}
++			}
++			value := map[string]any{"id": float64(0), "fallback": "monitoring report", "color": "good", "author_name": "Monitor", "title": "Report", "text": "observations", "footer": "local fixture", "fields": fields}
++			var raw any = []any{value}
++			switch kind {
++			case "plain":
++				raw = nil
++			case "typed":
++				raw = []*MessageAttachment{{Text: "typed"}}
++			case "actions":
++				value["actions"] = []any{map[string]any{"id": "view", "type": "button", "name": "View"}}
++			case "unknown":
++				value["unknown"] = true
++			case "structured":
++				fields[n-1].(map[string]any)["value"] = map[string]any{"nested": "value"}
++			case "malformed":
++				fields[n-1].(map[string]any)["short"] = nil
++			}
++			post := attachmentMapPost(raw)
++			if !reflect.DeepEqual(post.Attachments(), legacyAttachmentMaps(post)) {
++				b.Fatal("fixture differs from legacy decoder")
++			}
++			b.ReportAllocs()
++			b.ResetTimer()
++			for range b.N {
++				attachmentMapBenchmarkResult = post.Attachments()
++			}
++		})
++	}
++}
+diff --git a/server/public/model/message_attachment_decode.go b/server/public/model/message_attachment_decode.go
+new file mode 100644
+index 000000000000..2dac55c5b30a
+--- /dev/null
++++ b/server/public/model/message_attachment_decode.go
+@@ -0,0 +1,156 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++package model
++
++import (
++	"math"
++	"unicode/utf8"
++)
++
++// decodeAttachmentMap handles ordinary decoded JSON maps. Unsupported shapes
++// retain Attachments' JSON round-trip, including its coercions and errors.
++// Validate before allocating so fallback does not create a discarded object.
++func decodeAttachmentMap(value any) (*MessageAttachment, bool) {
++	m, ok := value.(map[string]any)
++	if !ok {
++		return nil, false
++	}
++	for key := range m {
++		switch key {
++		case "id", "fallback", "color", "pretext", "author_name", "author_link", "author_icon", "title", "title_link", "text", "fields", "image_url", "thumb_url", "footer", "footer_icon", "ts", "actions":
++		default:
++			return nil, false
++		}
++	}
++	// Nonempty actions have their own nested decoding behavior. Keep that path
++	// unchanged, while preserving nil versus empty/all-null action arrays.
++	actions, ok := m["actions"].([]any)
++	if m["actions"] != nil && !ok {
++		return nil, false
++	}
++	for _, action := range actions {
++		if action != nil {
++			return nil, false
++		}
++	}
++	fields, ok := m["fields"].([]any)
++	if m["fields"] != nil && !ok {
++		return nil, false
++	}
++	// Reject common fallback cases before walking text and field keys.
++	for _, value := range fields {
++		if value == nil {
++			continue
++		}
++		field, ok := value.(map[string]any)
++		if !ok || field == nil {
++			return nil, false
++		}
++		if short, exists := field["short"]; exists {
++			if _, ok := short.(bool); !ok {
++				return nil, false
++			}
++		}
++		switch field["value"].(type) {
++		case nil, string, bool, float64:
++		default:
++			return nil, false
++		}
++	}
++	id, ok := attachmentMapID(m["id"])
++	if !ok {
++		return nil, false
++	}
++	for _, key := range [...]string{"fallback", "color", "pretext", "author_name", "author_link", "author_icon", "title", "title_link", "text", "image_url", "thumb_url", "footer", "footer_icon"} {
++		if !attachmentMapString(m[key]) {
++			return nil, false
++		}
++	}
++	if !attachmentMapAtom(m["ts"]) {
++		return nil, false
++	}
++	for _, value := range fields {
++		if value == nil {
++			continue
++		}
++		field := value.(map[string]any)
++		for key := range field {
++			switch key {
++			case "title", "value", "short":
++			default:
++				return nil, false
++			}
++		}
++		if !attachmentMapString(field["title"]) || !attachmentMapAtom(field["value"]) {
++			return nil, false
++		}
++	}
++
++	decoded := &MessageAttachment{
++		Id: id, Fallback: attachmentMapText(m["fallback"]), Color: attachmentMapText(m["color"]),
++		Pretext: attachmentMapText(m["pretext"]), AuthorName: attachmentMapText(m["author_name"]),
++		AuthorLink: attachmentMapText(m["author_link"]), AuthorIcon: attachmentMapText(m["author_icon"]),
++		Title: attachmentMapText(m["title"]), TitleLink: attachmentMapText(m["title_link"]),
++		Text: attachmentMapText(m["text"]), ImageURL: attachmentMapText(m["image_url"]),
++		ThumbURL: attachmentMapText(m["thumb_url"]), Footer: attachmentMapText(m["footer"]),
++		FooterIcon: attachmentMapText(m["footer_icon"]), Timestamp: m["ts"],
++	}
++	if fields != nil {
++		decoded.Fields = make([]*MessageAttachmentField, 0, len(fields))
++		for _, value := range fields {
++			if value == nil {
++				continue
++			}
++			field := value.(map[string]any)
++			short, _ := field["short"].(bool)
++			decoded.Fields = append(decoded.Fields, &MessageAttachmentField{
++				Title: attachmentMapText(field["title"]), Value: field["value"], Short: SlackCompatibleBool(short),
++			})
++		}
++	}
++	if actions != nil {
++		decoded.Actions = make([]*PostAction, 0, len(actions))
++	}
++	return decoded, true
++}
++
++func attachmentMapString(value any) bool {
++	if value == nil {
++		return true
++	}
++	s, ok := value.(string)
++	return ok && utf8.ValidString(s)
++}
++
++// Only used after validation. JSON null leaves a string field empty.
++func attachmentMapText(value any) string {
++	s, _ := value.(string)
++	return s
++}
++
++func attachmentMapAtom(value any) bool {
++	switch v := value.(type) {
++	case nil, bool:
++		return true
++	case string:
++		return utf8.ValidString(v)
++	case float64:
++		return !math.IsNaN(v) && !math.IsInf(v, 0)
++	default:
++		return false
++	}
++}
++
++func attachmentMapID(value any) (int64, bool) {
++	if value == nil {
++		return 0, true
++	}
++	n, ok := value.(float64)
++	// Larger floats can marshal to a shortest decimal that differs from an
++	// int64 conversion. Leave those and other numeric types to encoding/json.
++	if !ok || math.Abs(n) > 1<<53 || math.IsNaN(n) || math.Trunc(n) != n {
++		return 0, false
++	}
++	return int64(n), true
++}
+diff --git a/server/public/model/post.go b/server/public/model/post.go
+index c43f64aa2f50..4d7af2f2a8a4 100644
+--- a/server/public/model/post.go
++++ b/server/public/model/post.go
+@@ -1328,6 +1328,10 @@ func (o *Post) Attachments() []*MessageAttachment {
+ 	var ret []*MessageAttachment
+ 	if attachments, ok := o.GetProp(PostPropsAttachments).([]any); ok {
+ 		for _, attachment := range attachments {
++			if decoded, ok := decodeAttachmentMap(attachment); ok {
++				ret = append(ret, decoded)
++				continue
++			}
+ 			if enc, err := json.Marshal(attachment); err == nil {
+ 				var decoded MessageAttachment
+ 				if json.Unmarshal(enc, &decoded) == nil {

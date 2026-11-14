@@ -519,3 +519,13 @@ and channels keep their names. Gates removed: `createChannel` in
 `PluginAPI.CreateChannel` in `app/plugin_api.go`, the webapp selector
 `isAnonymousURLEnabled` that hides the URL editors, and the System Console
 toggle's Enterprise Advanced check.
+
+### attachment-map-decoding.patch
+
+2026-11-15. Decode ordinary JSON attachment maps directly into fresh model
+objects in `Post.Attachments`. Keep the typed-slice path and the existing JSON
+round-trip for unsupported shapes, nested values, nonempty actions, unusual
+numeric forms, invalid UTF-8 and Slack boolean coercions. Preserve nullable and
+empty collections and independent decoded fields. Includes a legacy-decoder
+oracle, generated/fuzz/ownership checks and stored-history benchmarks. No API,
+schema, settings or third-party dependency changes.
