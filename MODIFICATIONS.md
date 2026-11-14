@@ -519,3 +519,47 @@ and channels keep their names. Gates removed: `createChannel` in
 `PluginAPI.CreateChannel` in `app/plugin_api.go`, the webapp selector
 `isAnonymousURLEnabled` that hides the URL editors, and the System Console
 toggle's Enterprise Advanced check.
+
+### post-file-metadata.patch
+
+2026-11-14. Reuses successfully prepared attachment metadata when adding post
+embeds and images. Avoids a duplicate file lookup, ordering and mini-preview
+dispatch, while retaining second attempts for failed reads, pending previews
+and metadata resets. Keeps standalone behavior, master selection, deleted-file
+flags, attachment order and per-user sanitization. Adds regressions, a negative
+control and paired real-app benchmarks. Existing feature patches and author
+credit remain unchanged.
+[Measured results](docs/benchmarks/post-file-metadata/README.md).
+
+### reaction-history-batches.patch
+
+2026-11-14. Batches active reaction reads for history pages with multiple
+reaction-bearing posts. Each cached entry is decoded once; only cache misses
+reach bounded SQL batches. Preserves creation-time ordering, legacy NULL
+handling, remote/channel fields, empty results and existing Save/Delete cache
+invalidation. A failed bulk read falls back to the existing per-post path.
+Single-post preparation and nested permalink reads retain their own lookups;
+deleted and unrevealed burn-on-read posts retain metadata filtering. Regenerates
+store wrappers/mocks and adds storage, cache and app regressions plus paired
+real-app benchmarks. Built on the attachment-metadata preparation patch.
+Existing feature patches and contributor credit remain unchanged.
+[Measured results](docs/benchmarks/reaction-history/README.md).
+
+2026-11-14. Corrects the benchmark fixture to populate and validate history
+order, including priority and acknowledgement reads. The new timings supersede
+the earlier incomplete fixture. Production code and regression tests are
+unchanged.
+
+### history-file-metadata.patch
+
+2026-11-14. Batches attachment metadata reads across history pages through the
+existing file cache, with at most 1,000 distinct IDs per call. Keeps filtering,
+preview processing and stored attachment order per post. Missing and repeated
+IDs retain their existing behavior; shared file metadata is copied before
+mutation. Batch failures fall back to per-post reads, and failed previews or
+metadata resets retain their second attempts. Single-post, master-read and
+deleted-file paths remain unchanged. Adds regressions for bounds, failures,
+shared metadata, content limits, hidden posts and preview retries, plus ordered
+cold/warm benchmarks. Builds on the post preparation helpers from PRs #43/#45.
+Existing patches and contributor credits remain unchanged.
+[Measured results](docs/benchmarks/attachment-history/README.md).

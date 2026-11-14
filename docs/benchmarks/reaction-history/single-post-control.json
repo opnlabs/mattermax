@@ -1,0 +1,144 @@
+{
+  "status": "passed",
+  "method": "Real App.PreparePostListForClient with SQL/cache setup, three standard emoji reactions per post, one/ten/sixty posts. Baseline restores only post_metadata.go through Go overlay; both variants retain the same store code and benchmark. Cold purges local store caches outside the timer; warm uses populated caches. Timed loops include preparation, SQL/cache fills or reads, and output validation. Excludes HTTP, files, custom emoji and remote links. Alternating-order paired processes.",
+  "baseline_workspace_sha": "c6ff5f19fd677d02a66daecc85f235d525846052",
+  "current_workspace_sha": "1b0e20638d72edcd5532efa371e75c7506dfdbad",
+  "source_sha256": {
+    "before": "09960d04f41ec2f16ba5bbc18c06aa272a0d01c4a15cb51541a215d0c5b76c7a",
+    "after": "fc4f12c6b0c367e4d0b83e4ab4b3369ba97248bd7c592499ee6ad8a9e71afb8f",
+    "store": "13e9b0791013ae3d860f40ee76229b84f69b4f10484fccb2c38a8d79d0d0598c",
+    "cache": "68d7686c9358b59232384a75784270452525ad55e9dd1357c0c174d9715a201c",
+    "benchmark_test": "d81c58dfae1cc493656ad41300f2b41e03e2f6a45e3ca55d75ad4efb96201ab8"
+  },
+  "environment": {
+    "platform": "Linux-6.18.55-cachyos-x86_64-with-glibc2.44",
+    "go": "go version go1.26.10 linux/amd64",
+    "cpu": "13th Gen Intel(R) Core(TM) i7-1355U"
+  },
+  "settings": {
+    "trials": 3,
+    "iterations": 300,
+    "duration": "3s",
+    "bench": "^BenchmarkReactionHistory$/^posts=1$/^cold$"
+  },
+  "samples": [
+    {
+      "trial": 0,
+      "variant": "before",
+      "benchmarks": [
+        {
+          "posts": 1,
+          "mode": "cold",
+          "iterations": 8490,
+          "ns_per_op": 527129.0,
+          "bytes_per_op": 29217.0,
+          "allocations_per_op": 498.0,
+          "raw": "BenchmarkReactionHistory/posts=1/cold-12    \t    8490\t    527129 ns/op\t   29217 B/op\t     498 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "benchmarks": [
+        {
+          "posts": 1,
+          "mode": "cold",
+          "iterations": 7401,
+          "ns_per_op": 459197.0,
+          "bytes_per_op": 29188.0,
+          "allocations_per_op": 498.0,
+          "raw": "BenchmarkReactionHistory/posts=1/cold-12    \t    7401\t    459197 ns/op\t   29188 B/op\t     498 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "benchmarks": [
+        {
+          "posts": 1,
+          "mode": "cold",
+          "iterations": 7070,
+          "ns_per_op": 425951.0,
+          "bytes_per_op": 29202.0,
+          "allocations_per_op": 498.0,
+          "raw": "BenchmarkReactionHistory/posts=1/cold-12    \t    7070\t    425951 ns/op\t   29202 B/op\t     498 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "benchmarks": [
+        {
+          "posts": 1,
+          "mode": "cold",
+          "iterations": 6850,
+          "ns_per_op": 500271.0,
+          "bytes_per_op": 29277.0,
+          "allocations_per_op": 498.0,
+          "raw": "BenchmarkReactionHistory/posts=1/cold-12    \t    6850\t    500271 ns/op\t   29277 B/op\t     498 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "benchmarks": [
+        {
+          "posts": 1,
+          "mode": "cold",
+          "iterations": 7756,
+          "ns_per_op": 419082.0,
+          "bytes_per_op": 29205.0,
+          "allocations_per_op": 498.0,
+          "raw": "BenchmarkReactionHistory/posts=1/cold-12    \t    7756\t    419082 ns/op\t   29205 B/op\t     498 allocs/op"
+        }
+      ]
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "benchmarks": [
+        {
+          "posts": 1,
+          "mode": "cold",
+          "iterations": 7701,
+          "ns_per_op": 446627.0,
+          "bytes_per_op": 29201.0,
+          "allocations_per_op": 498.0,
+          "raw": "BenchmarkReactionHistory/posts=1/cold-12    \t    7701\t    446627 ns/op\t   29201 B/op\t     498 allocs/op"
+        }
+      ]
+    }
+  ],
+  "summary": [
+    {
+      "posts": 1,
+      "mode": "cold",
+      "before": {
+        "ns_per_op": 500271.0,
+        "bytes_per_op": 29217.0,
+        "allocations_per_op": 498.0,
+        "ns_per_op_range": [
+          419082.0,
+          527129.0
+        ]
+      },
+      "after": {
+        "ns_per_op": 446627.0,
+        "bytes_per_op": 29201.0,
+        "allocations_per_op": 498.0,
+        "ns_per_op_range": [
+          425951.0,
+          459197.0
+        ]
+      }
+    }
+  ],
+  "measurement_revision": {
+    "ordered_history": true,
+    "note": "Same ordered fixture as the corrected matrix, restricted to a single cold-cache post and three seconds per case."
+  }
+}

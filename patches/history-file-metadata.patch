@@ -1,0 +1,572 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: rhnvrm <hello@rohanverma.net>
+Date: Sat, 14 Nov 2026 15:49:06 +0530
+Subject: [PATCH] perf: batch attachment metadata reads for history pages
+
+Read file metadata through the existing cache in bounded, deduplicated batches.
+Keep filtering and preview processing per post, preserve attachment order, and
+fall back to ordinary reads on batch errors or preview/metadata retries. Clone
+shared file values so mutable metadata stays independent across posts.
+
+Keep single-post, master and deleted-file paths intact. Add ordered history
+benchmarks and regressions for missing/repeated IDs, later batch failures,
+content limits, hidden posts and pending previews.
+
+Mattermax-Patch: history-file-metadata.patch
+---
+ .../channels/app/attachment_history_test.go   |  76 +++++++
+ server/channels/app/post.go                   |  24 +-
+ server/channels/app/post_file_metadata.go     | 105 +++++++++
+ .../channels/app/post_file_metadata_test.go   | 214 ++++++++++++++++++
+ server/channels/app/post_metadata.go          |  29 ++-
+ 5 files changed, 430 insertions(+), 18 deletions(-)
+ create mode 100644 server/channels/app/attachment_history_test.go
+ create mode 100644 server/channels/app/post_file_metadata.go
+ create mode 100644 server/channels/app/post_file_metadata_test.go
+
+diff --git a/server/channels/app/attachment_history_test.go b/server/channels/app/attachment_history_test.go
+new file mode 100644
+index 000000000000..c305ab361922
+--- /dev/null
++++ b/server/channels/app/attachment_history_test.go
+@@ -0,0 +1,76 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++package app
++
++import (
++	"fmt"
++	"testing"
++
++	"github.com/mattermost/mattermost/server/public/model"
++)
++
++// BenchmarkAttachmentHistory uses stored text attachments in real history
++// preparation. Only file-cache purges are outside the cold-case timer.
++func BenchmarkAttachmentHistory(b *testing.B) {
++	th := Setup(b).InitBasic(b)
++	th.App.UpdateConfig(func(cfg *model.Config) { *cfg.ServiceSettings.EnableLinkPreviews = false })
++	for _, tc := range []struct{ posts, files int }{{1, 2}, {10, 2}, {60, 2}, {60, 0}} {
++		b.Run(fmt.Sprintf("posts=%d/files=%d", tc.posts, tc.files), func(b *testing.B) {
++			list := model.NewPostList()
++			for range tc.posts {
++				post, err := th.App.Srv().Store().Post().Save(th.Context, &model.Post{ChannelId: th.BasicChannel.Id, UserId: th.BasicUser.Id, Message: "attachment history"})
++				if err != nil {
++					b.Fatal(err)
++				}
++				ids := make([]string, tc.files)
++				for i := range ids {
++					info, err := th.App.Srv().Store().FileInfo().Save(th.Context, &model.FileInfo{CreatorId: post.UserId, PostId: post.Id, Name: fmt.Sprintf("attachment-%d.txt", i), Path: fmt.Sprintf("benchmark/%s/%d.txt", post.Id, i), MimeType: "text/plain"})
++					if err != nil {
++						b.Fatal(err)
++					}
++					ids[len(ids)-i-1] = info.Id
++				}
++				updated := post.Clone()
++				updated.FileIds = ids
++				post, err = th.App.Srv().Store().Post().Update(th.Context, updated, post)
++				if err != nil {
++					b.Fatal(err)
++				}
++				list.AddPost(post)
++				list.AddOrder(post.Id)
++			}
++			check := func(result *model.PostList) {
++				if len(result.Order) != tc.posts {
++					b.Fatal("incorrect history order")
++				}
++				for id, original := range list.Posts {
++					post := result.Posts[id]
++					if post == nil || post.Metadata == nil || len(post.Metadata.Files) != tc.files {
++						b.Fatal("incorrect attachment count")
++					}
++					for i, info := range post.Metadata.Files {
++						if info.Id != original.FileIds[i] || info.PostId != id || info.DeleteAt != 0 {
++							b.Fatal("incorrect attachment metadata/order")
++						}
++					}
++				}
++			}
++			for _, mode := range []string{"cold", "warm"} {
++				b.Run(mode, func(b *testing.B) {
++					check(th.App.PreparePostListForClient(th.Context, list))
++					b.ReportAllocs()
++					b.ResetTimer()
++					for range b.N {
++						if mode == "cold" {
++							b.StopTimer()
++							th.App.Srv().Store().FileInfo().ClearCaches()
++							b.StartTimer()
++						}
++						check(th.App.PreparePostListForClient(th.Context, list))
++					}
++				})
++			}
++		})
++	}
++}
+diff --git a/server/channels/app/post.go b/server/channels/app/post.go
+index bc30d1fe946a..223b5e316264 100644
+--- a/server/channels/app/post.go
++++ b/server/channels/app/post.go
+@@ -2673,6 +2673,10 @@ func (a *App) GetFileInfosForPostWithMigration(rctx request.CTX, postID string,
+ 
+ // GetFileInfosForPost also returns firstInaccessibleFileTime based on cloud plan's limit.
+ func (a *App) GetFileInfosForPost(rctx request.CTX, post *model.Post, fromMaster bool, includeDeleted bool) ([]*model.FileInfo, int64, *model.AppError) {
++	return a.getFileInfosForPost(rctx, post, fromMaster, includeDeleted, nil)
++}
++
++func (a *App) getFileInfosForPost(rctx request.CTX, post *model.Post, fromMaster, includeDeleted bool, prepared map[string]preparedPostFile) ([]*model.FileInfo, int64, *model.AppError) {
+ 	fileIDs := post.FileIds
+ 	if fromMaster {
+ 		masterPost, err := a.Srv().Store().Post().GetSingle(sqlstore.RequestContextWithMaster(rctx), post.Id, includeDeleted)
+@@ -2682,16 +2686,20 @@ func (a *App) GetFileInfosForPost(rctx request.CTX, post *model.Post, fromMaster
+ 		fileIDs = masterPost.FileIds
+ 	}
+ 
+-	fileInfos, err := a.Srv().Store().FileInfo().GetByIds(fileIDs, includeDeleted, true, fromMaster)
+-	if err != nil {
+-		return nil, 0, model.NewAppError("GetFileInfosForPost", "app.file_info.get_for_post.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
++	var fileInfos []*model.FileInfo
++	if prepared != nil && !fromMaster && !includeDeleted {
++		fileInfos = preparedFileInfosForPost(fileIDs, prepared)
++	} else {
++		var err error
++		fileInfos, err = a.Srv().Store().FileInfo().GetByIds(fileIDs, includeDeleted, true, fromMaster)
++		if err != nil {
++			return nil, 0, model.NewAppError("GetFileInfosForPost", "app.file_info.get_for_post.app_error", nil, "", http.StatusInternalServerError).Wrap(err)
++		}
++		// Store results can interleave cache hits and use creation-time ordering.
++		// Prepared results already follow FileIds and omit duplicate/missing IDs.
++		fileInfos = orderFileInfosByID(post.FileIds, fileInfos)
+ 	}
+ 
+-	// GetByIds does not preserve the order of post.FileIds (the SQL store sorts
+-	// by CreateAt DESC and the local cache layer interleaves cache hits), so
+-	// reorder to match the post's stored attachment order.
+-	fileInfos = orderFileInfosByID(post.FileIds, fileInfos)
+-
+ 	firstInaccessibleFileTime, appErr := a.removeInaccessibleContentFromFilesSlice(fileInfos)
+ 	if appErr != nil {
+ 		return nil, 0, appErr
+diff --git a/server/channels/app/post_file_metadata.go b/server/channels/app/post_file_metadata.go
+new file mode 100644
+index 000000000000..b0fc33bdab7e
+--- /dev/null
++++ b/server/channels/app/post_file_metadata.go
+@@ -0,0 +1,105 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++package app
++
++import (
++	"slices"
++
++	"github.com/mattermost/mattermost/server/public/model"
++)
++
++type postPreparationData struct {
++	reactions map[string][]*model.Reaction
++	files     map[string]preparedPostFile
++}
++
++type preparedPostFile struct {
++	info   *model.FileInfo
++	shared bool
++}
++
++const postFileMetadataBatchSize = 1000
++
++// preparePostListFileMetadata uses the existing file cache and batches its
++// misses. A failed batch leaves the caller on its ordinary per-post path.
++func (a *App) preparePostListFileMetadata(list *model.PostList) map[string]preparedPostFile {
++	if len(list.Posts) < 2 {
++		return nil
++	}
++	posts, count := 0, 0
++	for _, post := range list.Posts {
++		if post.DeleteAt <= 0 && len(post.FileIds) > 0 {
++			posts++
++			count += len(post.FileIds)
++		}
++	}
++	if posts < 2 {
++		return nil
++	}
++	prepared := make(map[string]preparedPostFile, count)
++	ids := make([]string, 0, count)
++	for _, post := range list.Posts {
++		if post.DeleteAt > 0 {
++			continue
++		}
++		for _, id := range post.FileIds {
++			if entry, ok := prepared[id]; ok {
++				entry.shared = true
++				prepared[id] = entry
++			} else {
++				prepared[id] = preparedPostFile{}
++				ids = append(ids, id)
++			}
++		}
++	}
++	for start := 0; start < len(ids); start += postFileMetadataBatchSize {
++		end := min(start+postFileMetadataBatchSize, len(ids))
++		infos, err := a.Srv().Store().FileInfo().GetByIds(ids[start:end], false, true, false)
++		if err != nil {
++			return nil
++		}
++		for _, info := range infos {
++			if entry, ok := prepared[info.Id]; ok {
++				entry.info = info
++				prepared[info.Id] = entry
++			}
++		}
++	}
++	return prepared
++}
++
++func preparedFileInfosForPost(ids []string, prepared map[string]preparedPostFile) []*model.FileInfo {
++	var infos []*model.FileInfo
++	var seen map[string]bool
++	for _, id := range ids {
++		entry := prepared[id]
++		if entry.info == nil {
++			continue
++		}
++		info := entry.info
++		if entry.shared {
++			if seen[id] {
++				continue
++			}
++			if seen == nil {
++				seen = make(map[string]bool)
++			}
++			seen[id] = true
++			// Filtering and preview generation mutate FileInfo. Repeated IDs need
++			// independent values, just as separate cache reads would return.
++			copy := *info
++			if info.MiniPreview != nil {
++				data := slices.Clone(*info.MiniPreview)
++				copy.MiniPreview = &data
++			}
++			if info.RemoteId != nil {
++				remote := *info.RemoteId
++				copy.RemoteId = &remote
++			}
++			info = &copy
++		}
++		infos = append(infos, info)
++	}
++	return infos
++}
+diff --git a/server/channels/app/post_file_metadata_test.go b/server/channels/app/post_file_metadata_test.go
+new file mode 100644
+index 000000000000..88a20e70ca58
+--- /dev/null
++++ b/server/channels/app/post_file_metadata_test.go
+@@ -0,0 +1,214 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++package app
++
++import (
++	"errors"
++	"fmt"
++	"testing"
++
++	"github.com/mattermost/mattermost/server/public/model"
++	"github.com/mattermost/mattermost/server/v8/channels/store/storetest/mocks"
++	"github.com/stretchr/testify/mock"
++	"github.com/stretchr/testify/require"
++)
++
++func setupFileHistoryMock(t *testing.T) (*TestHelper, *mocks.FileInfoStore) {
++	th := SetupConfigWithStoreMock(t, func(cfg *model.Config) {
++		*cfg.ServiceSettings.EnableCustomEmoji = false
++		*cfg.ServiceSettings.EnableLinkPreviews = false
++		*cfg.ServiceSettings.PostPriority = false
++	})
++	files := &mocks.FileInfoStore{}
++	th.App.Srv().Store().(*mocks.Store).On("FileInfo").Return(files)
++	return th, files
++}
++
++func TestAttachmentHistoryBatch(t *testing.T) {
++	for _, fail := range []bool{false, true} {
++		t.Run(fmt.Sprintf("bulk error=%t", fail), func(t *testing.T) {
++			th, files := setupFileHistoryMock(t)
++			list := model.NewPostList()
++			all := []*model.FileInfo{}
++			expected := map[string][]string{}
++			for range 2 {
++				p := &model.Post{Id: model.NewId(), Message: "files"}
++				if len(list.Posts) == 0 {
++					p.DeleteAt = -1
++				}
++				first := &model.FileInfo{Id: model.NewId(), PostId: p.Id, Name: "first.txt", MimeType: "text/plain"}
++				second := &model.FileInfo{Id: model.NewId(), PostId: p.Id, Name: "second.txt", MimeType: "text/plain"}
++				p.FileIds = []string{second.Id, model.NewId(), first.Id, second.Id}
++				expected[p.Id] = []string{second.Id, first.Id}
++				all = append(all, first, second)
++				list.AddPost(p)
++				list.AddOrder(p.Id)
++				if fail {
++					files.On("GetByIds", []string(p.FileIds), false, true, false).Return([]*model.FileInfo{first, second}, nil).Once()
++				}
++			}
++			bulk := files.On("GetByIds", mock.MatchedBy(func(ids []string) bool { return len(ids) == 6 }), false, true, false).Once()
++			if fail {
++				bulk.Return(nil, errors.New("bulk unavailable"))
++			} else {
++				bulk.Return(all, nil)
++			}
++			result := th.App.PreparePostListForClient(th.Context, list)
++			require.Equal(t, list.Order, result.Order)
++			for id, want := range expected {
++				require.Len(t, result.Posts[id].Metadata.Files, 2)
++				for i, info := range result.Posts[id].Metadata.Files {
++					require.Equal(t, want[i], info.Id)
++					require.Equal(t, id, info.PostId)
++				}
++				require.Nil(t, list.Posts[id].Metadata)
++			}
++			files.AssertExpectations(t)
++		})
++	}
++}
++
++func TestAttachmentHistorySharedFileIsolation(t *testing.T) {
++	th, files := setupFileHistoryMock(t)
++	preview := []byte{1, 2}
++	remote := "remote"
++	info := &model.FileInfo{Id: model.NewId(), Name: "image.png", MimeType: "image/png", MiniPreview: &preview, RemoteId: &remote}
++	list := model.NewPostList()
++	for range 2 {
++		p := &model.Post{Id: model.NewId(), FileIds: []string{info.Id}}
++		list.AddPost(p)
++		list.AddOrder(p.Id)
++	}
++	files.On("GetByIds", []string{info.Id}, false, true, false).Return([]*model.FileInfo{info}, nil).Once()
++	result := th.App.PreparePostListForClient(th.Context, list)
++	first := result.Posts[list.Order[0]].Metadata.Files[0]
++	second := result.Posts[list.Order[1]].Metadata.Files[0]
++	first.Name = "changed"
++	(*first.MiniPreview)[0] = 9
++	*first.RemoteId = "changed"
++	require.Equal(t, "image.png", second.Name)
++	require.EqualValues(t, 1, (*second.MiniPreview)[0])
++	require.Equal(t, "remote", *second.RemoteId)
++	require.Equal(t, "image.png", info.Name)
++	require.EqualValues(t, 1, (*info.MiniPreview)[0])
++	require.Equal(t, "remote", *info.RemoteId)
++	files.AssertExpectations(t)
++}
++
++func TestAttachmentHistoryRetries(t *testing.T) {
++	for _, mode := range []string{"pending preview", "hidden burn", "deleted"} {
++		t.Run(mode, func(t *testing.T) {
++			th, files := setupFileHistoryMock(t)
++			list := model.NewPostList()
++			bulkFiles := []*model.FileInfo{}
++			for range 2 {
++				p := &model.Post{Id: model.NewId(), FileIds: []string{model.NewId()}, Message: "files", UserId: model.NewId()}
++				info := &model.FileInfo{Id: p.FileIds[0], PostId: p.Id, Name: "file.txt", MimeType: "text/plain"}
++				if len(list.Posts) == 0 {
++					switch mode {
++					case "pending preview":
++						info.MimeType = "image/png"
++						info.Name = "missing.png"
++						info.Path = "missing-preview-source.png"
++					case "hidden burn":
++						p.Type = model.PostTypeBurnOnRead
++					case "deleted":
++						p.DeleteAt = 1
++					}
++					files.On("GetByIds", []string(p.FileIds), false, true, false).Return([]*model.FileInfo{info}, nil).Once()
++				}
++				if p.DeleteAt == 0 {
++					bulkFiles = append(bulkFiles, info)
++				}
++				list.AddPost(p)
++				list.AddOrder(p.Id)
++			}
++			// A deleted post leaves only one eligible post, so no bulk read is used.
++			if mode == "deleted" {
++				p := list.Posts[list.Order[1]]
++				files.On("GetByIds", []string(p.FileIds), false, true, false).Return(bulkFiles, nil).Once()
++			} else {
++				files.On("GetByIds", mock.MatchedBy(func(ids []string) bool { return len(ids) == 2 }), false, true, false).Return(bulkFiles, nil).Once()
++			}
++			result := th.App.PreparePostListForClient(th.Context.WithSession(&model.Session{UserId: model.NewId()}), list)
++			if mode == "deleted" {
++				require.Empty(t, result.Posts[list.Order[0]].Message)
++			}
++			files.AssertExpectations(t)
++		})
++	}
++}
++
++func TestAttachmentHistoryBoundedReads(t *testing.T) {
++	for _, fail := range []bool{false, true} {
++		t.Run(fmt.Sprintf("later batch error=%t", fail), func(t *testing.T) {
++			th, files := setupFileHistoryMock(t)
++			list := model.NewPostList()
++			ids := make([]string, postFileMetadataBatchSize+1)
++			for i := range ids {
++				ids[i] = model.NewId()
++			}
++			first := &model.Post{Id: model.NewId(), FileIds: ids[:postFileMetadataBatchSize]}
++			second := &model.Post{Id: model.NewId(), FileIds: []string{ids[postFileMetadataBatchSize], ids[0]}}
++			list.AddPost(first)
++			list.AddPost(second)
++			seen := map[string]bool{}
++			calls := 0
++			files.On("GetByIds", mock.MatchedBy(func(batch []string) bool { return len(batch) > 0 && len(batch) <= postFileMetadataBatchSize }), false, true, false).
++				Run(func(args mock.Arguments) {
++					calls++
++					for _, id := range args.Get(0).([]string) {
++						require.False(t, seen[id])
++						seen[id] = true
++					}
++				}).
++				Return(nil, func([]string, bool, bool, bool) error {
++					if fail && calls == 2 {
++						return errors.New("later batch unavailable")
++					}
++					return nil
++				}).Twice()
++			prepared := th.App.preparePostListFileMetadata(list)
++			require.Len(t, seen, len(ids))
++			if fail {
++				require.Nil(t, prepared)
++			} else {
++				require.Len(t, prepared, len(ids))
++				require.True(t, prepared[ids[0]].shared)
++			}
++			files.AssertExpectations(t)
++		})
++	}
++}
++
++func TestAttachmentHistoryContentLimit(t *testing.T) {
++	th, files := setupFileHistoryMock(t)
++	th.App.Srv().SetLicense(model.NewTestLicense("cloud"))
++	systems := &mocks.SystemStore{}
++	th.App.Srv().Store().(*mocks.Store).On("System").Return(systems)
++	systems.On("GetByName", model.SystemLastAccessibleFileTime).Return(&model.System{Name: model.SystemLastAccessibleFileTime, Value: "10"}, nil)
++	preview := []byte{1, 2}
++	raw := &model.FileInfo{Id: model.NewId(), CreateAt: 1, Name: "old.txt", MimeType: "text/plain", Path: "private/path", Content: "private content", MiniPreview: &preview}
++	list := model.NewPostList()
++	for range 2 {
++		p := &model.Post{Id: model.NewId(), FileIds: []string{raw.Id}}
++		list.AddPost(p)
++		list.AddOrder(p.Id)
++	}
++	files.On("GetByIds", []string{raw.Id}, false, true, false).Return([]*model.FileInfo{raw}, nil).Once()
++	result := th.App.PreparePostListForClient(th.Context, list)
++	for _, p := range result.Posts {
++		require.Len(t, p.Metadata.Files, 1)
++		info := p.Metadata.Files[0]
++		require.True(t, info.Archived)
++		require.Empty(t, info.Path)
++		require.Empty(t, info.Content)
++		require.Nil(t, info.MiniPreview)
++	}
++	require.False(t, raw.Archived)
++	require.Equal(t, "private/path", raw.Path)
++	require.Equal(t, "private content", raw.Content)
++	require.NotNil(t, raw.MiniPreview)
++	files.AssertExpectations(t)
++}
+diff --git a/server/channels/app/post_metadata.go b/server/channels/app/post_metadata.go
+index d4208e03618b..0a547faeaed1 100644
+--- a/server/channels/app/post_metadata.go
++++ b/server/channels/app/post_metadata.go
+@@ -76,8 +76,9 @@ func (a *App) PreparePostListForClient(rctx request.CTX, originalList *model.Pos
+ 			reactions = prepared
+ 		}
+ 	}
++	prepared := &postPreparationData{reactions: reactions, files: a.preparePostListFileMetadata(originalList)}
+ 	for id, originalPost := range originalList.Posts {
+-		post := a.preparePostForClientWithEmbedsAndImages(rctx, originalPost, &model.PreparePostForClientOpts{}, reactions)
++		post := a.preparePostForClientWithEmbedsAndImages(rctx, originalPost, &model.PreparePostForClientOpts{}, prepared)
+ 
+ 		list.Posts[id] = post
+ 	}
+@@ -206,7 +207,7 @@ func (a *App) PreparePostForClient(rctx request.CTX, originalPost *model.Post, o
+ 
+ // preparePostForClient reports whether file metadata can be reused by the embed
+ // path. Failed reads, pending previews and metadata resets need another attempt.
+-func (a *App) preparePostForClient(rctx request.CTX, originalPost *model.Post, opts *model.PreparePostForClientOpts, reactions map[string][]*model.Reaction) (*model.Post, bool) {
++func (a *App) preparePostForClient(rctx request.CTX, originalPost *model.Post, opts *model.PreparePostForClientOpts, prepared *postPreparationData) (*model.Post, bool) {
+ 	post := originalPost.Clone()
+ 
+ 	// Proxy image links before constructing metadata so that requests go through the proxy
+@@ -225,6 +226,10 @@ func (a *App) preparePostForClient(rctx request.CTX, originalPost *model.Post, o
+ 	}
+ 
+ 	// Emojis and reaction counts
++	var reactions map[string][]*model.Reaction
++	if prepared != nil {
++		reactions = prepared.reactions
++	}
+ 	if emojis, reactions, err := a.getEmojisAndReactionsForPost(rctx, post, reactions); err != nil {
+ 		rctx.Logger().Warn("Failed to get emojis and reactions for a post", mlog.String("post_id", post.Id), mlog.Err(err))
+ 	} else {
+@@ -233,7 +238,7 @@ func (a *App) preparePostForClient(rctx request.CTX, originalPost *model.Post, o
+ 	}
+ 
+ 	// Files
+-	filesPrepared := a.preparePostFilesForClient(rctx, post, opts)
++	filesPrepared := a.preparePostFilesForClient(rctx, post, opts, prepared)
+ 
+ 	if post.Type == model.PostTypeBurnOnRead {
+ 		// For the sender, populate ExpireAt from TemporaryPost when all recipients have revealed.
+@@ -278,8 +283,12 @@ func (a *App) preparePostForClient(rctx request.CTX, originalPost *model.Post, o
+ 	return post, filesPrepared
+ }
+ 
+-func (a *App) preparePostFilesForClient(rctx request.CTX, post *model.Post, opts *model.PreparePostForClientOpts) bool {
+-	fileInfos, _, err := a.getFileMetadataForPost(rctx, post, opts.IsNewPost || opts.IsEditPost, opts.IncludeDeleted)
++func (a *App) preparePostFilesForClient(rctx request.CTX, post *model.Post, opts *model.PreparePostForClientOpts, prepared *postPreparationData) bool {
++	var files map[string]preparedPostFile
++	if prepared != nil {
++		files = prepared.files
++	}
++	fileInfos, _, err := a.getFileMetadataForPost(rctx, post, opts.IsNewPost || opts.IsEditPost, opts.IncludeDeleted, files)
+ 	if err != nil {
+ 		rctx.Logger().Warn("Failed to get files for a post", mlog.String("post_id", post.Id), mlog.Err(err))
+ 		return false
+@@ -299,11 +308,11 @@ func (a *App) PreparePostForClientWithEmbedsAndImages(rctx request.CTX, original
+ 	return a.preparePostForClientWithEmbedsAndImages(rctx, originalPost, opts, nil)
+ }
+ 
+-func (a *App) preparePostForClientWithEmbedsAndImages(rctx request.CTX, originalPost *model.Post, opts *model.PreparePostForClientOpts, reactions map[string][]*model.Reaction) *model.Post {
+-	post, filesPrepared := a.preparePostForClient(rctx, originalPost, opts, reactions)
++func (a *App) preparePostForClientWithEmbedsAndImages(rctx request.CTX, originalPost *model.Post, opts *model.PreparePostForClientOpts, prepared *postPreparationData) *model.Post {
++	post, filesPrepared := a.preparePostForClient(rctx, originalPost, opts, prepared)
+ 	post = a.getEmbedsAndImages(rctx, post, opts.IsNewPost)
+ 	if !filesPrepared {
+-		a.preparePostFilesForClient(rctx, post, opts)
++		a.preparePostFilesForClient(rctx, post, opts, nil)
+ 	}
+ 	return post
+ }
+@@ -619,12 +628,12 @@ func (a *App) SanitizePostListMetadataForUser(rctx request.CTX, postList *model.
+ 	return clonedPostList, allPreviewsHaveMembership, nil
+ }
+ 
+-func (a *App) getFileMetadataForPost(rctx request.CTX, post *model.Post, fromMaster, includeDeleted bool) ([]*model.FileInfo, int64, *model.AppError) {
++func (a *App) getFileMetadataForPost(rctx request.CTX, post *model.Post, fromMaster, includeDeleted bool, prepared map[string]preparedPostFile) ([]*model.FileInfo, int64, *model.AppError) {
+ 	if len(post.FileIds) == 0 {
+ 		return nil, 0, nil
+ 	}
+ 
+-	return a.GetFileInfosForPost(rctx, post, fromMaster, includeDeleted)
++	return a.getFileInfosForPost(rctx, post, fromMaster, includeDeleted, prepared)
+ }
+ 
+ func (a *App) getEmojisAndReactionsForPost(rctx request.CTX, post *model.Post, prepared map[string][]*model.Reaction) ([]*model.Emoji, []*model.Reaction, *model.AppError) {
