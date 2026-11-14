@@ -34,7 +34,7 @@ baseline_sha = git('rev-parse', args.baseline).decode().strip()
 baseline = git('show', baseline_sha + ':server/channels/app/post_metadata.go')
 report = {
     'status': 'running',
-    'method': 'Real App.PreparePostListForClient over 60 stored posts with default priority/acknowledgement reads. Same benchmark in both variants; baseline restores only post_metadata.go with a Go overlay. Cases use short text, prose, formatting, punctuation and cached inline/reference images. Setup and image warming are outside the timer. Timed loops validate image counts and dimensions. Image cases reject any network fetch during timing. Three alternating-order paired processes by default.',
+    'method': 'Real App.PreparePostListForClient over 60 stored posts with default priority/acknowledgement reads. Same benchmark in both variants; baseline restores only post_metadata.go with a Go overlay. Cases use short text, prose, formatting, punctuation and cached inline/reference images. Setup and image warming are outside the timer. Timed loops validate image counts and dimensions. Image cases reject any network fetch during timing. Three alternating-order paired processes by default. Ordered PostLists include default priority and acknowledgement queries; returned order length is validated.',
     'baseline_workspace_sha': baseline_sha,
     'current_workspace_sha': git('rev-parse', 'HEAD').decode().strip(),
     'source_sha256': {'before': hashlib.sha256(baseline).hexdigest(), 'after': hashlib.sha256(source.read_bytes()).hexdigest(), 'benchmark_test': hashlib.sha256(test.read_bytes()).hexdigest()},

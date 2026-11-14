@@ -529,3 +529,8 @@ Adds encoded/escaped punctuation, code and image-reference regressions, plus
 paired real history-page benchmarks with punctuation and image controls.
 Existing patches and contributor credits remain unchanged.
 [Measured results](docs/benchmarks/markdown-image-scan/README.md).
+
+2026-11-14. Corrects the benchmark fixture to populate and validate history
+order, including priority and acknowledgement reads. The new timings supersede
+the earlier incomplete fixture. Production code and regression tests are
+unchanged.

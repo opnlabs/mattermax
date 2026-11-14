@@ -26,5 +26,11 @@
       "pass": 13
     },
     "private_log_sha256": "3f28ee7c02beafa43e3c553ff836256875d4b84dd0b990b0d39d239159566e27"
+  },
+  "benchmark_fixture_revision": {
+    "previous_source_sha": "d51a6a26a371",
+    "corrected_source_sha": "3a2084da74391f5b1cfb07e2767b3cd2ea47825d",
+    "production_and_regression_tests_unchanged": true,
+    "note": "Earlier race results remain scoped to their recorded source revision. This revision changes only the benchmark fixture; paired runs compile and validate the corrected ordered pages."
   }
 }

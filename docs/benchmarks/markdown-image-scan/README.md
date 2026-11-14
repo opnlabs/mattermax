@@ -11,6 +11,8 @@ contributor credits are preserved.
 
 ## Measurement
 
+Measurement correction: these runs populate and validate PostList.Order, so default priority and acknowledgement reads execute. They supersede the earlier fixtures, which omitted Order.
+
 The benchmark prepares real 60-post history pages with the default priority and
 acknowledgement reads. It includes short text, longer prose, formatting, ordinary
 exclamation marks and cached inline/reference images. Both variants use the
@@ -29,12 +31,12 @@ these medians:
 
 | Case | Before (ms) | After (ms) |
 | --- | ---: | ---: |
-| short | 0.126 | 0.079 |
-| prose | 4.557 | 2.480 |
-| formatting | 7.201 | 3.591 |
-| bang_control | 0.127 | 0.126 |
-| inline_image | 2.130 | 2.134 |
-| reference_image | 2.234 | 2.223 |
+| short | 0.798 | 0.684 |
+| prose | 7.239 | 3.847 |
+| formatting | 9.629 | 5.445 |
+| bang_control | 0.754 | 0.797 |
+| inline_image | 3.752 | 3.799 |
+| reference_image | 3.657 | 3.980 |
 
 Punctuation and image cases exercise the unchanged parser path. No speedup
 is claimed for those controls.

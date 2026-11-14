@@ -12,17 +12,17 @@ references, plus real history preparation benchmarks with image controls.
 
 Mattermax-Patch: markdown-image-scan.patch
 ---
- server/channels/app/post_image_scan_test.go | 108 ++++++++++++++++++++
+ server/channels/app/post_image_scan_test.go | 112 ++++++++++++++++++++
  server/channels/app/post_metadata.go        |   4 +
- 2 files changed, 112 insertions(+)
+ 2 files changed, 116 insertions(+)
  create mode 100644 server/channels/app/post_image_scan_test.go
 
 diff --git a/server/channels/app/post_image_scan_test.go b/server/channels/app/post_image_scan_test.go
 new file mode 100644
-index 000000000000..5cc8122149a5
+index 000000000000..fcccf80ea80a
 --- /dev/null
 +++ b/server/channels/app/post_image_scan_test.go
-@@ -0,0 +1,108 @@
+@@ -0,0 +1,112 @@
 +// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 +// See LICENSE.txt for license information.
 +
@@ -102,8 +102,12 @@ index 000000000000..5cc8122149a5
 +					b.Fatal(err)
 +				}
 +				list.AddPost(post)
++				list.AddOrder(post.Id)
 +			}
 +			check := func(result *model.PostList) {
++				if len(result.Order) != 60 {
++					b.Fatal("incorrect history order")
++				}
 +				for id := range list.Posts {
 +					post := result.Posts[id]
 +					if post == nil || post.Metadata == nil || len(post.Metadata.Images) != tc.images {
