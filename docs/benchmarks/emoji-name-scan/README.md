@@ -11,8 +11,10 @@ matches, order, duplicates and nil results. Text extraction from posts,
 attachments and interactive blocks, reaction names, sorting/deduplication,
 custom-emoji reads and cache behavior are unchanged.
 
-The baseline is the original 38-patch source at `c9dbbcc480b2`. The candidate is
-`f1cde2185ba8`. A Go overlay substitutes only the original production file for
+The baseline is the original 38-patch source at `c9dbbcc480b2`. The earlier
+helper/ordered/isolated studies used candidate `f1cde2185ba8`. Source
+`e04cefb93153` adds only the mixed benchmark file; production and existing tests
+are byte-identical to that earlier revision. A Go overlay substitutes only the original production file for
 baseline runs; both variants use the identical test/benchmark file. This is an
 independent contribution, without the other performance PRs. The runner checks
 the parent tree so replayed patch commits can have different IDs.
@@ -92,6 +94,48 @@ These are local synthetic workloads. Production data, latency tails, concurrency
 and complete HTTP throughput have not been measured. Standalone ratios do not
 describe the combined performance contribution stack.
 
+## Balanced mixed preparation loop
+
+The added benchmark keeps five stored 60-post pages alive: plain text, system
+emoji, custom emoji, dense emoji and malformed emoji text. It makes a balanced,
+deterministically shuffled sequence of preparations through the normal app
+path. All outputs are checked. It warms each page three times and explicitly
+collects the heap after fixture warming, before measurement. GOGC=100 and
+GOMAXPROCS=4 are fixed. There are five alternating before/after process pairs,
+with 1,000 preparations per process and 200 observations of each page type.
+
+Median total time per preparation changes from 5.153 to 4.787 ms
+(-7.1%). Every pair improves, ranging from
+-9.4% to -5.3%. Median allocations change from
+49,030 to 46,642, and bytes from 4,700,596 to 4,629,578.
+
+Overall ns/op includes output assertions. Per-page p50/p95 samples cover only
+the preparation call. Those small synthetic samples are diagnostic observations,
+not production latency percentiles or HTTP throughput measurements.
+
+GC CPU and pause counters include process background work around the loop.
+Their changes do not consistently track the preparation-time improvement:
+
+| Counter per preparation | Before median | After median | Paired change range |
+| --- | ---: | ---: | ---: |
+| GC cycles | 0.0560 | 0.0550 | -5.3% to +1.8% |
+| GC CPU (ms) | 1.6407 | 1.6241 | -4.3% to +1.7% |
+| GC pause (microseconds) | 2.9130 | 2.8360 | -10.3% to +8.9% |
+
+Dense-page p50 improves in every pair. Malformed-text p50 changes in both
+directions, so this is not evidence for a general malformed-page speedup.
+[mixed-results.json](mixed-results.json) preserves every sample, command and
+GC/heap/page metric. [mixed-summary.json](mixed-summary.json) includes every
+paired change, including slower page observations.
+
+Go's benchmark harness collects garbage before invoking each benchmark
+function, before that function creates and warms its fixtures. The original
+cases can therefore still enter timing with fixture/warming garbage present.
+This mixed loop collects again after warming, a separate measurement condition.
+Its favorable results do not establish that fixture garbage caused the earlier
+ordered-matrix regressions, which remain unresolved. The PR stays draft; actual
+HTTP request behavior is the next measurement gap.
+
 ## Behavior and validation
 
 The oracle test compares against the original regex, including exact order,
@@ -103,13 +147,18 @@ syntax changes will fail the equivalence test until the scanner is updated.
 History benchmarks assert ordered posts, messages and exact custom-emoji
 identity as well as metadata presence. Both variants pass these output checks.
 
-Selected app/API race suites passed 106 parent/subtest events without failures
-or skips, including fuzz seeds and existing metadata/emoji/history checks. All
-39 patches apply cleanly; the original 38 patch files and their authorship,
-including Karan Sharma (@mr-karan), remain byte-identical. Public backend build,
-enterprise tag/symbol exclusions and a fresh-database startup/ping/client-config
-smoke test passed. Its process, database and runtime directory were removed.
-[validation.json](validation.json) records commands, source hashes and scopes.
+At source `f1cde2185ba8`, selected app/API race suites passed 106 parent/subtest
+events without failures or skips, including fuzz seeds and existing
+metadata/emoji/history checks. Its public backend build, enterprise tag/symbol
+exclusions and fresh-database startup/ping/client-config smoke passed. Temporary
+resources were removed. These checks retain that tested revision.
+
+The current source adds only the mixed benchmark file, which passes a separate
+five-page race execution/output check. Production and existing test files are
+byte-identical. All 39 current patches apply cleanly; the original 38 patch
+files and their authorship, including Karan Sharma (@mr-karan), remain
+byte-identical. [validation.json](validation.json) records commands, source
+hashes and the historical/incremental validation scopes.
 
 ## Reproduce
 
@@ -123,7 +172,12 @@ python3 docs/benchmarks/emoji-name-scan/benchmark.py --output /tmp/emoji-scan-re
 python3 docs/benchmarks/emoji-name-scan/control.py --output /tmp/emoji-scan-control
 python3 docs/benchmarks/emoji-name-scan/isolated.py --case dense --output /tmp/emoji-scan-dense
 python3 docs/benchmarks/emoji-name-scan/isolated.py --case invalid --output /tmp/emoji-scan-invalid
+python3 docs/benchmarks/emoji-name-scan/mixed.py --output /tmp/emoji-scan-mixed
 ```
+
+Earlier result files retain their original runner hashes and source revision.
+For their exact historical workspace, use root commit `0ee5ad4c7d07`. The current
+runner also accepts the added mixed benchmark file.
 
 The runners check the baseline tree, use a temporary overlay and save all
 commands, raw log hashes and measurements. No source files are rewritten.

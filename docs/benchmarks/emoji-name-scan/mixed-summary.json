@@ -1,0 +1,285 @@
+{
+  "status": "passed",
+  "source_sha": "e04cefb93153592d153dbe030d23346cef83a7e7",
+  "trials": 5,
+  "iterations": 1000,
+  "scope": "Five equally weighted 60-post page types in a deterministic shuffled request sequence. Warm caches, priority reads enabled. GC collected after fixture warming, before timing. Overall ns/op includes output checks; per-page percentiles cover preparation calls only. GC CPU/pause counters include all process work during the loop. Synthetic local workload, not a production or HTTP throughput/tail-latency measurement.",
+  "metrics": {
+    "B/op": {
+      "before": 4700596.0,
+      "after": 4629578.0,
+      "median_change_percent": -1.5108296905328555,
+      "paired_changes_percent": [
+        -1.5084090533900807,
+        -1.50383057807989,
+        -1.5112269227438913,
+        -1.5038520184934345,
+        -1.5255269207254396
+      ]
+    },
+    "allocs/op": {
+      "before": 49030.0,
+      "after": 46642.0,
+      "median_change_percent": -4.870487456659189,
+      "paired_changes_percent": [
+        -4.870487456659189,
+        -4.8684478890475225,
+        -4.870487456659189,
+        -4.870487456659189,
+        -4.870487456659189
+      ]
+    },
+    "custom-p50-ns/page": {
+      "before": 1184816.0,
+      "after": 1158815.0,
+      "median_change_percent": -2.194517967346832,
+      "paired_changes_percent": [
+        -6.062882337848241,
+        -1.9881360527669423,
+        -7.322454979434134,
+        -3.635120272267822,
+        3.310958871328906
+      ]
+    },
+    "custom-p95-ns/page": {
+      "before": 1714579.0,
+      "after": 1653650.0,
+      "median_change_percent": -3.5535837077206756,
+      "paired_changes_percent": [
+        0.8450351833699354,
+        -6.116386952752473,
+        -4.000541943911118,
+        -5.459007721428987,
+        0.7556845882866092
+      ]
+    },
+    "custom-pages": {
+      "before": 200.0,
+      "after": 200.0,
+      "median_change_percent": 0.0,
+      "paired_changes_percent": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "dense-p50-ns/page": {
+      "before": 12405362.0,
+      "after": 11095445.0,
+      "median_change_percent": -10.559280736829768,
+      "paired_changes_percent": [
+        -12.436902052666598,
+        -10.828285749083866,
+        -13.900514540322062,
+        -10.750681842254984,
+        -8.470551215333256
+      ]
+    },
+    "dense-p95-ns/page": {
+      "before": 17327054.0,
+      "after": 14653735.0,
+      "median_change_percent": -15.428583531857177,
+      "paired_changes_percent": [
+        -14.491524449228931,
+        -17.202485777443755,
+        -15.49555990817667,
+        -6.927050845984151,
+        -17.80223063224208
+      ]
+    },
+    "dense-pages": {
+      "before": 200.0,
+      "after": 200.0,
+      "median_change_percent": 0.0,
+      "paired_changes_percent": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "final-heap-B": {
+      "before": 140626352.0,
+      "after": 170323184.0,
+      "median_change_percent": 21.117544171237547,
+      "paired_changes_percent": [
+        21.117544171237547,
+        -2.965703767526384,
+        24.8220738161262,
+        -5.755632984843295,
+        12.204138844687563
+      ]
+    },
+    "gc-cpu-ns/op": {
+      "before": 1640669.0,
+      "after": 1624148.0,
+      "median_change_percent": -1.0069672798108553,
+      "paired_changes_percent": [
+        -0.19964397132352651,
+        -1.805985521019715,
+        -4.304529893868381,
+        1.7471531430166554,
+        -2.6375812485287087
+      ]
+    },
+    "gc-pause-ns/op": {
+      "before": 2913.0,
+      "after": 2836.0,
+      "median_change_percent": -2.6433230346721626,
+      "paired_changes_percent": [
+        1.041666666666674,
+        3.6170990135184544,
+        -6.453827669069689,
+        8.924073407700606,
+        -10.276679841897229
+      ]
+    },
+    "gc/op": {
+      "before": 0.056,
+      "after": 0.055,
+      "median_change_percent": -1.7857142857142905,
+      "paired_changes_percent": [
+        -1.7857142857142905,
+        0.0,
+        -5.263157894736848,
+        1.81818181818183,
+        -3.57142857142857
+      ]
+    },
+    "initial-heap-B": {
+      "before": 104302344.0,
+      "after": 104337896.0,
+      "median_change_percent": 0.0340855235237969,
+      "paired_changes_percent": [
+        0.12109411462506436,
+        0.03461684970555989,
+        0.018222562369896167,
+        -0.11001331816756776,
+        0.14594755386698743
+      ]
+    },
+    "invalid-p50-ns/page": {
+      "before": 8877322.0,
+      "after": 8905143.0,
+      "median_change_percent": 0.31339406185784124,
+      "paired_changes_percent": [
+        -3.343653986522044,
+        -0.4710477106529165,
+        -4.507935844258282,
+        2.119918597072412,
+        5.440191836738051
+      ]
+    },
+    "invalid-p95-ns/page": {
+      "before": 15967040.0,
+      "after": 14682629.0,
+      "median_change_percent": -8.04413967773614,
+      "paired_changes_percent": [
+        -5.399581791058128,
+        -14.30888881095056,
+        -9.820830140303926,
+        4.351580139003963,
+        -3.101074936710202
+      ]
+    },
+    "invalid-pages": {
+      "before": 200.0,
+      "after": 200.0,
+      "median_change_percent": 0.0,
+      "paired_changes_percent": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "ns/op": {
+      "before": 5153439.0,
+      "after": 4787499.0,
+      "median_change_percent": -7.100889328465909,
+      "paired_changes_percent": [
+        -8.644732187574167,
+        -7.07722896102978,
+        -9.385274080108541,
+        -5.692427527792154,
+        -5.346486302669873
+      ]
+    },
+    "plain-p50-ns/page": {
+      "before": 912152.0,
+      "after": 869845.0,
+      "median_change_percent": -4.638152413194296,
+      "paired_changes_percent": [
+        -7.8697822043194865,
+        -1.9333866660657395,
+        -6.307390217394815,
+        -5.6829344232101615,
+        7.829472431808404
+      ]
+    },
+    "plain-p95-ns/page": {
+      "before": 1369487.0,
+      "after": 1321108.0,
+      "median_change_percent": -3.5326366734404924,
+      "paired_changes_percent": [
+        -5.708473058623175,
+        -5.4320488192674325,
+        -3.5326366734404924,
+        -6.2038092915219885,
+        -0.22177259831127616
+      ]
+    },
+    "plain-pages": {
+      "before": 200.0,
+      "after": 200.0,
+      "median_change_percent": 0.0,
+      "paired_changes_percent": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "system-p50-ns/page": {
+      "before": 1133879.0,
+      "after": 1087721.0,
+      "median_change_percent": -4.0708047331329045,
+      "paired_changes_percent": [
+        -9.530911146603827,
+        -0.5642493214780386,
+        -8.061475991804556,
+        -4.810853852211283,
+        0.39508224412558857
+      ]
+    },
+    "system-p95-ns/page": {
+      "before": 1662677.0,
+      "after": 1572819.0,
+      "median_change_percent": -5.404417093638747,
+      "paired_changes_percent": [
+        -1.7473178546715373,
+        -4.295816206279868,
+        -8.619052287365491,
+        -6.9315708198107835,
+        2.9395132946660407
+      ]
+    },
+    "system-pages": {
+      "before": 200.0,
+      "after": 200.0,
+      "median_change_percent": 0.0,
+      "paired_changes_percent": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    }
+  }
+}

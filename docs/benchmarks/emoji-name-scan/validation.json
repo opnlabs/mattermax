@@ -116,5 +116,31 @@
   "performance_readiness": {
     "status": "draft",
     "reason": "Ordered matrix latency regressions remain unexplained despite helper allocation savings and improvements in isolated heavy cases. Do not claim a general history latency or throughput improvement."
+  },
+  "incremental_mixed_benchmark": {
+    "status": "passed",
+    "previous_tested_source_sha": "f1cde2185ba8d6eec5bdd3139da45ca4d2ab4321",
+    "current_source_sha": "e04cefb93153592d153dbe030d23346cef83a7e7",
+    "source_tree_sha": "c6ebb370eff36de40272c30b4dc7a84d3b02a0fd",
+    "only_source_change": [
+      "server/channels/app/emoji_name_scan_mixed_test.go"
+    ],
+    "production_and_existing_tests_byte_identical": true,
+    "new_fixture_sha256": "25ac9266413aec7db8866019733a84e9e7c5e1cf98317dfff33ba3ceb60c719e",
+    "race_benchmark_smoke": {
+      "status": "passed",
+      "command": "go test -race ./channels/app -run ^$ -bench ^BenchmarkEmojiNameScanMixedHistory$ -benchtime=5x -count=1 -json",
+      "expected_cases": 1,
+      "expected_page_types": 5,
+      "pages_per_type": 1,
+      "log_sha256": "70f5e806478192638bc136d7b213949622ee3909cadc33938b6096bdb5a4621c"
+    },
+    "scope": "Prior 106 race pass events and backend build/startup retain their original revision. This increment adds only a benchmark file, checked under the race detector with exact case/type counters; production and existing test files are unchanged.",
+    "patch_check": {
+      "status": "passed",
+      "patches": 39,
+      "original_patch_files_verified_byte_identical": 38,
+      "log_sha256": "beab570c027102ef1d8f465f5ae4c7fddbaa4ffc1d552cde44f3454b15df802a"
+    }
   }
 }

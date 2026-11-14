@@ -7,11 +7,127 @@ Match the existing ASCII emoji syntax with a linear scan while preserving non-ov
 
 Mattermax-Patch: emoji-name-scan.patch
 ---
- server/channels/app/emoji_name_scan_test.go | 152 ++++++++++++++++++++
- server/channels/app/post_metadata.go        |  28 +++-
- 2 files changed, 174 insertions(+), 6 deletions(-)
+ .../app/emoji_name_scan_mixed_test.go         | 108 +++++++++++++
+ server/channels/app/emoji_name_scan_test.go   | 152 ++++++++++++++++++
+ server/channels/app/post_metadata.go          |  28 +++-
+ 3 files changed, 282 insertions(+), 6 deletions(-)
+ create mode 100644 server/channels/app/emoji_name_scan_mixed_test.go
  create mode 100644 server/channels/app/emoji_name_scan_test.go
 
+diff --git a/server/channels/app/emoji_name_scan_mixed_test.go b/server/channels/app/emoji_name_scan_mixed_test.go
+new file mode 100644
+index 000000000000..a484a35228e0
+--- /dev/null
++++ b/server/channels/app/emoji_name_scan_mixed_test.go
+@@ -0,0 +1,108 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++package app
++
++import (
++	"math/rand"
++	"reflect"
++	"runtime"
++	"runtime/metrics"
++	"sort"
++	"strings"
++	"testing"
++	"time"
++
++	"github.com/mattermost/mattermost/server/public/model"
++)
++
++// BenchmarkEmojiNameScanMixedHistory interleaves five stored, ordered pages in
++// a reproducibly shuffled, balanced sequence. GC counters include background work.
++func BenchmarkEmojiNameScanMixedHistory(b *testing.B) {
++	th := Setup(b).InitBasic(b)
++	th.App.UpdateConfig(func(c *model.Config) { *c.ServiceSettings.EnableLinkPreviews = false })
++	if !th.App.IsPostPriorityEnabled() || !*th.App.Config().ServiceSettings.EnableCustomEmoji {
++		b.Fatal("expected default priority/custom emoji settings")
++	}
++	emoji := th.CreateEmoji(b)
++	kinds := []string{"plain", "system", "custom", "dense", "invalid"}
++	messages := []string{"ordinary message", ":smile: hello :heart: :+1:", ":" + emoji.Name + ": hello :smile:", strings.Repeat(":"+emoji.Name+": :smile: ", 100), strings.Repeat(":_x! ", 100)}
++	pages := make([]*model.PostList, len(kinds))
++	check := func(kind int, got *model.PostList) {
++		b.Helper()
++		if len(got.Posts) != 60 || !reflect.DeepEqual(got.Order, pages[kind].Order) {
++			b.Fatal("incorrect page/order")
++		}
++		for _, id := range pages[kind].Order {
++			post := got.Posts[id]
++			if post == nil || post.Message != messages[kind] || post.Metadata == nil {
++				b.Fatal("incorrect post")
++			}
++			want := 0
++			if kinds[kind] == "custom" || kinds[kind] == "dense" {
++				want = 1
++			}
++			if len(post.Metadata.Emojis) != want {
++				b.Fatal("incorrect emoji metadata")
++			}
++			if want == 1 && post.Metadata.Emojis[0].Id != emoji.Id {
++				b.Fatal("incorrect emoji identity")
++			}
++		}
++	}
++	for kind, message := range messages {
++		pages[kind] = model.NewPostList()
++		for range 60 {
++			post, err := th.App.Srv().Store().Post().Save(th.Context, &model.Post{ChannelId: th.BasicChannel.Id, UserId: th.BasicUser.Id, Message: message})
++			if err != nil {
++				b.Fatal(err)
++			}
++			pages[kind].AddPost(post)
++			pages[kind].AddOrder(post.Id)
++		}
++		for range 3 {
++			check(kind, th.App.PreparePostListForClient(th.Context, pages[kind]))
++		}
++	}
++	order := make([]int, b.N)
++	durations := make([][]int64, len(kinds))
++	for i := range order {
++		order[i] = i % len(kinds)
++	}
++	rand.New(rand.NewSource(42)).Shuffle(len(order), func(i, j int) { order[i], order[j] = order[j], order[i] })
++	for i := range durations {
++		durations[i] = make([]int64, 0, (b.N+len(kinds)-1)/len(kinds))
++	}
++	// Collect after warming. This is a measurement condition, not an app GC policy.
++	runtime.GC()
++	var before, after runtime.MemStats
++	gcCPU := []metrics.Sample{{Name: "/cpu/classes/gc/total:cpu-seconds"}}
++	runtime.ReadMemStats(&before)
++	metrics.Read(gcCPU)
++	cpuBefore := gcCPU[0].Value.Float64()
++	b.ReportAllocs()
++	b.ResetTimer()
++	for _, kind := range order {
++		start := time.Now()
++		result := th.App.PreparePostListForClient(th.Context, pages[kind])
++		durations[kind] = append(durations[kind], time.Since(start).Nanoseconds())
++		check(kind, result)
++	}
++	b.StopTimer()
++	runtime.ReadMemStats(&after)
++	metrics.Read(gcCPU)
++	b.ReportMetric(float64(after.NumGC-before.NumGC)/float64(b.N), "gc/op")
++	b.ReportMetric(float64(after.PauseTotalNs-before.PauseTotalNs)/float64(b.N), "gc-pause-ns/op")
++	b.ReportMetric((gcCPU[0].Value.Float64()-cpuBefore)*1e9/float64(b.N), "gc-cpu-ns/op")
++	b.ReportMetric(float64(before.HeapAlloc), "initial-heap-B")
++	b.ReportMetric(float64(after.HeapAlloc), "final-heap-B")
++	for i, values := range durations {
++		if len(values) == 0 {
++			continue
++		}
++		sort.Slice(values, func(i, j int) bool { return values[i] < values[j] })
++		b.ReportMetric(float64(values[(len(values)-1)/2]), kinds[i]+"-p50-ns/page")
++		b.ReportMetric(float64(values[(len(values)-1)*95/100]), kinds[i]+"-p95-ns/page")
++		b.ReportMetric(float64(len(values)), kinds[i]+"-pages")
++	}
++}
 diff --git a/server/channels/app/emoji_name_scan_test.go b/server/channels/app/emoji_name_scan_test.go
 new file mode 100644
 index 000000000000..40eccf1f7bdb

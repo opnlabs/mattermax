@@ -527,5 +527,6 @@ regular-expression matches in `getEmojiNamesForString`. Preserve the existing
 `:[a-zA-Z0-9_+-]+:` syntax, non-overlapping matches, order, duplicates and nil
 results. Post text extraction, reaction names, custom-emoji reads and API
 metadata remain unchanged. Includes regex-oracle equivalence and fuzz checks,
-plus helper and ordered history benchmarks. No schema, settings, dependency or
-enterprise changes.
+plus helper, ordered history and balanced mixed-request benchmarks. The mixed
+benchmark records GC work and per-page preparation timings. No schema, settings,
+dependency or enterprise changes.

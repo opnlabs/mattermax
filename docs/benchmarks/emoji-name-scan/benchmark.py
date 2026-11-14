@@ -29,9 +29,11 @@ baseline_sha = git('rev-parse', 'HEAD^').decode().strip()
 assert git('rev-parse', 'HEAD^^{tree}').decode().strip() == 'a2da7f25de10aadbb8974f5f6191aa082ec6e6e6'
 baseline = git('show', baseline_sha + ':server/channels/app/post_metadata.go')
 assert git('diff', '--name-only', baseline_sha, 'HEAD').decode().splitlines() == [
+    'server/channels/app/emoji_name_scan_mixed_test.go',
     'server/channels/app/emoji_name_scan_test.go', 'server/channels/app/post_metadata.go']
 assert production.read_bytes() == git('show', 'HEAD:server/channels/app/post_metadata.go')
 assert test.read_bytes() == git('show', 'HEAD:server/channels/app/emoji_name_scan_test.go')
+assert (src / 'channels/app/emoji_name_scan_mixed_test.go').read_bytes() == git('show', 'HEAD:server/channels/app/emoji_name_scan_mixed_test.go')
 env = os.environ.copy()
 env.update(TZ='UTC', GOMAXPROCS='4')
 result = {'status': 'running', 'source_sha': sha,
