@@ -1,0 +1,590 @@
+{
+  "status": "passed",
+  "scope": "Follow-up isolates each response mode into its own process; 1,000 followed threads, priority enabled, serial App calls, eight-connection pool, 1000 fixed iterations and three alternating pairs per mode. No earlier mode executes in the same process.",
+  "source_sha": "0805fa28ef7d033ed4c5f9172eb12b8faf12c31d",
+  "rows": [
+    {
+      "mode": "threads_only",
+      "before": {
+        "ns_per_op": {
+          "median": 6626779.0,
+          "min": 6334082.0,
+          "max": 6645730.0
+        },
+        "bytes_per_op": {
+          "median": 115398,
+          "min": 115395,
+          "max": 115408
+        },
+        "allocs_per_op": {
+          "median": 1974,
+          "min": 1973,
+          "max": 1974
+        }
+      },
+      "after": {
+        "ns_per_op": {
+          "median": 6311404.0,
+          "min": 6034204.0,
+          "max": 6653049.0
+        },
+        "bytes_per_op": {
+          "median": 115410,
+          "min": 115400,
+          "max": 115410
+        },
+        "allocs_per_op": {
+          "median": 1974,
+          "min": 1974,
+          "max": 1974
+        }
+      }
+    },
+    {
+      "mode": "totals",
+      "before": {
+        "ns_per_op": {
+          "median": 4036405.0,
+          "min": 3888914.0,
+          "max": 4124304.0
+        },
+        "bytes_per_op": {
+          "median": 62997,
+          "min": 62994,
+          "max": 63006
+        },
+        "allocs_per_op": {
+          "median": 825,
+          "min": 825,
+          "max": 825
+        }
+      },
+      "after": {
+        "ns_per_op": {
+          "median": 3745213.0,
+          "min": 3288246.0,
+          "max": 3748244.0
+        },
+        "bytes_per_op": {
+          "median": 21523,
+          "min": 21521,
+          "max": 21525
+        },
+        "allocs_per_op": {
+          "median": 251,
+          "min": 251,
+          "max": 251
+        }
+      }
+    },
+    {
+      "mode": "page",
+      "before": {
+        "ns_per_op": {
+          "median": 7522236.0,
+          "min": 7510792.0,
+          "max": 7575326.0
+        },
+        "bytes_per_op": {
+          "median": 178273,
+          "min": 178267,
+          "max": 178284
+        },
+        "allocs_per_op": {
+          "median": 2797,
+          "min": 2797,
+          "max": 2798
+        }
+      },
+      "after": {
+        "ns_per_op": {
+          "median": 7199269.0,
+          "min": 7195875.0,
+          "max": 7219987.0
+        },
+        "bytes_per_op": {
+          "median": 136810,
+          "min": 136797,
+          "max": 136815
+        },
+        "allocs_per_op": {
+          "median": 2223,
+          "min": 2223,
+          "max": 2223
+        }
+      }
+    }
+  ],
+  "samples": [
+    {
+      "mode": "threads_only",
+      "trial": 0,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/threads_only/serial",
+      "iterations": 1000,
+      "ns_per_op": 6645730.0,
+      "bytes_per_op": 115395,
+      "allocs_per_op": 1973
+    },
+    {
+      "mode": "threads_only",
+      "trial": 0,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/threads_only/serial",
+      "iterations": 1000,
+      "ns_per_op": 6653049.0,
+      "bytes_per_op": 115410,
+      "allocs_per_op": 1974
+    },
+    {
+      "mode": "threads_only",
+      "trial": 1,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/threads_only/serial",
+      "iterations": 1000,
+      "ns_per_op": 6034204.0,
+      "bytes_per_op": 115400,
+      "allocs_per_op": 1974
+    },
+    {
+      "mode": "threads_only",
+      "trial": 1,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/threads_only/serial",
+      "iterations": 1000,
+      "ns_per_op": 6334082.0,
+      "bytes_per_op": 115398,
+      "allocs_per_op": 1974
+    },
+    {
+      "mode": "threads_only",
+      "trial": 2,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/threads_only/serial",
+      "iterations": 1000,
+      "ns_per_op": 6626779.0,
+      "bytes_per_op": 115408,
+      "allocs_per_op": 1974
+    },
+    {
+      "mode": "threads_only",
+      "trial": 2,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/threads_only/serial",
+      "iterations": 1000,
+      "ns_per_op": 6311404.0,
+      "bytes_per_op": 115410,
+      "allocs_per_op": 1974
+    },
+    {
+      "mode": "totals",
+      "trial": 0,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/totals/serial",
+      "iterations": 1000,
+      "ns_per_op": 3888914.0,
+      "bytes_per_op": 62997,
+      "allocs_per_op": 825
+    },
+    {
+      "mode": "totals",
+      "trial": 0,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/totals/serial",
+      "iterations": 1000,
+      "ns_per_op": 3288246.0,
+      "bytes_per_op": 21525,
+      "allocs_per_op": 251
+    },
+    {
+      "mode": "totals",
+      "trial": 1,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/totals/serial",
+      "iterations": 1000,
+      "ns_per_op": 3745213.0,
+      "bytes_per_op": 21523,
+      "allocs_per_op": 251
+    },
+    {
+      "mode": "totals",
+      "trial": 1,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/totals/serial",
+      "iterations": 1000,
+      "ns_per_op": 4036405.0,
+      "bytes_per_op": 62994,
+      "allocs_per_op": 825
+    },
+    {
+      "mode": "totals",
+      "trial": 2,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/totals/serial",
+      "iterations": 1000,
+      "ns_per_op": 4124304.0,
+      "bytes_per_op": 63006,
+      "allocs_per_op": 825
+    },
+    {
+      "mode": "totals",
+      "trial": 2,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/totals/serial",
+      "iterations": 1000,
+      "ns_per_op": 3748244.0,
+      "bytes_per_op": 21521,
+      "allocs_per_op": 251
+    },
+    {
+      "mode": "page",
+      "trial": 0,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/page/serial",
+      "iterations": 1000,
+      "ns_per_op": 7510792.0,
+      "bytes_per_op": 178267,
+      "allocs_per_op": 2797
+    },
+    {
+      "mode": "page",
+      "trial": 0,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/page/serial",
+      "iterations": 1000,
+      "ns_per_op": 7195875.0,
+      "bytes_per_op": 136815,
+      "allocs_per_op": 2223
+    },
+    {
+      "mode": "page",
+      "trial": 1,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/page/serial",
+      "iterations": 1000,
+      "ns_per_op": 7199269.0,
+      "bytes_per_op": 136810,
+      "allocs_per_op": 2223
+    },
+    {
+      "mode": "page",
+      "trial": 1,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/page/serial",
+      "iterations": 1000,
+      "ns_per_op": 7522236.0,
+      "bytes_per_op": 178273,
+      "allocs_per_op": 2797
+    },
+    {
+      "mode": "page",
+      "trial": 2,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/page/serial",
+      "iterations": 1000,
+      "ns_per_op": 7575326.0,
+      "bytes_per_op": 178284,
+      "allocs_per_op": 2798
+    },
+    {
+      "mode": "page",
+      "trial": 2,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/page/serial",
+      "iterations": 1000,
+      "ns_per_op": 7219987.0,
+      "bytes_per_op": 136797,
+      "allocs_per_op": 2223
+    }
+  ],
+  "commands": [
+    {
+      "command": [
+        "go",
+        "test",
+        "./channels/app",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkUserThreadCountsHistory$/^priority=true$/^threads=1000$/^threads_only$/^serial$",
+        "-benchtime=1000x",
+        "-count=1",
+        "-timeout=5m",
+        "-overlay",
+        "/home/rhnvrm/.bb/thread-storage/thr_jynvcygccx/user-thread-counts-baseline-overlay.json"
+      ],
+      "log_sha256": "38719d720362cc750245835efbb2a4fe081b02417332b39802cd191308983b8f"
+    },
+    {
+      "command": [
+        "go",
+        "test",
+        "./channels/app",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkUserThreadCountsHistory$/^priority=true$/^threads=1000$/^threads_only$/^serial$",
+        "-benchtime=1000x",
+        "-count=1",
+        "-timeout=5m"
+      ],
+      "log_sha256": "41faffdd9daa40a89c9ba4f542ce38fc04cdad1e7b3ce16e767fd4ef82d24066"
+    },
+    {
+      "command": [
+        "go",
+        "test",
+        "./channels/app",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkUserThreadCountsHistory$/^priority=true$/^threads=1000$/^threads_only$/^serial$",
+        "-benchtime=1000x",
+        "-count=1",
+        "-timeout=5m"
+      ],
+      "log_sha256": "57a4baa8eda76d28ee618a95d6258b78b0a0efb4c53941f95da883868ac97fac"
+    },
+    {
+      "command": [
+        "go",
+        "test",
+        "./channels/app",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkUserThreadCountsHistory$/^priority=true$/^threads=1000$/^threads_only$/^serial$",
+        "-benchtime=1000x",
+        "-count=1",
+        "-timeout=5m",
+        "-overlay",
+        "/home/rhnvrm/.bb/thread-storage/thr_jynvcygccx/user-thread-counts-baseline-overlay.json"
+      ],
+      "log_sha256": "aa36df7315e4f53597a857f7df26fbf5f3514170cdfeacc0e8514d5254bcc326"
+    },
+    {
+      "command": [
+        "go",
+        "test",
+        "./channels/app",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkUserThreadCountsHistory$/^priority=true$/^threads=1000$/^threads_only$/^serial$",
+        "-benchtime=1000x",
+        "-count=1",
+        "-timeout=5m",
+        "-overlay",
+        "/home/rhnvrm/.bb/thread-storage/thr_jynvcygccx/user-thread-counts-baseline-overlay.json"
+      ],
+      "log_sha256": "22c286dbf3ff7237f937b977f3d237de1dd8afaccff96fc4cf23088d61912106"
+    },
+    {
+      "command": [
+        "go",
+        "test",
+        "./channels/app",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkUserThreadCountsHistory$/^priority=true$/^threads=1000$/^threads_only$/^serial$",
+        "-benchtime=1000x",
+        "-count=1",
+        "-timeout=5m"
+      ],
+      "log_sha256": "12b06ab131035443957e9c83b90be949ddedcf03b999ee339e8d6c9783ede064"
+    },
+    {
+      "command": [
+        "go",
+        "test",
+        "./channels/app",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkUserThreadCountsHistory$/^priority=true$/^threads=1000$/^totals$/^serial$",
+        "-benchtime=1000x",
+        "-count=1",
+        "-timeout=5m",
+        "-overlay",
+        "/home/rhnvrm/.bb/thread-storage/thr_jynvcygccx/user-thread-counts-baseline-overlay.json"
+      ],
+      "log_sha256": "4e2d307b746f39c582600353c51108a392464205aa547cb1a24f88a33c94681c"
+    },
+    {
+      "command": [
+        "go",
+        "test",
+        "./channels/app",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkUserThreadCountsHistory$/^priority=true$/^threads=1000$/^totals$/^serial$",
+        "-benchtime=1000x",
+        "-count=1",
+        "-timeout=5m"
+      ],
+      "log_sha256": "3366716d51f014d043ee43c68c55805c7fd4c397bf4b5ddf9df8e05ead1d0e74"
+    },
+    {
+      "command": [
+        "go",
+        "test",
+        "./channels/app",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkUserThreadCountsHistory$/^priority=true$/^threads=1000$/^totals$/^serial$",
+        "-benchtime=1000x",
+        "-count=1",
+        "-timeout=5m"
+      ],
+      "log_sha256": "0f8ed4586cb3087d436a9e1d307c619cc8cb4e47dc0b31b259e50834d80fddad"
+    },
+    {
+      "command": [
+        "go",
+        "test",
+        "./channels/app",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkUserThreadCountsHistory$/^priority=true$/^threads=1000$/^totals$/^serial$",
+        "-benchtime=1000x",
+        "-count=1",
+        "-timeout=5m",
+        "-overlay",
+        "/home/rhnvrm/.bb/thread-storage/thr_jynvcygccx/user-thread-counts-baseline-overlay.json"
+      ],
+      "log_sha256": "d19b01bc8527926c6d3e1d61b102baa236e8979b22df607fee9b8c0a4105ff0c"
+    },
+    {
+      "command": [
+        "go",
+        "test",
+        "./channels/app",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkUserThreadCountsHistory$/^priority=true$/^threads=1000$/^totals$/^serial$",
+        "-benchtime=1000x",
+        "-count=1",
+        "-timeout=5m",
+        "-overlay",
+        "/home/rhnvrm/.bb/thread-storage/thr_jynvcygccx/user-thread-counts-baseline-overlay.json"
+      ],
+      "log_sha256": "c5617371791a376924de5cfb2379fa527c4f4b34e54dcdc3cea19e77e37b2b81"
+    },
+    {
+      "command": [
+        "go",
+        "test",
+        "./channels/app",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkUserThreadCountsHistory$/^priority=true$/^threads=1000$/^totals$/^serial$",
+        "-benchtime=1000x",
+        "-count=1",
+        "-timeout=5m"
+      ],
+      "log_sha256": "49f43ee5011778c3dc89dc6af382b127a3333549f296973587e987ccf7761913"
+    },
+    {
+      "command": [
+        "go",
+        "test",
+        "./channels/app",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkUserThreadCountsHistory$/^priority=true$/^threads=1000$/^page$/^serial$",
+        "-benchtime=1000x",
+        "-count=1",
+        "-timeout=5m",
+        "-overlay",
+        "/home/rhnvrm/.bb/thread-storage/thr_jynvcygccx/user-thread-counts-baseline-overlay.json"
+      ],
+      "log_sha256": "f6ebe4adaa09fecf0483343a91952e18a25971b9cfa3c5d0d52fbe7c5d44879b"
+    },
+    {
+      "command": [
+        "go",
+        "test",
+        "./channels/app",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkUserThreadCountsHistory$/^priority=true$/^threads=1000$/^page$/^serial$",
+        "-benchtime=1000x",
+        "-count=1",
+        "-timeout=5m"
+      ],
+      "log_sha256": "cd9ecd105b9424b7b0f9e5802abc2c3065014e9c4572c201931fd31f50014875"
+    },
+    {
+      "command": [
+        "go",
+        "test",
+        "./channels/app",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkUserThreadCountsHistory$/^priority=true$/^threads=1000$/^page$/^serial$",
+        "-benchtime=1000x",
+        "-count=1",
+        "-timeout=5m"
+      ],
+      "log_sha256": "38baa57add6c88bdd14815e7e6cdb6ba4923baa2c733aedf884c5f267c14336f"
+    },
+    {
+      "command": [
+        "go",
+        "test",
+        "./channels/app",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkUserThreadCountsHistory$/^priority=true$/^threads=1000$/^page$/^serial$",
+        "-benchtime=1000x",
+        "-count=1",
+        "-timeout=5m",
+        "-overlay",
+        "/home/rhnvrm/.bb/thread-storage/thr_jynvcygccx/user-thread-counts-baseline-overlay.json"
+      ],
+      "log_sha256": "6daf2b3e8e471fa216185efd358f4a009f82f71d8a69f5d71f0aadcac6babde2"
+    },
+    {
+      "command": [
+        "go",
+        "test",
+        "./channels/app",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkUserThreadCountsHistory$/^priority=true$/^threads=1000$/^page$/^serial$",
+        "-benchtime=1000x",
+        "-count=1",
+        "-timeout=5m",
+        "-overlay",
+        "/home/rhnvrm/.bb/thread-storage/thr_jynvcygccx/user-thread-counts-baseline-overlay.json"
+      ],
+      "log_sha256": "5626dca4dfce0231caaf2cc5e1c5ca8f200220d66d4186d406dd0210881ee312"
+    },
+    {
+      "command": [
+        "go",
+        "test",
+        "./channels/app",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkUserThreadCountsHistory$/^priority=true$/^threads=1000$/^page$/^serial$",
+        "-benchtime=1000x",
+        "-count=1",
+        "-timeout=5m"
+      ],
+      "log_sha256": "d2324f41c38a372b1f5293a35989cfcd985dbef7f198569018a7b36507e33931"
+    }
+  ]
+}

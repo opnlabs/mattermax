@@ -1,0 +1,2324 @@
+{
+  "scope": "Independent contribution over the original 38-patch baseline. Baseline restores only the old App dispatch path; the added internal store method remains compiled but unused by that path. Identical fixtures and other production code; alternating-order process pairs and fixed iteration counts.",
+  "source_workspace_sha": "0805fa28ef7d033ed4c5f9172eb12b8faf12c31d",
+  "source_tree_sha": "b207598ac219bc86242b9171e6920c98e6ff1c07",
+  "baseline_source_sha": "c9dbbcc480b242f7349cb7f4e9dcb6ea35cf6404",
+  "production_file": "server/channels/app/user.go",
+  "before_sha256": "c6ed932b00dd8439b627f3416d6989cee79c061ee046ecf556af32644ad99a53",
+  "after_sha256": "022eded2703c11f30f054d9eafb20acc8403a5339f836300372be663f051dde6",
+  "go_version": "go version go1.26.10 linux/amd64",
+  "platform": "Linux-6.18.55-cachyos-x86_64-with-glibc2.44",
+  "GOMAXPROCS": "4",
+  "database_pool": {
+    "max_open": 8,
+    "max_idle": 8,
+    "one_pool_for_reads_and_writes": true
+  },
+  "parallel_workers": "GOMAXPROCS, testing.B.RunParallel default parallelism",
+  "trials": 3,
+  "iterations": 1000,
+  "rows": [
+    {
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=0/page/serial",
+      "before": {
+        "ns/op": {
+          "median": 1153125.0,
+          "min": 1144640.0,
+          "max": 1204261.0
+        },
+        "B/op": {
+          "median": 85120,
+          "min": 85119,
+          "max": 85137
+        },
+        "allocs/op": {
+          "median": 985,
+          "min": 985,
+          "max": 986
+        }
+      },
+      "after": {
+        "ns/op": {
+          "median": 1118425.0,
+          "min": 955533.0,
+          "max": 1155368.0
+        },
+        "B/op": {
+          "median": 58670,
+          "min": 58661,
+          "max": 58673
+        },
+        "allocs/op": {
+          "median": 613,
+          "min": 613,
+          "max": 613
+        }
+      }
+    },
+    {
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=0/threads_only/serial",
+      "before": {
+        "ns/op": {
+          "median": 1091994.0,
+          "min": 973260.0,
+          "max": 1247402.0
+        },
+        "B/op": {
+          "median": 40013,
+          "min": 40011,
+          "max": 40021
+        },
+        "allocs/op": {
+          "median": 383,
+          "min": 383,
+          "max": 383
+        }
+      },
+      "after": {
+        "ns/op": {
+          "median": 768627.0,
+          "min": 739708.0,
+          "max": 905826.0
+        },
+        "B/op": {
+          "median": 40014,
+          "min": 40012,
+          "max": 40017
+        },
+        "allocs/op": {
+          "median": 383,
+          "min": 383,
+          "max": 383
+        }
+      }
+    },
+    {
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=0/totals/serial",
+      "before": {
+        "ns/op": {
+          "median": 616715.0,
+          "min": 607426.0,
+          "max": 831287.0
+        },
+        "B/op": {
+          "median": 45200,
+          "min": 45199,
+          "max": 45204
+        },
+        "allocs/op": {
+          "median": 604,
+          "min": 604,
+          "max": 604
+        }
+      },
+      "after": {
+        "ns/op": {
+          "median": 500951.0,
+          "min": 393506.0,
+          "max": 620536.0
+        },
+        "B/op": {
+          "median": 18750,
+          "min": 18745,
+          "max": 18754
+        },
+        "allocs/op": {
+          "median": 231,
+          "min": 231,
+          "max": 231
+        }
+      }
+    },
+    {
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=10/page/serial",
+      "before": {
+        "ns/op": {
+          "median": 1391656.0,
+          "min": 1389348.0,
+          "max": 1734866.0
+        },
+        "B/op": {
+          "median": 109287,
+          "min": 109285,
+          "max": 109314
+        },
+        "allocs/op": {
+          "median": 1506,
+          "min": 1506,
+          "max": 1506
+        }
+      },
+      "after": {
+        "ns/op": {
+          "median": 1375411.0,
+          "min": 1374071.0,
+          "max": 1575067.0
+        },
+        "B/op": {
+          "median": 82839,
+          "min": 82833,
+          "max": 82857
+        },
+        "allocs/op": {
+          "median": 1133,
+          "min": 1133,
+          "max": 1133
+        }
+      }
+    },
+    {
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=10/threads_only/serial",
+      "before": {
+        "ns/op": {
+          "median": 1322764.0,
+          "min": 1315272.0,
+          "max": 1515898.0
+        },
+        "B/op": {
+          "median": 64214,
+          "min": 64214,
+          "max": 64236
+        },
+        "allocs/op": {
+          "median": 903,
+          "min": 903,
+          "max": 903
+        }
+      },
+      "after": {
+        "ns/op": {
+          "median": 1155756.0,
+          "min": 877544.0,
+          "max": 1203219.0
+        },
+        "B/op": {
+          "median": 64219,
+          "min": 64193,
+          "max": 64232
+        },
+        "allocs/op": {
+          "median": 903,
+          "min": 903,
+          "max": 903
+        }
+      }
+    },
+    {
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=10/totals/serial",
+      "before": {
+        "ns/op": {
+          "median": 662785.0,
+          "min": 660040.0,
+          "max": 1014316.0
+        },
+        "B/op": {
+          "median": 45206,
+          "min": 45205,
+          "max": 45209
+        },
+        "allocs/op": {
+          "median": 604,
+          "min": 604,
+          "max": 604
+        }
+      },
+      "after": {
+        "ns/op": {
+          "median": 627733.0,
+          "min": 575790.0,
+          "max": 656921.0
+        },
+        "B/op": {
+          "median": 18746,
+          "min": 18745,
+          "max": 18748
+        },
+        "allocs/op": {
+          "median": 231,
+          "min": 231,
+          "max": 231
+        }
+      }
+    },
+    {
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=1000/page/parallel",
+      "before": {
+        "ns/op": {
+          "median": 3802913.0,
+          "min": 2031170.0,
+          "max": 3861581.0
+        },
+        "B/op": {
+          "median": 157141,
+          "min": 157133,
+          "max": 157143
+        },
+        "allocs/op": {
+          "median": 2530,
+          "min": 2530,
+          "max": 2530
+        }
+      },
+      "after": {
+        "ns/op": {
+          "median": 1616036.0,
+          "min": 1590497.0,
+          "max": 2835199.0
+        },
+        "B/op": {
+          "median": 130322,
+          "min": 130320,
+          "max": 130328
+        },
+        "allocs/op": {
+          "median": 2149,
+          "min": 2149,
+          "max": 2149
+        }
+      }
+    },
+    {
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=1000/page/serial",
+      "before": {
+        "ns/op": {
+          "median": 6174863.0,
+          "min": 6136419.0,
+          "max": 7288570.0
+        },
+        "B/op": {
+          "median": 156539,
+          "min": 156538,
+          "max": 156543
+        },
+        "allocs/op": {
+          "median": 2521,
+          "min": 2521,
+          "max": 2521
+        }
+      },
+      "after": {
+        "ns/op": {
+          "median": 5982920.0,
+          "min": 5819915.0,
+          "max": 6397779.0
+        },
+        "B/op": {
+          "median": 130086,
+          "min": 130082,
+          "max": 130092
+        },
+        "allocs/op": {
+          "median": 2148,
+          "min": 2148,
+          "max": 2148
+        }
+      }
+    },
+    {
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=1000/threads_only/parallel",
+      "before": {
+        "ns/op": {
+          "median": 2220248.0,
+          "min": 1557467.0,
+          "max": 2400365.0
+        },
+        "B/op": {
+          "median": 111446,
+          "min": 111446,
+          "max": 111448
+        },
+        "allocs/op": {
+          "median": 1916,
+          "min": 1916,
+          "max": 1916
+        }
+      },
+      "after": {
+        "ns/op": {
+          "median": 1542310.0,
+          "min": 1485605.0,
+          "max": 2264551.0
+        },
+        "B/op": {
+          "median": 111448,
+          "min": 111445,
+          "max": 111449
+        },
+        "allocs/op": {
+          "median": 1916,
+          "min": 1916,
+          "max": 1916
+        }
+      }
+    },
+    {
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=1000/threads_only/serial",
+      "before": {
+        "ns/op": {
+          "median": 5370873.0,
+          "min": 5046747.0,
+          "max": 5767144.0
+        },
+        "B/op": {
+          "median": 111439,
+          "min": 111439,
+          "max": 111440
+        },
+        "allocs/op": {
+          "median": 1916,
+          "min": 1915,
+          "max": 1916
+        }
+      },
+      "after": {
+        "ns/op": {
+          "median": 5123072.0,
+          "min": 4280405.0,
+          "max": 5651750.0
+        },
+        "B/op": {
+          "median": 111438,
+          "min": 111434,
+          "max": 111438
+        },
+        "allocs/op": {
+          "median": 1916,
+          "min": 1915,
+          "max": 1916
+        }
+      }
+    },
+    {
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=1000/totals/parallel",
+      "before": {
+        "ns/op": {
+          "median": 1890110.0,
+          "min": 1129039.0,
+          "max": 1981788.0
+        },
+        "B/op": {
+          "median": 45589,
+          "min": 45582,
+          "max": 45591
+        },
+        "allocs/op": {
+          "median": 614,
+          "min": 614,
+          "max": 614
+        }
+      },
+      "after": {
+        "ns/op": {
+          "median": 720215.0,
+          "min": 701127.0,
+          "max": 1033903.0
+        },
+        "B/op": {
+          "median": 18779,
+          "min": 18778,
+          "max": 18780
+        },
+        "allocs/op": {
+          "median": 234,
+          "min": 234,
+          "max": 234
+        }
+      }
+    },
+    {
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=1000/totals/serial",
+      "before": {
+        "ns/op": {
+          "median": 3740814.0,
+          "min": 2984894.0,
+          "max": 4058941.0
+        },
+        "B/op": {
+          "median": 45231,
+          "min": 45224,
+          "max": 45231
+        },
+        "allocs/op": {
+          "median": 607,
+          "min": 607,
+          "max": 607
+        }
+      },
+      "after": {
+        "ns/op": {
+          "median": 2042243.0,
+          "min": 1908680.0,
+          "max": 2761418.0
+        },
+        "B/op": {
+          "median": 18776,
+          "min": 18776,
+          "max": 18779
+        },
+        "allocs/op": {
+          "median": 234,
+          "min": 234,
+          "max": 234
+        }
+      }
+    },
+    {
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=0/page/serial",
+      "before": {
+        "ns/op": {
+          "median": 1514318.0,
+          "min": 1363639.0,
+          "max": 1632930.0
+        },
+        "B/op": {
+          "median": 106810,
+          "min": 106807,
+          "max": 106816
+        },
+        "allocs/op": {
+          "median": 1261,
+          "min": 1261,
+          "max": 1261
+        }
+      },
+      "after": {
+        "ns/op": {
+          "median": 1333267.0,
+          "min": 1324606.0,
+          "max": 1349638.0
+        },
+        "B/op": {
+          "median": 65354,
+          "min": 65354,
+          "max": 65355
+        },
+        "allocs/op": {
+          "median": 687,
+          "min": 687,
+          "max": 687
+        }
+      }
+    },
+    {
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=0/threads_only/serial",
+      "before": {
+        "ns/op": {
+          "median": 1400243.0,
+          "min": 1295930.0,
+          "max": 1410866.0
+        },
+        "B/op": {
+          "median": 43975,
+          "min": 43975,
+          "max": 43981
+        },
+        "allocs/op": {
+          "median": 441,
+          "min": 441,
+          "max": 441
+        }
+      },
+      "after": {
+        "ns/op": {
+          "median": 892624.0,
+          "min": 870249.0,
+          "max": 975962.0
+        },
+        "B/op": {
+          "median": 43977,
+          "min": 43974,
+          "max": 43987
+        },
+        "allocs/op": {
+          "median": 441,
+          "min": 441,
+          "max": 441
+        }
+      }
+    },
+    {
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=0/totals/serial",
+      "before": {
+        "ns/op": {
+          "median": 988194.0,
+          "min": 719188.0,
+          "max": 1032032.0
+        },
+        "B/op": {
+          "median": 62965,
+          "min": 62964,
+          "max": 62966
+        },
+        "allocs/op": {
+          "median": 821,
+          "min": 821,
+          "max": 821
+        }
+      },
+      "after": {
+        "ns/op": {
+          "median": 656918.0,
+          "min": 650538.0,
+          "max": 686032.0
+        },
+        "B/op": {
+          "median": 21505,
+          "min": 21504,
+          "max": 21507
+        },
+        "allocs/op": {
+          "median": 247,
+          "min": 247,
+          "max": 247
+        }
+      }
+    },
+    {
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=10/page/serial",
+      "before": {
+        "ns/op": {
+          "median": 2051628.0,
+          "min": 1639152.0,
+          "max": 2173554.0
+        },
+        "B/op": {
+          "median": 131040,
+          "min": 131007,
+          "max": 131045
+        },
+        "allocs/op": {
+          "median": 1781,
+          "min": 1781,
+          "max": 1781
+        }
+      },
+      "after": {
+        "ns/op": {
+          "median": 1617373.0,
+          "min": 1553992.0,
+          "max": 1814234.0
+        },
+        "B/op": {
+          "median": 89548,
+          "min": 89544,
+          "max": 89559
+        },
+        "allocs/op": {
+          "median": 1207,
+          "min": 1207,
+          "max": 1207
+        }
+      }
+    },
+    {
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=10/threads_only/serial",
+      "before": {
+        "ns/op": {
+          "median": 1678005.0,
+          "min": 1571204.0,
+          "max": 1775014.0
+        },
+        "B/op": {
+          "median": 68185,
+          "min": 68183,
+          "max": 68188
+        },
+        "allocs/op": {
+          "median": 961,
+          "min": 961,
+          "max": 961
+        }
+      },
+      "after": {
+        "ns/op": {
+          "median": 1073670.0,
+          "min": 1021351.0,
+          "max": 1245518.0
+        },
+        "B/op": {
+          "median": 68154,
+          "min": 68153,
+          "max": 68186
+        },
+        "allocs/op": {
+          "median": 961,
+          "min": 961,
+          "max": 961
+        }
+      }
+    },
+    {
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=10/totals/serial",
+      "before": {
+        "ns/op": {
+          "median": 1089654.0,
+          "min": 782668.0,
+          "max": 1161944.0
+        },
+        "B/op": {
+          "median": 62960,
+          "min": 62960,
+          "max": 62966
+        },
+        "allocs/op": {
+          "median": 821,
+          "min": 821,
+          "max": 821
+        }
+      },
+      "after": {
+        "ns/op": {
+          "median": 775917.0,
+          "min": 622649.0,
+          "max": 816408.0
+        },
+        "B/op": {
+          "median": 21505,
+          "min": 21504,
+          "max": 21506
+        },
+        "allocs/op": {
+          "median": 247,
+          "min": 247,
+          "max": 247
+        }
+      }
+    },
+    {
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/page/parallel",
+      "before": {
+        "ns/op": {
+          "median": 2770508.0,
+          "min": 1484210.0,
+          "max": 5039585.0
+        },
+        "B/op": {
+          "median": 178886,
+          "min": 178841,
+          "max": 178887
+        },
+        "allocs/op": {
+          "median": 2810,
+          "min": 2809,
+          "max": 2810
+        }
+      },
+      "after": {
+        "ns/op": {
+          "median": 1179903.0,
+          "min": 1144710.0,
+          "max": 1181052.0
+        },
+        "B/op": {
+          "median": 136801,
+          "min": 136800,
+          "max": 136801
+        },
+        "allocs/op": {
+          "median": 2223,
+          "min": 2223,
+          "max": 2223
+        }
+      }
+    },
+    {
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/page/serial",
+      "before": {
+        "ns/op": {
+          "median": 7669721.0,
+          "min": 5568863.0,
+          "max": 9626439.0
+        },
+        "B/op": {
+          "median": 178262,
+          "min": 178262,
+          "max": 178270
+        },
+        "allocs/op": {
+          "median": 2797,
+          "min": 2797,
+          "max": 2797
+        }
+      },
+      "after": {
+        "ns/op": {
+          "median": 6777702.0,
+          "min": 4592407.0,
+          "max": 6808857.0
+        },
+        "B/op": {
+          "median": 136793,
+          "min": 136791,
+          "max": 136797
+        },
+        "allocs/op": {
+          "median": 2223,
+          "min": 2223,
+          "max": 2223
+        }
+      }
+    },
+    {
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/threads_only/parallel",
+      "before": {
+        "ns/op": {
+          "median": 2067156.0,
+          "min": 1139669.0,
+          "max": 2838244.0
+        },
+        "B/op": {
+          "median": 115406,
+          "min": 115403,
+          "max": 115408
+        },
+        "allocs/op": {
+          "median": 1974,
+          "min": 1974,
+          "max": 1974
+        }
+      },
+      "after": {
+        "ns/op": {
+          "median": 1108841.0,
+          "min": 1095677.0,
+          "max": 1124638.0
+        },
+        "B/op": {
+          "median": 115408,
+          "min": 115403,
+          "max": 115412
+        },
+        "allocs/op": {
+          "median": 1974,
+          "min": 1974,
+          "max": 1974
+        }
+      }
+    },
+    {
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/threads_only/serial",
+      "before": {
+        "ns/op": {
+          "median": 6474336.0,
+          "min": 4134846.0,
+          "max": 6816174.0
+        },
+        "B/op": {
+          "median": 115400,
+          "min": 115398,
+          "max": 115404
+        },
+        "allocs/op": {
+          "median": 1974,
+          "min": 1974,
+          "max": 1974
+        }
+      },
+      "after": {
+        "ns/op": {
+          "median": 3264557.0,
+          "min": 3259113.0,
+          "max": 3392064.0
+        },
+        "B/op": {
+          "median": 115401,
+          "min": 115400,
+          "max": 115402
+        },
+        "allocs/op": {
+          "median": 1974,
+          "min": 1974,
+          "max": 1974
+        }
+      }
+    },
+    {
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/totals/parallel",
+      "before": {
+        "ns/op": {
+          "median": 1728814.0,
+          "min": 822059.0,
+          "max": 2966742.0
+        },
+        "B/op": {
+          "median": 63517,
+          "min": 63512,
+          "max": 63518
+        },
+        "allocs/op": {
+          "median": 836,
+          "min": 836,
+          "max": 836
+        }
+      },
+      "after": {
+        "ns/op": {
+          "median": 810564.0,
+          "min": 777057.0,
+          "max": 826002.0
+        },
+        "B/op": {
+          "median": 21523,
+          "min": 21522,
+          "max": 21523
+        },
+        "allocs/op": {
+          "median": 251,
+          "min": 251,
+          "max": 251
+        }
+      }
+    },
+    {
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/totals/serial",
+      "before": {
+        "ns/op": {
+          "median": 3978597.0,
+          "min": 1866393.0,
+          "max": 5596108.0
+        },
+        "B/op": {
+          "median": 62991,
+          "min": 62991,
+          "max": 62998
+        },
+        "allocs/op": {
+          "median": 825,
+          "min": 825,
+          "max": 825
+        }
+      },
+      "after": {
+        "ns/op": {
+          "median": 2577315.0,
+          "min": 2316792.0,
+          "max": 2629788.0
+        },
+        "B/op": {
+          "median": 21524,
+          "min": 21523,
+          "max": 21525
+        },
+        "allocs/op": {
+          "median": 251,
+          "min": 251,
+          "max": 251
+        }
+      }
+    }
+  ],
+  "samples": [
+    {
+      "trial": 0,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=0/page/serial",
+      "iterations": 1000,
+      "ns/op": 1144640.0,
+      "B/op": 85119,
+      "allocs/op": 985
+    },
+    {
+      "trial": 0,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=0/totals/serial",
+      "iterations": 1000,
+      "ns/op": 607426.0,
+      "B/op": 45200,
+      "allocs/op": 604
+    },
+    {
+      "trial": 0,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=0/threads_only/serial",
+      "iterations": 1000,
+      "ns/op": 973260.0,
+      "B/op": 40011,
+      "allocs/op": 383
+    },
+    {
+      "trial": 0,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=10/page/serial",
+      "iterations": 1000,
+      "ns/op": 1389348.0,
+      "B/op": 109287,
+      "allocs/op": 1506
+    },
+    {
+      "trial": 0,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=10/totals/serial",
+      "iterations": 1000,
+      "ns/op": 660040.0,
+      "B/op": 45209,
+      "allocs/op": 604
+    },
+    {
+      "trial": 0,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=10/threads_only/serial",
+      "iterations": 1000,
+      "ns/op": 1322764.0,
+      "B/op": 64214,
+      "allocs/op": 903
+    },
+    {
+      "trial": 0,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=1000/page/serial",
+      "iterations": 1000,
+      "ns/op": 6136419.0,
+      "B/op": 156543,
+      "allocs/op": 2521
+    },
+    {
+      "trial": 0,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=1000/page/parallel",
+      "iterations": 1000,
+      "ns/op": 2031170.0,
+      "B/op": 157143,
+      "allocs/op": 2530
+    },
+    {
+      "trial": 0,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=1000/totals/serial",
+      "iterations": 1000,
+      "ns/op": 2984894.0,
+      "B/op": 45224,
+      "allocs/op": 607
+    },
+    {
+      "trial": 0,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=1000/totals/parallel",
+      "iterations": 1000,
+      "ns/op": 1129039.0,
+      "B/op": 45591,
+      "allocs/op": 614
+    },
+    {
+      "trial": 0,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=1000/threads_only/serial",
+      "iterations": 1000,
+      "ns/op": 5046747.0,
+      "B/op": 111439,
+      "allocs/op": 1915
+    },
+    {
+      "trial": 0,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=1000/threads_only/parallel",
+      "iterations": 1000,
+      "ns/op": 1557467.0,
+      "B/op": 111446,
+      "allocs/op": 1916
+    },
+    {
+      "trial": 0,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=0/page/serial",
+      "iterations": 1000,
+      "ns/op": 1363639.0,
+      "B/op": 106810,
+      "allocs/op": 1261
+    },
+    {
+      "trial": 0,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=0/totals/serial",
+      "iterations": 1000,
+      "ns/op": 719188.0,
+      "B/op": 62964,
+      "allocs/op": 821
+    },
+    {
+      "trial": 0,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=0/threads_only/serial",
+      "iterations": 1000,
+      "ns/op": 1295930.0,
+      "B/op": 43975,
+      "allocs/op": 441
+    },
+    {
+      "trial": 0,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=10/page/serial",
+      "iterations": 1000,
+      "ns/op": 1639152.0,
+      "B/op": 131007,
+      "allocs/op": 1781
+    },
+    {
+      "trial": 0,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=10/totals/serial",
+      "iterations": 1000,
+      "ns/op": 782668.0,
+      "B/op": 62960,
+      "allocs/op": 821
+    },
+    {
+      "trial": 0,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=10/threads_only/serial",
+      "iterations": 1000,
+      "ns/op": 1571204.0,
+      "B/op": 68185,
+      "allocs/op": 961
+    },
+    {
+      "trial": 0,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/page/serial",
+      "iterations": 1000,
+      "ns/op": 5568863.0,
+      "B/op": 178262,
+      "allocs/op": 2797
+    },
+    {
+      "trial": 0,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/page/parallel",
+      "iterations": 1000,
+      "ns/op": 1484210.0,
+      "B/op": 178841,
+      "allocs/op": 2809
+    },
+    {
+      "trial": 0,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/totals/serial",
+      "iterations": 1000,
+      "ns/op": 1866393.0,
+      "B/op": 62998,
+      "allocs/op": 825
+    },
+    {
+      "trial": 0,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/totals/parallel",
+      "iterations": 1000,
+      "ns/op": 822059.0,
+      "B/op": 63512,
+      "allocs/op": 836
+    },
+    {
+      "trial": 0,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/threads_only/serial",
+      "iterations": 1000,
+      "ns/op": 4134846.0,
+      "B/op": 115400,
+      "allocs/op": 1974
+    },
+    {
+      "trial": 0,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/threads_only/parallel",
+      "iterations": 1000,
+      "ns/op": 1139669.0,
+      "B/op": 115403,
+      "allocs/op": 1974
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=0/page/serial",
+      "iterations": 1000,
+      "ns/op": 1155368.0,
+      "B/op": 58670,
+      "allocs/op": 613
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=0/totals/serial",
+      "iterations": 1000,
+      "ns/op": 620536.0,
+      "B/op": 18754,
+      "allocs/op": 231
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=0/threads_only/serial",
+      "iterations": 1000,
+      "ns/op": 905826.0,
+      "B/op": 40012,
+      "allocs/op": 383
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=10/page/serial",
+      "iterations": 1000,
+      "ns/op": 1575067.0,
+      "B/op": 82857,
+      "allocs/op": 1133
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=10/totals/serial",
+      "iterations": 1000,
+      "ns/op": 627733.0,
+      "B/op": 18745,
+      "allocs/op": 231
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=10/threads_only/serial",
+      "iterations": 1000,
+      "ns/op": 1155756.0,
+      "B/op": 64232,
+      "allocs/op": 903
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=1000/page/serial",
+      "iterations": 1000,
+      "ns/op": 6397779.0,
+      "B/op": 130092,
+      "allocs/op": 2148
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=1000/page/parallel",
+      "iterations": 1000,
+      "ns/op": 2835199.0,
+      "B/op": 130328,
+      "allocs/op": 2149
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=1000/totals/serial",
+      "iterations": 1000,
+      "ns/op": 2761418.0,
+      "B/op": 18776,
+      "allocs/op": 234
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=1000/totals/parallel",
+      "iterations": 1000,
+      "ns/op": 1033903.0,
+      "B/op": 18780,
+      "allocs/op": 234
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=1000/threads_only/serial",
+      "iterations": 1000,
+      "ns/op": 5651750.0,
+      "B/op": 111438,
+      "allocs/op": 1916
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=1000/threads_only/parallel",
+      "iterations": 1000,
+      "ns/op": 2264551.0,
+      "B/op": 111448,
+      "allocs/op": 1916
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=0/page/serial",
+      "iterations": 1000,
+      "ns/op": 1349638.0,
+      "B/op": 65354,
+      "allocs/op": 687
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=0/totals/serial",
+      "iterations": 1000,
+      "ns/op": 650538.0,
+      "B/op": 21504,
+      "allocs/op": 247
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=0/threads_only/serial",
+      "iterations": 1000,
+      "ns/op": 975962.0,
+      "B/op": 43977,
+      "allocs/op": 441
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=10/page/serial",
+      "iterations": 1000,
+      "ns/op": 1814234.0,
+      "B/op": 89559,
+      "allocs/op": 1207
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=10/totals/serial",
+      "iterations": 1000,
+      "ns/op": 816408.0,
+      "B/op": 21504,
+      "allocs/op": 247
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=10/threads_only/serial",
+      "iterations": 1000,
+      "ns/op": 1245518.0,
+      "B/op": 68186,
+      "allocs/op": 961
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/page/serial",
+      "iterations": 1000,
+      "ns/op": 4592407.0,
+      "B/op": 136797,
+      "allocs/op": 2223
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/page/parallel",
+      "iterations": 1000,
+      "ns/op": 1144710.0,
+      "B/op": 136801,
+      "allocs/op": 2223
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/totals/serial",
+      "iterations": 1000,
+      "ns/op": 2316792.0,
+      "B/op": 21524,
+      "allocs/op": 251
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/totals/parallel",
+      "iterations": 1000,
+      "ns/op": 777057.0,
+      "B/op": 21523,
+      "allocs/op": 251
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/threads_only/serial",
+      "iterations": 1000,
+      "ns/op": 3264557.0,
+      "B/op": 115400,
+      "allocs/op": 1974
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/threads_only/parallel",
+      "iterations": 1000,
+      "ns/op": 1124638.0,
+      "B/op": 115403,
+      "allocs/op": 1974
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=0/page/serial",
+      "iterations": 1000,
+      "ns/op": 955533.0,
+      "B/op": 58661,
+      "allocs/op": 613
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=0/totals/serial",
+      "iterations": 1000,
+      "ns/op": 393506.0,
+      "B/op": 18745,
+      "allocs/op": 231
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=0/threads_only/serial",
+      "iterations": 1000,
+      "ns/op": 739708.0,
+      "B/op": 40017,
+      "allocs/op": 383
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=10/page/serial",
+      "iterations": 1000,
+      "ns/op": 1374071.0,
+      "B/op": 82839,
+      "allocs/op": 1133
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=10/totals/serial",
+      "iterations": 1000,
+      "ns/op": 575790.0,
+      "B/op": 18748,
+      "allocs/op": 231
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=10/threads_only/serial",
+      "iterations": 1000,
+      "ns/op": 1203219.0,
+      "B/op": 64219,
+      "allocs/op": 903
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=1000/page/serial",
+      "iterations": 1000,
+      "ns/op": 5819915.0,
+      "B/op": 130082,
+      "allocs/op": 2148
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=1000/page/parallel",
+      "iterations": 1000,
+      "ns/op": 1616036.0,
+      "B/op": 130320,
+      "allocs/op": 2149
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=1000/totals/serial",
+      "iterations": 1000,
+      "ns/op": 2042243.0,
+      "B/op": 18779,
+      "allocs/op": 234
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=1000/totals/parallel",
+      "iterations": 1000,
+      "ns/op": 720215.0,
+      "B/op": 18778,
+      "allocs/op": 234
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=1000/threads_only/serial",
+      "iterations": 1000,
+      "ns/op": 4280405.0,
+      "B/op": 111438,
+      "allocs/op": 1916
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=1000/threads_only/parallel",
+      "iterations": 1000,
+      "ns/op": 1485605.0,
+      "B/op": 111449,
+      "allocs/op": 1916
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=0/page/serial",
+      "iterations": 1000,
+      "ns/op": 1324606.0,
+      "B/op": 65354,
+      "allocs/op": 687
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=0/totals/serial",
+      "iterations": 1000,
+      "ns/op": 686032.0,
+      "B/op": 21505,
+      "allocs/op": 247
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=0/threads_only/serial",
+      "iterations": 1000,
+      "ns/op": 870249.0,
+      "B/op": 43974,
+      "allocs/op": 441
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=10/page/serial",
+      "iterations": 1000,
+      "ns/op": 1617373.0,
+      "B/op": 89548,
+      "allocs/op": 1207
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=10/totals/serial",
+      "iterations": 1000,
+      "ns/op": 775917.0,
+      "B/op": 21505,
+      "allocs/op": 247
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=10/threads_only/serial",
+      "iterations": 1000,
+      "ns/op": 1073670.0,
+      "B/op": 68154,
+      "allocs/op": 961
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/page/serial",
+      "iterations": 1000,
+      "ns/op": 6808857.0,
+      "B/op": 136793,
+      "allocs/op": 2223
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/page/parallel",
+      "iterations": 1000,
+      "ns/op": 1181052.0,
+      "B/op": 136800,
+      "allocs/op": 2223
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/totals/serial",
+      "iterations": 1000,
+      "ns/op": 2577315.0,
+      "B/op": 21523,
+      "allocs/op": 251
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/totals/parallel",
+      "iterations": 1000,
+      "ns/op": 826002.0,
+      "B/op": 21523,
+      "allocs/op": 251
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/threads_only/serial",
+      "iterations": 1000,
+      "ns/op": 3259113.0,
+      "B/op": 115401,
+      "allocs/op": 1974
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/threads_only/parallel",
+      "iterations": 1000,
+      "ns/op": 1108841.0,
+      "B/op": 115412,
+      "allocs/op": 1974
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=0/page/serial",
+      "iterations": 1000,
+      "ns/op": 1204261.0,
+      "B/op": 85120,
+      "allocs/op": 985
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=0/totals/serial",
+      "iterations": 1000,
+      "ns/op": 831287.0,
+      "B/op": 45204,
+      "allocs/op": 604
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=0/threads_only/serial",
+      "iterations": 1000,
+      "ns/op": 1247402.0,
+      "B/op": 40021,
+      "allocs/op": 383
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=10/page/serial",
+      "iterations": 1000,
+      "ns/op": 1734866.0,
+      "B/op": 109314,
+      "allocs/op": 1506
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=10/totals/serial",
+      "iterations": 1000,
+      "ns/op": 1014316.0,
+      "B/op": 45205,
+      "allocs/op": 604
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=10/threads_only/serial",
+      "iterations": 1000,
+      "ns/op": 1515898.0,
+      "B/op": 64236,
+      "allocs/op": 903
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=1000/page/serial",
+      "iterations": 1000,
+      "ns/op": 7288570.0,
+      "B/op": 156538,
+      "allocs/op": 2521
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=1000/page/parallel",
+      "iterations": 1000,
+      "ns/op": 3802913.0,
+      "B/op": 157141,
+      "allocs/op": 2530
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=1000/totals/serial",
+      "iterations": 1000,
+      "ns/op": 3740814.0,
+      "B/op": 45231,
+      "allocs/op": 607
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=1000/totals/parallel",
+      "iterations": 1000,
+      "ns/op": 1890110.0,
+      "B/op": 45589,
+      "allocs/op": 614
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=1000/threads_only/serial",
+      "iterations": 1000,
+      "ns/op": 5370873.0,
+      "B/op": 111440,
+      "allocs/op": 1916
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=1000/threads_only/parallel",
+      "iterations": 1000,
+      "ns/op": 2220248.0,
+      "B/op": 111446,
+      "allocs/op": 1916
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=0/page/serial",
+      "iterations": 1000,
+      "ns/op": 1514318.0,
+      "B/op": 106816,
+      "allocs/op": 1261
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=0/totals/serial",
+      "iterations": 1000,
+      "ns/op": 1032032.0,
+      "B/op": 62965,
+      "allocs/op": 821
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=0/threads_only/serial",
+      "iterations": 1000,
+      "ns/op": 1410866.0,
+      "B/op": 43975,
+      "allocs/op": 441
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=10/page/serial",
+      "iterations": 1000,
+      "ns/op": 2051628.0,
+      "B/op": 131045,
+      "allocs/op": 1781
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=10/totals/serial",
+      "iterations": 1000,
+      "ns/op": 1089654.0,
+      "B/op": 62966,
+      "allocs/op": 821
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=10/threads_only/serial",
+      "iterations": 1000,
+      "ns/op": 1678005.0,
+      "B/op": 68188,
+      "allocs/op": 961
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/page/serial",
+      "iterations": 1000,
+      "ns/op": 7669721.0,
+      "B/op": 178262,
+      "allocs/op": 2797
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/page/parallel",
+      "iterations": 1000,
+      "ns/op": 2770508.0,
+      "B/op": 178886,
+      "allocs/op": 2810
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/totals/serial",
+      "iterations": 1000,
+      "ns/op": 3978597.0,
+      "B/op": 62991,
+      "allocs/op": 825
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/totals/parallel",
+      "iterations": 1000,
+      "ns/op": 1728814.0,
+      "B/op": 63517,
+      "allocs/op": 836
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/threads_only/serial",
+      "iterations": 1000,
+      "ns/op": 6474336.0,
+      "B/op": 115404,
+      "allocs/op": 1974
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/threads_only/parallel",
+      "iterations": 1000,
+      "ns/op": 2067156.0,
+      "B/op": 115406,
+      "allocs/op": 1974
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=0/page/serial",
+      "iterations": 1000,
+      "ns/op": 1153125.0,
+      "B/op": 85137,
+      "allocs/op": 986
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=0/totals/serial",
+      "iterations": 1000,
+      "ns/op": 616715.0,
+      "B/op": 45199,
+      "allocs/op": 604
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=0/threads_only/serial",
+      "iterations": 1000,
+      "ns/op": 1091994.0,
+      "B/op": 40013,
+      "allocs/op": 383
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=10/page/serial",
+      "iterations": 1000,
+      "ns/op": 1391656.0,
+      "B/op": 109285,
+      "allocs/op": 1506
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=10/totals/serial",
+      "iterations": 1000,
+      "ns/op": 662785.0,
+      "B/op": 45206,
+      "allocs/op": 604
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=10/threads_only/serial",
+      "iterations": 1000,
+      "ns/op": 1315272.0,
+      "B/op": 64214,
+      "allocs/op": 903
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=1000/page/serial",
+      "iterations": 1000,
+      "ns/op": 6174863.0,
+      "B/op": 156539,
+      "allocs/op": 2521
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=1000/page/parallel",
+      "iterations": 1000,
+      "ns/op": 3861581.0,
+      "B/op": 157133,
+      "allocs/op": 2530
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=1000/totals/serial",
+      "iterations": 1000,
+      "ns/op": 4058941.0,
+      "B/op": 45231,
+      "allocs/op": 607
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=1000/totals/parallel",
+      "iterations": 1000,
+      "ns/op": 1981788.0,
+      "B/op": 45582,
+      "allocs/op": 614
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=1000/threads_only/serial",
+      "iterations": 1000,
+      "ns/op": 5767144.0,
+      "B/op": 111439,
+      "allocs/op": 1916
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=1000/threads_only/parallel",
+      "iterations": 1000,
+      "ns/op": 2400365.0,
+      "B/op": 111448,
+      "allocs/op": 1916
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=0/page/serial",
+      "iterations": 1000,
+      "ns/op": 1632930.0,
+      "B/op": 106807,
+      "allocs/op": 1261
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=0/totals/serial",
+      "iterations": 1000,
+      "ns/op": 988194.0,
+      "B/op": 62966,
+      "allocs/op": 821
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=0/threads_only/serial",
+      "iterations": 1000,
+      "ns/op": 1400243.0,
+      "B/op": 43981,
+      "allocs/op": 441
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=10/page/serial",
+      "iterations": 1000,
+      "ns/op": 2173554.0,
+      "B/op": 131040,
+      "allocs/op": 1781
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=10/totals/serial",
+      "iterations": 1000,
+      "ns/op": 1161944.0,
+      "B/op": 62960,
+      "allocs/op": 821
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=10/threads_only/serial",
+      "iterations": 1000,
+      "ns/op": 1775014.0,
+      "B/op": 68183,
+      "allocs/op": 961
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/page/serial",
+      "iterations": 1000,
+      "ns/op": 9626439.0,
+      "B/op": 178270,
+      "allocs/op": 2797
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/page/parallel",
+      "iterations": 1000,
+      "ns/op": 5039585.0,
+      "B/op": 178887,
+      "allocs/op": 2810
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/totals/serial",
+      "iterations": 1000,
+      "ns/op": 5596108.0,
+      "B/op": 62991,
+      "allocs/op": 825
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/totals/parallel",
+      "iterations": 1000,
+      "ns/op": 2966742.0,
+      "B/op": 63518,
+      "allocs/op": 836
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/threads_only/serial",
+      "iterations": 1000,
+      "ns/op": 6816174.0,
+      "B/op": 115398,
+      "allocs/op": 1974
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/threads_only/parallel",
+      "iterations": 1000,
+      "ns/op": 2838244.0,
+      "B/op": 115408,
+      "allocs/op": 1974
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=0/page/serial",
+      "iterations": 1000,
+      "ns/op": 1118425.0,
+      "B/op": 58673,
+      "allocs/op": 613
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=0/totals/serial",
+      "iterations": 1000,
+      "ns/op": 500951.0,
+      "B/op": 18750,
+      "allocs/op": 231
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=0/threads_only/serial",
+      "iterations": 1000,
+      "ns/op": 768627.0,
+      "B/op": 40014,
+      "allocs/op": 383
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=10/page/serial",
+      "iterations": 1000,
+      "ns/op": 1375411.0,
+      "B/op": 82833,
+      "allocs/op": 1133
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=10/totals/serial",
+      "iterations": 1000,
+      "ns/op": 656921.0,
+      "B/op": 18746,
+      "allocs/op": 231
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=10/threads_only/serial",
+      "iterations": 1000,
+      "ns/op": 877544.0,
+      "B/op": 64193,
+      "allocs/op": 903
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=1000/page/serial",
+      "iterations": 1000,
+      "ns/op": 5982920.0,
+      "B/op": 130086,
+      "allocs/op": 2148
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=1000/page/parallel",
+      "iterations": 1000,
+      "ns/op": 1590497.0,
+      "B/op": 130322,
+      "allocs/op": 2149
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=1000/totals/serial",
+      "iterations": 1000,
+      "ns/op": 1908680.0,
+      "B/op": 18776,
+      "allocs/op": 234
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=1000/totals/parallel",
+      "iterations": 1000,
+      "ns/op": 701127.0,
+      "B/op": 18779,
+      "allocs/op": 234
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=1000/threads_only/serial",
+      "iterations": 1000,
+      "ns/op": 5123072.0,
+      "B/op": 111434,
+      "allocs/op": 1915
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=false/threads=1000/threads_only/parallel",
+      "iterations": 1000,
+      "ns/op": 1542310.0,
+      "B/op": 111445,
+      "allocs/op": 1916
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=0/page/serial",
+      "iterations": 1000,
+      "ns/op": 1333267.0,
+      "B/op": 65355,
+      "allocs/op": 687
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=0/totals/serial",
+      "iterations": 1000,
+      "ns/op": 656918.0,
+      "B/op": 21507,
+      "allocs/op": 247
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=0/threads_only/serial",
+      "iterations": 1000,
+      "ns/op": 892624.0,
+      "B/op": 43987,
+      "allocs/op": 441
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=10/page/serial",
+      "iterations": 1000,
+      "ns/op": 1553992.0,
+      "B/op": 89544,
+      "allocs/op": 1207
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=10/totals/serial",
+      "iterations": 1000,
+      "ns/op": 622649.0,
+      "B/op": 21506,
+      "allocs/op": 247
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=10/threads_only/serial",
+      "iterations": 1000,
+      "ns/op": 1021351.0,
+      "B/op": 68153,
+      "allocs/op": 961
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/page/serial",
+      "iterations": 1000,
+      "ns/op": 6777702.0,
+      "B/op": 136791,
+      "allocs/op": 2223
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/page/parallel",
+      "iterations": 1000,
+      "ns/op": 1179903.0,
+      "B/op": 136801,
+      "allocs/op": 2223
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/totals/serial",
+      "iterations": 1000,
+      "ns/op": 2629788.0,
+      "B/op": 21525,
+      "allocs/op": 251
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/totals/parallel",
+      "iterations": 1000,
+      "ns/op": 810564.0,
+      "B/op": 21522,
+      "allocs/op": 251
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/threads_only/serial",
+      "iterations": 1000,
+      "ns/op": 3392064.0,
+      "B/op": 115402,
+      "allocs/op": 1974
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "name": "BenchmarkUserThreadCountsHistory/priority=true/threads=1000/threads_only/parallel",
+      "iterations": 1000,
+      "ns/op": 1095677.0,
+      "B/op": 115408,
+      "allocs/op": 1974
+    }
+  ],
+  "commands": [
+    {
+      "trial": 0,
+      "variant": "before",
+      "command": [
+        "go",
+        "test",
+        "./channels/app",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkUserThreadCountsHistory$",
+        "-benchtime=1000x",
+        "-count=1",
+        "-timeout=10m",
+        "-overlay",
+        "/tmp/user-thread-counts-baseline-puk77ump/overlay.json"
+      ],
+      "log_sha256": "175e6094064c8cb3e60b45be74fbf1d3a3c80d33efcc1404ebb87db5a074025f"
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "command": [
+        "go",
+        "test",
+        "./channels/app",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkUserThreadCountsHistory$",
+        "-benchtime=1000x",
+        "-count=1",
+        "-timeout=10m"
+      ],
+      "log_sha256": "a23dbaf9482f9fc8679262d4d32a988d72a07b01f49ff44bed124c261b322b1c"
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "command": [
+        "go",
+        "test",
+        "./channels/app",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkUserThreadCountsHistory$",
+        "-benchtime=1000x",
+        "-count=1",
+        "-timeout=10m"
+      ],
+      "log_sha256": "ebde54bc1524716d42c395a0667b2a22291abde82b5b693b0995f99bfc06d909"
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "command": [
+        "go",
+        "test",
+        "./channels/app",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkUserThreadCountsHistory$",
+        "-benchtime=1000x",
+        "-count=1",
+        "-timeout=10m",
+        "-overlay",
+        "/tmp/user-thread-counts-baseline-puk77ump/overlay.json"
+      ],
+      "log_sha256": "df7e66e155caa41c0eaeace8fc1821647579daeffcb6ae5107c386c149fdeb50"
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "command": [
+        "go",
+        "test",
+        "./channels/app",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkUserThreadCountsHistory$",
+        "-benchtime=1000x",
+        "-count=1",
+        "-timeout=10m",
+        "-overlay",
+        "/tmp/user-thread-counts-baseline-puk77ump/overlay.json"
+      ],
+      "log_sha256": "0e80383ba7acd65547979bcd545924199c939ad2ff098fafd3753acff7534f19"
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "command": [
+        "go",
+        "test",
+        "./channels/app",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkUserThreadCountsHistory$",
+        "-benchtime=1000x",
+        "-count=1",
+        "-timeout=10m"
+      ],
+      "log_sha256": "b78837924b38af6991a348efca314f63f0f4366c4f4bb8716a155ea623676caa"
+    }
+  ],
+  "limits": [
+    "App method on loopback PostgreSQL, not complete HTTP endpoint latency or production capacity.",
+    "Parallel ns/op is amortized wall time per completed operation, not per-request latency.",
+    "Real users, memberships, root posts and replies are created outside timing. Every operation checks all count fields and returned page data; threads-only controls exercise the unchanged no-count path.",
+    "These are standalone measurements, not combined-stack throughput."
+  ]
+}
