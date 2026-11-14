@@ -1,0 +1,196 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: rhnvrm <hello@rohanverma.net>
+Date: Sat, 14 Nov 2026 19:38:18 +0530
+Subject: [PATCH] perf: parse preview host once per domain check
+
+Keep the empty-restriction fast path and existing substring matching, but move URL parsing and IDNA conversion outside the restricted-domain loop.
+
+Mattermax-Patch: link-preview-domain-checks.patch
+---
+ .../channels/app/link_preview_domain_test.go  | 128 ++++++++++++++++++
+ server/channels/app/post_metadata.go          |  32 +++--
+ 2 files changed, 145 insertions(+), 15 deletions(-)
+ create mode 100644 server/channels/app/link_preview_domain_test.go
+
+diff --git a/server/channels/app/link_preview_domain_test.go b/server/channels/app/link_preview_domain_test.go
+new file mode 100644
+index 000000000000..f1e0e399d8c9
+--- /dev/null
++++ b/server/channels/app/link_preview_domain_test.go
+@@ -0,0 +1,128 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++package app
++
++import (
++	"fmt"
++	"strings"
++	"testing"
++
++	"github.com/mattermost/mattermost/server/public/model"
++	"github.com/stretchr/testify/require"
++)
++
++func previewRestrictedDomains(count int) string {
++	domains := make([]string, count)
++	for i := range domains {
++		domains[i] = fmt.Sprintf("blocked%02d.example", i)
++	}
++	return strings.Join(domains, ", ")
++}
++
++func TestLinkPreviewDomainChecks(t *testing.T) {
++	for _, tc := range []struct {
++		name, domains, link string
++		allowed             bool
++	}{
++		{"empty allows malformed", "", "%", true},
++		{"separators only allow malformed", " , @ \t\n", "%", true},
++		{"restricted rejects malformed", "blocked.example", "%", false},
++		{"invalid IDNA", "blocked.example", "https://\u200d.example/path", false},
++		{"empty allows invalid IDNA", "", "https://\u200d.example/path", true},
++		{"allowed", "blocked.example, other.example", "https://allowed.example/path", true},
++		{"first matches", "blocked.example, other.example", "https://blocked.example/path", false},
++		{"last matches", "other.example, blocked.example", "https://blocked.example/path", false},
++		{"normalizes domains", "@BLOCKED.EXAMPLE,\n other.example", "https://blocked.example/path", false},
++		{"substring matching", "blocked.example", "https://notblocked.example/path", false},
++		{"case insensitive hostname", "blocked.example", "https://BLOCKED.EXAMPLE/path", false},
++		{"IDNA matching", "xn--r8jz45g.xn--zckzah", "https://例え.テスト/path", false},
++		{"Unicode restriction stays literal", "例え.テスト", "https://例え.テスト/path", true},
++		{"userinfo is not hostname", "blocked.example", "https://blocked.example@allowed.example/path", true},
++		{"port is not hostname", "blocked.example", "https://blocked.example:8443/path", false},
++		{"IPv6", "2001:db8", "https://[2001:db8::1]:443/path", false},
++		{"relative path", "blocked.example", "/blocked.example/path", true},
++		{"opaque URL", "blocked.example", "mailto:user@blocked.example", true},
++		{"invalid escape", "blocked.example", "https://allowed.example/%zz", false},
++		{"duplicate restriction", "blocked.example blocked.example", "https://blocked.example/path", false},
++	} {
++		t.Run(tc.name, func(t *testing.T) {
++			th := SetupConfigWithStoreMock(t, func(cfg *model.Config) { *cfg.ServiceSettings.RestrictLinkPreviews = tc.domains })
++			require.Equal(t, tc.allowed, th.App.isLinkAllowedForPreview(th.Context, tc.link))
++		})
++	}
++}
++
++func BenchmarkLinkPreviewDomainChecks(b *testing.B) {
++	for _, count := range []int{0, 1, 20} {
++		b.Run(fmt.Sprintf("domains=%d", count), func(b *testing.B) {
++			th := SetupConfigWithStoreMock(b, func(cfg *model.Config) { *cfg.ServiceSettings.RestrictLinkPreviews = previewRestrictedDomains(count) })
++			for _, tc := range []struct {
++				name, link string
++				allowed    bool
++			}{
++				{"allowed", "https://allowed.example/path", true},
++				{"first", "https://blocked00.example/path", count == 0},
++				{"last", fmt.Sprintf("https://blocked%02d.example/path", max(0, count-1)), count == 0},
++				{"unicode", "https://例え.テスト/path", true},
++			} {
++				b.Run(tc.name, func(b *testing.B) {
++					if th.App.isLinkAllowedForPreview(th.Context, tc.link) != tc.allowed {
++						b.Fatal("wrong decision")
++					}
++					b.ReportAllocs()
++					b.ResetTimer()
++					for range b.N {
++						if th.App.isLinkAllowedForPreview(th.Context, tc.link) != tc.allowed {
++							b.Fatal("wrong decision")
++						}
++					}
++				})
++			}
++		})
++	}
++}
++
++func BenchmarkLinkPreviewDomainHistory(b *testing.B) {
++	for _, count := range []int{0, 20} {
++		b.Run(fmt.Sprintf("domains=%d", count), func(b *testing.B) {
++			th := SetupConfig(b, func(cfg *model.Config) {
++				*cfg.ServiceSettings.RestrictLinkPreviews = previewRestrictedDomains(count)
++				*cfg.ServiceSettings.EnableLinkPreviews = false
++			}).InitBasic(b)
++			if !th.App.IsPostPriorityEnabled() {
++				b.Fatal("priority reads must be enabled")
++			}
++			for _, size := range []int{1, 60} {
++				b.Run(fmt.Sprintf("posts=%d", size), func(b *testing.B) {
++					list := model.NewPostList()
++					for range size {
++						post, err := th.App.Srv().Store().Post().Save(th.Context, &model.Post{UserId: th.BasicUser.Id, ChannelId: th.BasicChannel.Id, Message: "See https://allowed.example/path"})
++						if err != nil {
++							b.Fatal(err)
++						}
++						list.AddPost(post)
++						list.AddOrder(post.Id)
++					}
++					check := func(got *model.PostList) {
++						if len(got.Order) != size || len(got.Posts) != size {
++							b.Fatal("wrong page size")
++						}
++						for i, id := range list.Order {
++							post := got.Posts[id]
++							if got.Order[i] != id || post == nil || post.Metadata == nil || post.Message != list.Posts[id].Message || len(post.Metadata.Embeds) != 0 || len(post.Metadata.Images) != 0 {
++								b.Fatal("wrong prepared post")
++							}
++						}
++					}
++					check(th.App.PreparePostListForClient(th.Context, list))
++					b.ReportAllocs()
++					b.ResetTimer()
++					for range b.N {
++						check(th.App.PreparePostListForClient(th.Context, list))
++					}
++				})
++			}
++		})
++	}
++}
+diff --git a/server/channels/app/post_metadata.go b/server/channels/app/post_metadata.go
+index 8021a3f38709..a07820c3db3f 100644
+--- a/server/channels/app/post_metadata.go
++++ b/server/channels/app/post_metadata.go
+@@ -789,26 +789,28 @@ func (a *App) getCustomEmojisForPost(rctx request.CTX, post *model.Post, reactio
+ 
+ func (a *App) isLinkAllowedForPreview(rctx request.CTX, link string) bool {
+ 	domains := normalizeDomains(*a.Config().ServiceSettings.RestrictLinkPreviews)
++	if len(domains) == 0 {
++		return true
++	}
++	parsed, err := url.Parse(link)
++	if err != nil {
++		rctx.Logger().Warn("Unable to parse the link", mlog.String("link", link), mlog.Err(err))
++		// We disable link preview if link is badly formed
++		// to remain on the safe side
++		return false
++	}
++	// Conforming to IDNA2008 using the UTS-46 standard.
++	cleaned, err := idna.Lookup.ToASCII(parsed.Hostname())
++	if err != nil {
++		rctx.Logger().Warn("Unable to lookup hostname to ASCII", mlog.String("hostname", parsed.Hostname()), mlog.Err(err))
++		// Same applies if compatibility processing fails.
++		return false
++	}
+ 	for _, d := range domains {
+-		parsed, err := url.Parse(link)
+-		if err != nil {
+-			rctx.Logger().Warn("Unable to parse the link", mlog.String("link", link), mlog.Err(err))
+-			// We disable link preview if link is badly formed
+-			// to remain on the safe side
+-			return false
+-		}
+-		// Conforming to IDNA2008 using the UTS-46 standard.
+-		cleaned, err := idna.Lookup.ToASCII(parsed.Hostname())
+-		if err != nil {
+-			rctx.Logger().Warn("Unable to lookup hostname to ASCII", mlog.String("hostname", parsed.Hostname()), mlog.Err(err))
+-			// Same applies if compatibility processing fails.
+-			return false
+-		}
+ 		if strings.Contains(cleaned, d) {
+ 			return false
+ 		}
+ 	}
+-
+ 	return true
+ }
+ 

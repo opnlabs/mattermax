@@ -23,6 +23,14 @@ was added or last changed in behaviour, and what it does and why. When a patch
 is removed (for example because upstream merged it), keep its entry and add the
 removal date.
 
+### link-preview-domain-checks.patch
+
+2026-11-14. Parse a preview URL and convert its hostname to ASCII once per
+restricted-domain check, instead of once for every domain entry. Preserve the
+empty-list allow behavior, substring matching and existing warning/error paths.
+Adds edge-case tests and filtering/history benchmarks. Changes no API, schema,
+configuration or dependency.
+
 ### release-license.patch
 
 2026-11-03. `server/build/release.mk` packages `LICENSE.txt` (AGPL v3.0) with
