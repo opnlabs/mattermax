@@ -1,0 +1,149 @@
+{
+  "status": "passed",
+  "source_sha": "a4a496745bb3e008dc9e24130569fbc32fff3ec2",
+  "baseline_source_sha": "9e85f87af81bbf7ae1e85d0ea330f4b02ca59cef",
+  "comparison_context": "standalone PR58",
+  "trials": 5,
+  "requests_per_process": 1000,
+  "warmup_per_process": 100,
+  "total_measured_requests": 10000,
+  "cases": [
+    {
+      "name": "plain",
+      "before_process_means_ns": [
+        3538804.38,
+        3627876.52,
+        3639640.61,
+        3670667.195,
+        3619393.525
+      ],
+      "after_process_means_ns": [
+        3637433.35,
+        3633353.23,
+        3672029.475,
+        3644915.54,
+        3590491.69
+      ],
+      "before_median_ns": 3627876.52,
+      "after_median_ns": 3637433.35,
+      "median_change_percent": 0.2634276538166169,
+      "paired_changes_percent": [
+        2.787070417269022,
+        0.15096186349803364,
+        0.8898918456677007,
+        -0.701552432622532,
+        -0.7985270128923028
+      ]
+    },
+    {
+      "name": "fields=0",
+      "before_process_means_ns": [
+        4688441.255,
+        4770022.61,
+        4828184.28,
+        4831127.795,
+        4787577.705
+      ],
+      "after_process_means_ns": [
+        4756359.925,
+        4736377.275,
+        4847304.32,
+        4780284.11,
+        4731182.225
+      ],
+      "before_median_ns": 4787577.705,
+      "after_median_ns": 4756359.925,
+      "median_change_percent": -0.6520579283214034,
+      "paired_changes_percent": [
+        1.4486407380612354,
+        -0.7053495916238384,
+        0.396008911242296,
+        -1.052418548162204,
+        -1.1779543534322756
+      ]
+    },
+    {
+      "name": "fields=8",
+      "before_process_means_ns": [
+        6684164.945,
+        6824151.11,
+        6753575.42,
+        6767499.985,
+        6697279.68
+      ],
+      "after_process_means_ns": [
+        6766951.02,
+        6806327.055,
+        6824033.025,
+        6870382.32,
+        6708705.69
+      ],
+      "before_median_ns": 6753575.42,
+      "after_median_ns": 6806327.055,
+      "median_change_percent": 0.7810919656539461,
+      "paired_changes_percent": [
+        1.238540276626865,
+        -0.26119080179630716,
+        1.043263762056279,
+        1.5202413775845747,
+        0.17060673207545118
+      ]
+    },
+    {
+      "name": "fields=64",
+      "before_process_means_ns": [
+        18251333.915,
+        18338031.57,
+        18576438.275,
+        18184950.12,
+        19341674.91
+      ],
+      "after_process_means_ns": [
+        18122388.325,
+        18100938.145,
+        17975831.625,
+        18168545.965,
+        18308617.175
+      ],
+      "before_median_ns": 18338031.57,
+      "after_median_ns": 18122388.325,
+      "median_change_percent": -1.1759345280699662,
+      "paired_changes_percent": [
+        -0.7064995391598439,
+        -1.2929055340261897,
+        -3.233163651227422,
+        -0.09020731369485668,
+        -5.341097603010015
+      ]
+    },
+    {
+      "name": "actions",
+      "before_process_means_ns": [
+        11824516.735,
+        11927949.005,
+        11953953.41,
+        11974979.52,
+        11953707.66
+      ],
+      "after_process_means_ns": [
+        11793023.905,
+        12050444.57,
+        12014949.99,
+        11859747.67,
+        11911043.355
+      ],
+      "before_median_ns": 11953707.66,
+      "after_median_ns": 11911043.355,
+      "median_change_percent": -0.35691273547507896,
+      "paired_changes_percent": [
+        -0.26633502836342915,
+        1.0269625142482752,
+        0.5102628219127325,
+        -0.9622717918435275,
+        -0.35691273547507896
+      ]
+    }
+  ],
+  "scope": "Regular team/channel member, one persistent HTTP/1.1 client, uncompressed GET /api/v4/channels/{id}/posts?page=0&per_page=60&collapsedThreads=false. Five equally weighted plain/rich/fallback attachment page types in fixed shuffled order. Fresh database/server and all-API fixtures for each process. Timing spans request send through complete response read, excluding JSON decode/assertions; wall loop includes them. Localhost without TLS, no concurrent clients or production throughput/tail claim.",
+  "raw_sha256": "6bdba1468292f17a17b08c462d0030e38caa807acb2a9f4c54e02b4d8e931919"
+}

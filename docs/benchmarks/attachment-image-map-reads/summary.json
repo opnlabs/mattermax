@@ -1,0 +1,483 @@
+{
+  "status": "passed",
+  "source_sha": "a4a496745bb3e008dc9e24130569fbc32fff3ec2",
+  "trials": 3,
+  "cases": [
+    {
+      "name": "BenchmarkAttachmentImageMapURLs/actions",
+      "before": {
+        "ns_per_op": 12504.0,
+        "bytes_per_op": 4524,
+        "allocs_per_op": 125
+      },
+      "after": {
+        "ns_per_op": 12547.0,
+        "bytes_per_op": 4516,
+        "allocs_per_op": 124
+      },
+      "median_ns_change_percent": 0.3438899552143271,
+      "paired_ns_changes_percent": [
+        15.117581187010076,
+        -15.004741904890938,
+        -2.847088931541908
+      ]
+    },
+    {
+      "name": "BenchmarkAttachmentImageMapURLs/fields=0",
+      "before": {
+        "ns_per_op": 511.7,
+        "bytes_per_op": 296,
+        "allocs_per_op": 2
+      },
+      "after": {
+        "ns_per_op": 266.8,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      "median_ns_change_percent": -47.86007426226304,
+      "paired_ns_changes_percent": [
+        -47.18435091879075,
+        -49.1131031851993,
+        -50.00977135040062
+      ]
+    },
+    {
+      "name": "BenchmarkAttachmentImageMapURLs/fields=64",
+      "before": {
+        "ns_per_op": 9753.0,
+        "bytes_per_op": 3880,
+        "allocs_per_op": 67
+      },
+      "after": {
+        "ns_per_op": 5517.0,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      "median_ns_change_percent": -43.43278991079668,
+      "paired_ns_changes_percent": [
+        -33.717712177121776,
+        -43.43278991079668,
+        -49.20484664899659
+      ]
+    },
+    {
+      "name": "BenchmarkAttachmentImageMapURLs/fields=8",
+      "before": {
+        "ns_per_op": 1670.0,
+        "bytes_per_op": 744,
+        "allocs_per_op": 11
+      },
+      "after": {
+        "ns_per_op": 948.0,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      "median_ns_change_percent": -43.23353293413174,
+      "paired_ns_changes_percent": [
+        -40.05474452554745,
+        -43.335325762104006,
+        -44.275449101796404
+      ]
+    },
+    {
+      "name": "BenchmarkAttachmentImageMapURLs/malformed",
+      "before": {
+        "ns_per_op": 11128.0,
+        "bytes_per_op": 3996,
+        "allocs_per_op": 109
+      },
+      "after": {
+        "ns_per_op": 10639.0,
+        "bytes_per_op": 3996,
+        "allocs_per_op": 109
+      },
+      "median_ns_change_percent": -4.394320632638394,
+      "paired_ns_changes_percent": [
+        -0.5571531272465902,
+        -19.1073600973236,
+        -0.7396870554765345
+      ]
+    },
+    {
+      "name": "BenchmarkAttachmentImageMapURLs/mixed-late",
+      "before": {
+        "ns_per_op": 3103.0,
+        "bytes_per_op": 1472,
+        "allocs_per_op": 24
+      },
+      "after": {
+        "ns_per_op": 2195.0,
+        "bytes_per_op": 720,
+        "allocs_per_op": 13
+      },
+      "median_ns_change_percent": -29.262004511762807,
+      "paired_ns_changes_percent": [
+        -21.366419593941345,
+        -39.83648153369044,
+        -24.854501882916814
+      ]
+    },
+    {
+      "name": "BenchmarkAttachmentImageMapURLs/plain",
+      "before": {
+        "ns_per_op": 38.23,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      "after": {
+        "ns_per_op": 24.73,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      "median_ns_change_percent": -35.31258174208736,
+      "paired_ns_changes_percent": [
+        -31.25838475986048,
+        -35.31258174208736,
+        -36.37545501820073
+      ]
+    },
+    {
+      "name": "BenchmarkAttachmentImageMapURLs/structured",
+      "before": {
+        "ns_per_op": 11525.0,
+        "bytes_per_op": 4386,
+        "allocs_per_op": 117
+      },
+      "after": {
+        "ns_per_op": 11815.0,
+        "bytes_per_op": 4378,
+        "allocs_per_op": 116
+      },
+      "median_ns_change_percent": 2.516268980477232,
+      "paired_ns_changes_percent": [
+        3.106290672451184,
+        -22.228804634017905,
+        5.103051030510297
+      ]
+    },
+    {
+      "name": "BenchmarkAttachmentImageMapURLs/typed",
+      "before": {
+        "ns_per_op": 44.21,
+        "bytes_per_op": 16,
+        "allocs_per_op": 1
+      },
+      "after": {
+        "ns_per_op": 43.76,
+        "bytes_per_op": 16,
+        "allocs_per_op": 1
+      },
+      "median_ns_change_percent": -1.0178692603483475,
+      "paired_ns_changes_percent": [
+        -1.0178692603483475,
+        -4.033875640739904,
+        4.965874323370212
+      ]
+    },
+    {
+      "name": "BenchmarkAttachmentImageMapURLs/unknown",
+      "before": {
+        "ns_per_op": 11348.0,
+        "bytes_per_op": 4100,
+        "allocs_per_op": 113
+      },
+      "after": {
+        "ns_per_op": 11104.0,
+        "bytes_per_op": 4091,
+        "allocs_per_op": 112
+      },
+      "median_ns_change_percent": -2.150158618258724,
+      "paired_ns_changes_percent": [
+        -2.150158618258724,
+        -18.40711869392557,
+        3.5658198614318737
+      ]
+    },
+    {
+      "name": "BenchmarkAttachmentImageMapURLs/urls",
+      "before": {
+        "ns_per_op": 1846.0,
+        "bytes_per_op": 856,
+        "allocs_per_op": 14
+      },
+      "after": {
+        "ns_per_op": 1087.0,
+        "bytes_per_op": 112,
+        "allocs_per_op": 3
+      },
+      "median_ns_change_percent": -41.11592632719393,
+      "paired_ns_changes_percent": [
+        -32.10907067334446,
+        -48.77474081055608,
+        -42.9035752979415
+      ]
+    },
+    {
+      "name": "BenchmarkAttachmentMapDecode/actions",
+      "before": {
+        "ns_per_op": 14388.0,
+        "bytes_per_op": 5093,
+        "allocs_per_op": 139
+      },
+      "after": {
+        "ns_per_op": 14360.0,
+        "bytes_per_op": 5093,
+        "allocs_per_op": 139
+      },
+      "median_ns_change_percent": -0.19460661662497047,
+      "paired_ns_changes_percent": [
+        -0.19460661662497047,
+        4.097476816907486,
+        -7.0429296392813034
+      ]
+    },
+    {
+      "name": "BenchmarkAttachmentMapDecode/fields=0",
+      "before": {
+        "ns_per_op": 578.1,
+        "bytes_per_op": 296,
+        "allocs_per_op": 2
+      },
+      "after": {
+        "ns_per_op": 540.7,
+        "bytes_per_op": 296,
+        "allocs_per_op": 2
+      },
+      "median_ns_change_percent": -6.46946895000865,
+      "paired_ns_changes_percent": [
+        -6.46946895000865,
+        -8.829174664107498,
+        -0.34456355283306594
+      ]
+    },
+    {
+      "name": "BenchmarkAttachmentMapDecode/fields=64",
+      "before": {
+        "ns_per_op": 9336.0,
+        "bytes_per_op": 3880,
+        "allocs_per_op": 67
+      },
+      "after": {
+        "ns_per_op": 9490.0,
+        "bytes_per_op": 3880,
+        "allocs_per_op": 67
+      },
+      "median_ns_change_percent": 1.6495287060839692,
+      "paired_ns_changes_percent": [
+        3.8239074550128427,
+        -16.47556888340095,
+        2.1308652604390854
+      ]
+    },
+    {
+      "name": "BenchmarkAttachmentMapDecode/fields=8",
+      "before": {
+        "ns_per_op": 1703.0,
+        "bytes_per_op": 744,
+        "allocs_per_op": 11
+      },
+      "after": {
+        "ns_per_op": 1710.0,
+        "bytes_per_op": 744,
+        "allocs_per_op": 11
+      },
+      "median_ns_change_percent": 0.41103934233706063,
+      "paired_ns_changes_percent": [
+        5.300353356890453,
+        -17.985611510791365,
+        -1.174398120963005
+      ]
+    },
+    {
+      "name": "BenchmarkAttachmentMapDecode/malformed",
+      "before": {
+        "ns_per_op": 12056.0,
+        "bytes_per_op": 4510,
+        "allocs_per_op": 121
+      },
+      "after": {
+        "ns_per_op": 12497.0,
+        "bytes_per_op": 4510,
+        "allocs_per_op": 121
+      },
+      "median_ns_change_percent": 3.6579296615792956,
+      "paired_ns_changes_percent": [
+        -0.5723291307232925,
+        29.783806697753292,
+        -0.13584785040754443
+      ]
+    },
+    {
+      "name": "BenchmarkAttachmentMapDecode/plain",
+      "before": {
+        "ns_per_op": 28.4,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      "after": {
+        "ns_per_op": 28.83,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      "median_ns_change_percent": 1.514084507042246,
+      "paired_ns_changes_percent": [
+        11.119159724737425,
+        -13.734290843806118,
+        0.42253521126760507
+      ]
+    },
+    {
+      "name": "BenchmarkAttachmentMapDecode/structured",
+      "before": {
+        "ns_per_op": 13968.0,
+        "bytes_per_op": 4925,
+        "allocs_per_op": 131
+      },
+      "after": {
+        "ns_per_op": 14100.0,
+        "bytes_per_op": 4925,
+        "allocs_per_op": 131
+      },
+      "median_ns_change_percent": 0.9450171821305808,
+      "paired_ns_changes_percent": [
+        -4.861111111111116,
+        28.008718667289422,
+        -1.1982341812066477
+      ]
+    },
+    {
+      "name": "BenchmarkAttachmentMapDecode/typed",
+      "before": {
+        "ns_per_op": 14.96,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      "after": {
+        "ns_per_op": 15.0,
+        "bytes_per_op": 0,
+        "allocs_per_op": 0
+      },
+      "median_ns_change_percent": 0.2673796791443861,
+      "paired_ns_changes_percent": [
+        10.126582278481,
+        -12.331969608416127,
+        -2.67379679144385
+      ]
+    },
+    {
+      "name": "BenchmarkAttachmentMapDecode/unknown",
+      "before": {
+        "ns_per_op": 13010.0,
+        "bytes_per_op": 4604,
+        "allocs_per_op": 127
+      },
+      "after": {
+        "ns_per_op": 13529.0,
+        "bytes_per_op": 4604,
+        "allocs_per_op": 127
+      },
+      "median_ns_change_percent": 3.9892390468870165,
+      "paired_ns_changes_percent": [
+        4.786616063821558,
+        6.249039200614903,
+        -3.645833333333337
+      ]
+    },
+    {
+      "name": "BenchmarkAttachmentMapHistory/actions",
+      "before": {
+        "ns_per_op": 6141639.0,
+        "bytes_per_op": 1759325,
+        "allocs_per_op": 46834
+      },
+      "after": {
+        "ns_per_op": 6327696.0,
+        "bytes_per_op": 1758397,
+        "allocs_per_op": 46774
+      },
+      "median_ns_change_percent": 3.0294356278511403,
+      "paired_ns_changes_percent": [
+        3.9784318759313875,
+        2.2724844295828994,
+        3.0294356278511403
+      ]
+    },
+    {
+      "name": "BenchmarkAttachmentMapHistory/fields=0",
+      "before": {
+        "ns_per_op": 1335461.0,
+        "bytes_per_op": 292950,
+        "allocs_per_op": 6094
+      },
+      "after": {
+        "ns_per_op": 1342926.0,
+        "bytes_per_op": 275384,
+        "allocs_per_op": 5974
+      },
+      "median_ns_change_percent": 0.558983002873159,
+      "paired_ns_changes_percent": [
+        6.309175270087497,
+        -1.2701780543051266,
+        -8.202036600095397
+      ]
+    },
+    {
+      "name": "BenchmarkAttachmentMapHistory/fields=64",
+      "before": {
+        "ns_per_op": 9478904.0,
+        "bytes_per_op": 4026213,
+        "allocs_per_op": 110434
+      },
+      "after": {
+        "ns_per_op": 9385625.0,
+        "bytes_per_op": 3793773,
+        "allocs_per_op": 106414
+      },
+      "median_ns_change_percent": -0.9840694662589633,
+      "paired_ns_changes_percent": [
+        -0.9840694662589633,
+        -0.6539079769355527,
+        -3.6207342250324404
+      ]
+    },
+    {
+      "name": "BenchmarkAttachmentMapHistory/fields=8",
+      "before": {
+        "ns_per_op": 2608293.0,
+        "bytes_per_op": 788372,
+        "allocs_per_op": 19474
+      },
+      "after": {
+        "ns_per_op": 2489125.0,
+        "bytes_per_op": 743672,
+        "allocs_per_op": 18814
+      },
+      "median_ns_change_percent": -4.568811862777689,
+      "paired_ns_changes_percent": [
+        2.2532376169495993,
+        -5.943274011010269,
+        -4.231617786907071
+      ]
+    },
+    {
+      "name": "BenchmarkAttachmentMapHistory/plain",
+      "before": {
+        "ns_per_op": 692419.0,
+        "bytes_per_op": 128815,
+        "allocs_per_op": 2374
+      },
+      "after": {
+        "ns_per_op": 772076.0,
+        "bytes_per_op": 128792,
+        "allocs_per_op": 2374
+      },
+      "median_ns_change_percent": 11.504161497590326,
+      "paired_ns_changes_percent": [
+        52.117954882964426,
+        2.54715714040199,
+        -1.573019383872054
+      ]
+    }
+  ],
+  "scope": "Stacked on standalone PR58 only, not the combined20 stack. Before restores both original production files and adds unused validator/JSON fallback declarations to keep new test/helper files compilable. No initializer effects. Model image accessor and attachment-decoder controls plus identical SQL-stored 60-post history fixtures. Synthetic component/preparation measurements, not HTTP throughput."
+}

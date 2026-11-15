@@ -1,0 +1,290 @@
+{
+  "status": "passed",
+  "source_sha": "73c65c133bb9d9a256fd86d68d7a97882658778e",
+  "race": {
+    "command": [
+      "go",
+      "test",
+      "-race",
+      "-p",
+      "1",
+      "./public/model",
+      "./channels/app",
+      "./channels/api4",
+      "-run",
+      "^(TestAttachmentImageMapURLs.*|TestAttachmentMapDecode.*|TestPost_InteractiveBlocksImageURLs|TestPost_AllStrings.*|TestPreparePostListForClient|TestPreparePostForClient|TestPreparePostForClientWithImageProxy|TestGetImagesForPost|TestParseImages|TestGetEmojiNamesForPost|TestGetCustomEmojisForPost|TestGetPostsForChannel|TestGetPostThread|TestGetPostsByIds|TestHandleIncomingWebhookRootId|TestHandleIncomingWebhookInteractiveContentWithoutText|FuzzAttachment.*)$",
+      "-count=1",
+      "-timeout=30m",
+      "-json"
+    ],
+    "packages": {
+      "model": {
+        "pass": 102,
+        "fail": 0,
+        "skip": 0
+      },
+      "app": {
+        "pass": 110,
+        "fail": 0,
+        "skip": 0
+      },
+      "api4": {
+        "pass": 17,
+        "fail": 0,
+        "skip": 0
+      }
+    },
+    "private_log_sha256": "ae8c9fed65a025ca5cad850a0935279ee878b0bf046874d3d3262f9d478837a4"
+  },
+  "fuzz": [
+    {
+      "target": "FuzzAttachmentMapDecode",
+      "seconds": 30,
+      "executions": 458526,
+      "command": [
+        "go",
+        "test",
+        "./public/model",
+        "-run",
+        "^$",
+        "-fuzz",
+        "^FuzzAttachmentMapDecode$",
+        "-fuzztime=30s",
+        "-parallel=4",
+        "-count=1",
+        "-timeout=5m"
+      ],
+      "private_log_sha256": "2f7fd7d74562783cd03c8b3876a952caa7d817279d3fecefebfc6a240f39d8b0"
+    },
+    {
+      "target": "FuzzAttachmentImageMapURLs",
+      "seconds": 30,
+      "executions": 436500,
+      "command": [
+        "go",
+        "test",
+        "./public/model",
+        "-run",
+        "^$",
+        "-fuzz",
+        "^FuzzAttachmentImageMapURLs$",
+        "-fuzztime=30s",
+        "-parallel=4",
+        "-count=1",
+        "-timeout=5m"
+      ],
+      "private_log_sha256": "dad025f3495938144360986eb47d9f17acbfdb24281722b9c4382cc29a4e58e1"
+    }
+  ],
+  "publication_source_sha": "a4a496745bb3e008dc9e24130569fbc32fff3ec2",
+  "comparison_context": "combined20 PR39-58",
+  "refactor_integrity": {
+    "status": "passed",
+    "source_sha": "73c65c133bb9d9a256fd86d68d7a97882658778e",
+    "baseline": "9e85f87af81bbf7ae1e85d0ea330f4b02ca59cef",
+    "validation_body_identical_except_return_tuple": true,
+    "decoded_object_construction_unchanged": true,
+    "json_fallback_body_identical_except_return_instead_of_append": true,
+    "method": "Whitespace-normalized text comparisons of extracted original/current function regions; declaration plumbing is stated explicitly. Runtime oracle/race/fuzz checks remain separate."
+  },
+  "standalone_and_combined_changed_files_byte_identical": [
+    {
+      "file": "server/public/model/attachment_image_map.go",
+      "sha256": "cc0306dc6788f0dbb3d57ec345f6f9828ee5cc3b264a1d064e6adc15c439979f"
+    },
+    {
+      "file": "server/public/model/attachment_image_map_test.go",
+      "sha256": "5d0f7e86207af36324deaf0119bf7300ecff1544fcd0bc0fb74a39f2155ab444"
+    },
+    {
+      "file": "server/public/model/message_attachment_decode.go",
+      "sha256": "7fc476c5af2a7af14017e5ca45acd0d2f62bd18ee70b7887960bd3d3637d9a28"
+    },
+    {
+      "file": "server/public/model/post.go",
+      "sha256": "e85d21fd8af7293fc9ae612d36ca09593f9549fa1537cae107f9fe97666075b2"
+    }
+  ],
+  "public_backend_builds": {
+    "status": "passed",
+    "runner_sha256": "d3f227e71cb915b34503c337dce4ed40df2fbcffae38cd5fff88bc63549e7d43",
+    "comparison_context": "combined20 PR39-58",
+    "baseline_tree_sha": "bc29e763dac98119e836a7a3a95e10156a0d7c0a",
+    "source_sha": "73c65c133bb9d9a256fd86d68d7a97882658778e",
+    "baseline_source_sha": "787f4bbe440f56312c41481574bb1a983386fb8c",
+    "source_tree_sha": "173427c750c5fd143483c6f1936c88756f7cf04c",
+    "production_sha256": {
+      "public/model/post.go": "e85d21fd8af7293fc9ae612d36ca09593f9549fa1537cae107f9fe97666075b2",
+      "public/model/message_attachment_decode.go": "7fc476c5af2a7af14017e5ca45acd0d2f62bd18ee70b7887960bd3d3637d9a28",
+      "public/model/attachment_image_map.go": "cc0306dc6788f0dbb3d57ec345f6f9828ee5cc3b264a1d064e6adc15c439979f"
+    },
+    "baseline_overlay_sha256": {
+      "public/model/post.go": "141bebd1e20ed4842fc781f3c15050ab0344cddc01865077198bf1b4ee36d9b9",
+      "public/model/message_attachment_decode.go": "7754d5f0c37d9c62602f08b736cbe3bdf672a4be47220c027fd4b3dfae7370df",
+      "public/model/attachment_image_map.go": "1c8719082457feed3e1ca879777beeefd009ebbb6caf77bb7191033202168175"
+    },
+    "go_version": "go version go1.26.10 linux/amd64",
+    "variants": {
+      "before": {
+        "binary_sha256": "f7982cf816e925ade63fe596c002e79cb7d1eee3ab3eb89f45a812196c161328",
+        "build_hash": "787f4bbe440f56312c41481574bb1a983386fb8c",
+        "build_number": "12.0.2-1.attachment-image-http-before",
+        "build_enterprise_ready": false,
+        "command": [
+          "go",
+          "build",
+          "-tags",
+          "production",
+          "-ldflags",
+          "-X github.com/mattermost/mattermost/server/public/model.BuildNumber=12.0.2-1.attachment-image-http-before -X github.com/mattermost/mattermost/server/public/model.BuildHash=787f4bbe440f56312c41481574bb1a983386fb8c -X github.com/mattermost/mattermost/server/public/model.BuildEnterpriseReady=false",
+          "-o",
+          "/home/rhnvrm/.bb/thread-storage/thr_jynvcygccx/attachment-image-http-build/server-before",
+          "-overlay",
+          "/tmp/mattermax-image-map-http-build-18uqfre7/overlay.json",
+          "./cmd/mattermost"
+        ],
+        "image_fast_path_symbols": [],
+        "forbidden_tags": false,
+        "enterprise_symbols": false,
+        "buildinfo_sha256": "6b9dbf114d76a4ea7b332f1b3efc34356154558ebe8795c5049e5b5d74ab9f83",
+        "build_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "after": {
+        "binary_sha256": "f91d0a587f3fda5048d5aeff840a6f69b5a685cb0f7ee3fb08b14fa9ccf32145",
+        "build_hash": "73c65c133bb9d9a256fd86d68d7a97882658778e",
+        "build_number": "12.0.2-1.attachment-image-http-after",
+        "build_enterprise_ready": false,
+        "command": [
+          "go",
+          "build",
+          "-tags",
+          "production",
+          "-ldflags",
+          "-X github.com/mattermost/mattermost/server/public/model.BuildNumber=12.0.2-1.attachment-image-http-after -X github.com/mattermost/mattermost/server/public/model.BuildHash=73c65c133bb9d9a256fd86d68d7a97882658778e -X github.com/mattermost/mattermost/server/public/model.BuildEnterpriseReady=false",
+          "-o",
+          "/home/rhnvrm/.bb/thread-storage/thr_jynvcygccx/attachment-image-http-build/server-after",
+          "./cmd/mattermost"
+        ],
+        "image_fast_path_symbols": [
+          "public/model.appendAttachmentMapImageURLs",
+          "public/model.validateAttachmentMap",
+          "public/model.decodeAttachmentJSON"
+        ],
+        "forbidden_tags": false,
+        "enterprise_symbols": false,
+        "buildinfo_sha256": "f4669494250ee84003cbec36771b9453e6d413365edb3b65c5b250011957114b",
+        "build_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    }
+  },
+  "http": {
+    "status": "passed",
+    "source_sha": "73c65c133bb9d9a256fd86d68d7a97882658778e",
+    "baseline_source_sha": "787f4bbe440f56312c41481574bb1a983386fb8c",
+    "requests": 10000,
+    "processes": 10,
+    "output_fingerprints_and_byte_lengths_equal": true,
+    "regular_reader": true,
+    "persistent_connection_verified": true,
+    "all_cleanup_passed": true,
+    "report_sha256": "3faaa22c59a5020af1b9d0851eb3903f65c24ad3c21d9ccec91735c4fff1db8c"
+  },
+  "standalone_model_race": {
+    "status": "passed",
+    "passes": 93,
+    "scope": "Candidate file contents subsequently committed as a4a496745bb3e008dc9e24130569fbc32fff3ec2. Run before source commit, over PR58 only. Full selected model/app/API and HTTP checks above use combined20 context.",
+    "private_log_sha256": "6d687f3adb880459139de382905fed2ec686fd77422124a920f819137c78f214"
+  },
+  "scope": "Selected model/app/API race and stress fuzz checks in combined20 context, separate standalone candidate model checks, and public backend builds plus separate synthetic authenticated HTTP comparisons in both contexts. Changed source-file equality recorded. No full-repository test, branded frontend/package, concurrent throughput or production tail claim.",
+  "patch_check": {
+    "status": "passed",
+    "patches": 40,
+    "private_log_sha256": "835a0e8edb0fa222d34424871fc7b0e7319885494dfad53bdf23022394bfac08"
+  },
+  "previous_patch_files_byte_identical": 39,
+  "standalone_public_backend_builds": {
+    "status": "passed",
+    "runner_sha256": "d3f227e71cb915b34503c337dce4ed40df2fbcffae38cd5fff88bc63549e7d43",
+    "comparison_context": "standalone PR58",
+    "baseline_tree_sha": "baa143e158e0663eca40552dfe1db2c1b24ed20a",
+    "source_sha": "a4a496745bb3e008dc9e24130569fbc32fff3ec2",
+    "baseline_source_sha": "9e85f87af81bbf7ae1e85d0ea330f4b02ca59cef",
+    "source_tree_sha": "2cb33e74dadb7f6eb0ca1294dbf180ae94f9dced",
+    "production_sha256": {
+      "public/model/post.go": "e85d21fd8af7293fc9ae612d36ca09593f9549fa1537cae107f9fe97666075b2",
+      "public/model/message_attachment_decode.go": "7fc476c5af2a7af14017e5ca45acd0d2f62bd18ee70b7887960bd3d3637d9a28",
+      "public/model/attachment_image_map.go": "cc0306dc6788f0dbb3d57ec345f6f9828ee5cc3b264a1d064e6adc15c439979f"
+    },
+    "baseline_overlay_sha256": {
+      "public/model/post.go": "141bebd1e20ed4842fc781f3c15050ab0344cddc01865077198bf1b4ee36d9b9",
+      "public/model/message_attachment_decode.go": "7754d5f0c37d9c62602f08b736cbe3bdf672a4be47220c027fd4b3dfae7370df",
+      "public/model/attachment_image_map.go": "1c8719082457feed3e1ca879777beeefd009ebbb6caf77bb7191033202168175"
+    },
+    "go_version": "go version go1.26.10 linux/amd64",
+    "variants": {
+      "before": {
+        "binary_sha256": "ec291ef5714ea676151a0ab053ae63fe0ad9b3759379a96f621a4501473845b0",
+        "build_hash": "9e85f87af81bbf7ae1e85d0ea330f4b02ca59cef",
+        "build_number": "12.0.2-1.attachment-image-http-before",
+        "build_enterprise_ready": false,
+        "command": [
+          "go",
+          "build",
+          "-tags",
+          "production",
+          "-ldflags",
+          "-X github.com/mattermost/mattermost/server/public/model.BuildNumber=12.0.2-1.attachment-image-http-before -X github.com/mattermost/mattermost/server/public/model.BuildHash=9e85f87af81bbf7ae1e85d0ea330f4b02ca59cef -X github.com/mattermost/mattermost/server/public/model.BuildEnterpriseReady=false",
+          "-o",
+          "/home/rhnvrm/.bb/thread-storage/thr_jynvcygccx/attachment-image-standalone-http-build/server-before",
+          "-overlay",
+          "/tmp/mattermax-image-map-http-build-xncgz_mi/overlay.json",
+          "./cmd/mattermost"
+        ],
+        "image_fast_path_symbols": [],
+        "forbidden_tags": false,
+        "enterprise_symbols": false,
+        "buildinfo_sha256": "e81cc00704ee4ec26bbe22f727be4550d4cb630e970d25e87c9ad469b9cee858",
+        "build_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "after": {
+        "binary_sha256": "2c87c0c9336a8642984e567c2f9c7e3bdc595143ef2d92cd8d8475403a2867ac",
+        "build_hash": "a4a496745bb3e008dc9e24130569fbc32fff3ec2",
+        "build_number": "12.0.2-1.attachment-image-http-after",
+        "build_enterprise_ready": false,
+        "command": [
+          "go",
+          "build",
+          "-tags",
+          "production",
+          "-ldflags",
+          "-X github.com/mattermost/mattermost/server/public/model.BuildNumber=12.0.2-1.attachment-image-http-after -X github.com/mattermost/mattermost/server/public/model.BuildHash=a4a496745bb3e008dc9e24130569fbc32fff3ec2 -X github.com/mattermost/mattermost/server/public/model.BuildEnterpriseReady=false",
+          "-o",
+          "/home/rhnvrm/.bb/thread-storage/thr_jynvcygccx/attachment-image-standalone-http-build/server-after",
+          "./cmd/mattermost"
+        ],
+        "image_fast_path_symbols": [
+          "public/model.appendAttachmentMapImageURLs",
+          "public/model.validateAttachmentMap",
+          "public/model.decodeAttachmentJSON"
+        ],
+        "forbidden_tags": false,
+        "enterprise_symbols": false,
+        "buildinfo_sha256": "c4efe943283d22c1ef26bfbd2716aeea126ef3d6e0ea0a4e8b9a459edefe9945",
+        "build_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    }
+  },
+  "standalone_http": {
+    "status": "passed",
+    "source_sha": "a4a496745bb3e008dc9e24130569fbc32fff3ec2",
+    "baseline_source_sha": "9e85f87af81bbf7ae1e85d0ea330f4b02ca59cef",
+    "requests": 10000,
+    "processes": 10,
+    "output_fingerprints_and_byte_lengths_equal": true,
+    "regular_reader": true,
+    "persistent_connection_verified": true,
+    "all_cleanup_passed": true,
+    "report_sha256": "6bdba1468292f17a17b08c462d0030e38caa807acb2a9f4c54e02b4d8e931919"
+  },
+  "http_producer_identical_across_contexts": true
+}

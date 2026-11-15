@@ -529,3 +529,12 @@ numeric forms, invalid UTF-8 and Slack boolean coercions. Preserve nullable and
 empty collections and independent decoded fields. Includes a legacy-decoder
 oracle, generated/fuzz/ownership checks and stored-history benchmarks. No API,
 schema, settings or third-party dependency changes.
+
+### attachment-image-map-reads.patch
+
+2026-11-15. Collect image URL strings from validated attachment maps without
+constructing unused attachment fields. Share the existing strict map validation
+and JSON fallback, preserving per-element custom marshaling order, typed
+attachments, nullable collections, interactive-block prefixes and independent
+URL output slices. Includes legacy-oracle, generated, ownership, callback-order,
+concurrent-property and fuzz checks. No API, schema, setting or dependency changes.

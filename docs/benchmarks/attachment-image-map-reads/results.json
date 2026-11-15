@@ -1,0 +1,1219 @@
+{
+  "status": "passed",
+  "source_sha": "a4a496745bb3e008dc9e24130569fbc32fff3ec2",
+  "baseline_source_sha": "9e85f87af81bbf7ae1e85d0ea330f4b02ca59cef",
+  "source_tree_sha": "2cb33e74dadb7f6eb0ca1294dbf180ae94f9dced",
+  "file_sha256": {
+    "server/public/model/attachment_image_map.go": "cc0306dc6788f0dbb3d57ec345f6f9828ee5cc3b264a1d064e6adc15c439979f",
+    "server/public/model/attachment_image_map_test.go": "5d0f7e86207af36324deaf0119bf7300ecff1544fcd0bc0fb74a39f2155ab444",
+    "server/public/model/message_attachment_decode.go": "7fc476c5af2a7af14017e5ca45acd0d2f62bd18ee70b7887960bd3d3637d9a28",
+    "server/public/model/post.go": "e85d21fd8af7293fc9ae612d36ca09593f9549fa1537cae107f9fe97666075b2",
+    "server/channels/app/attachment_map_history_test.go": "806649c3e4398f2ef0f2f0e60a17afb0b01fdddb46472fe96761c0d3abeb7bc5"
+  },
+  "baseline_overlay_sha256": {
+    "server/public/model/post.go": "141bebd1e20ed4842fc781f3c15050ab0344cddc01865077198bf1b4ee36d9b9",
+    "server/public/model/message_attachment_decode.go": "7754d5f0c37d9c62602f08b736cbe3bdf672a4be47220c027fd4b3dfae7370df",
+    "server/public/model/attachment_image_map.go": "1c8719082457feed3e1ca879777beeefd009ebbb6caf77bb7191033202168175"
+  },
+  "runner_sha256": "670cd56b25429e246052a9a7bf72582a73595209687d2bfb883b8f1fa206f174",
+  "trials": 3,
+  "history_iterations": 200,
+  "go_version": "go version go1.26.10 linux/amd64",
+  "environment": {
+    "GOMAXPROCS": "4",
+    "GOGC": "100",
+    "GOMEMLIMIT": null,
+    "TZ": "UTC"
+  },
+  "samples": [
+    {
+      "trial": 0,
+      "variant": "before",
+      "group": "model",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./public/model",
+        "-run",
+        "^$",
+        "-bench",
+        "^(BenchmarkAttachmentMapDecode|BenchmarkAttachmentImageMapURLs)$",
+        "-benchtime=300ms",
+        "-count=1",
+        "-timeout=10m",
+        "-json",
+        "-overlay",
+        "/tmp/mattermax-attachment-image-map-x4na5dcr/overlay.json"
+      ],
+      "benchmarks": [
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/plain",
+          "ns_per_op": 37.27,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/typed",
+          "ns_per_op": 44.21,
+          "bytes_per_op": 16,
+          "allocs_per_op": 1
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/fields=0",
+          "ns_per_op": 506.1,
+          "bytes_per_op": 296,
+          "allocs_per_op": 2
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/fields=8",
+          "ns_per_op": 1644.0,
+          "bytes_per_op": 744,
+          "allocs_per_op": 11
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/fields=64",
+          "ns_per_op": 8672.0,
+          "bytes_per_op": 3880,
+          "allocs_per_op": 67
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/urls",
+          "ns_per_op": 1797.0,
+          "bytes_per_op": 856,
+          "allocs_per_op": 14
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/actions",
+          "ns_per_op": 12502.0,
+          "bytes_per_op": 4524,
+          "allocs_per_op": 125
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/unknown",
+          "ns_per_op": 11348.0,
+          "bytes_per_op": 4100,
+          "allocs_per_op": 113
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/structured",
+          "ns_per_op": 11525.0,
+          "bytes_per_op": 4386,
+          "allocs_per_op": 117
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/malformed",
+          "ns_per_op": 11128.0,
+          "bytes_per_op": 3996,
+          "allocs_per_op": 109
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/mixed-late",
+          "ns_per_op": 3103.0,
+          "bytes_per_op": 1472,
+          "allocs_per_op": 24
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/plain",
+          "ns_per_op": 27.61,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/typed",
+          "ns_per_op": 14.22,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/fields=0",
+          "ns_per_op": 578.1,
+          "bytes_per_op": 296,
+          "allocs_per_op": 2
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/fields=8",
+          "ns_per_op": 1698.0,
+          "bytes_per_op": 744,
+          "allocs_per_op": 11
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/fields=64",
+          "ns_per_op": 9336.0,
+          "bytes_per_op": 3880,
+          "allocs_per_op": 67
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/actions",
+          "ns_per_op": 14388.0,
+          "bytes_per_op": 5093,
+          "allocs_per_op": 139
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/unknown",
+          "ns_per_op": 12911.0,
+          "bytes_per_op": 4604,
+          "allocs_per_op": 127
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/structured",
+          "ns_per_op": 13968.0,
+          "bytes_per_op": 4925,
+          "allocs_per_op": 131
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/malformed",
+          "ns_per_op": 12056.0,
+          "bytes_per_op": 4510,
+          "allocs_per_op": 121
+        }
+      ],
+      "raw_log_sha256": "95e6fa3862be95f21933308ad05c5f9f940b4aa481a3867bb3d483ee286821c7"
+    },
+    {
+      "trial": 0,
+      "variant": "before",
+      "group": "history",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./channels/app",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkAttachmentMapHistory$",
+        "-benchtime=200x",
+        "-count=1",
+        "-timeout=10m",
+        "-json",
+        "-overlay",
+        "/tmp/mattermax-attachment-image-map-x4na5dcr/overlay.json"
+      ],
+      "benchmarks": [
+        {
+          "name": "BenchmarkAttachmentMapHistory/plain",
+          "ns_per_op": 523217.0,
+          "bytes_per_op": 128954,
+          "allocs_per_op": 2373
+        },
+        {
+          "name": "BenchmarkAttachmentMapHistory/fields=0",
+          "ns_per_op": 1284954.0,
+          "bytes_per_op": 292943,
+          "allocs_per_op": 6094
+        },
+        {
+          "name": "BenchmarkAttachmentMapHistory/fields=8",
+          "ns_per_op": 2434275.0,
+          "bytes_per_op": 788328,
+          "allocs_per_op": 19474
+        },
+        {
+          "name": "BenchmarkAttachmentMapHistory/fields=64",
+          "ns_per_op": 9478904.0,
+          "bytes_per_op": 4026395,
+          "allocs_per_op": 110434
+        },
+        {
+          "name": "BenchmarkAttachmentMapHistory/actions",
+          "ns_per_op": 6205083.0,
+          "bytes_per_op": 1759101,
+          "allocs_per_op": 46834
+        }
+      ],
+      "raw_log_sha256": "d44a4b1cb3895d39668d9f173fa0a12620c441cf0e9ece1ff7e812661e250433"
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "group": "model",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./public/model",
+        "-run",
+        "^$",
+        "-bench",
+        "^(BenchmarkAttachmentMapDecode|BenchmarkAttachmentImageMapURLs)$",
+        "-benchtime=300ms",
+        "-count=1",
+        "-timeout=10m",
+        "-json"
+      ],
+      "benchmarks": [
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/plain",
+          "ns_per_op": 25.62,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/typed",
+          "ns_per_op": 43.76,
+          "bytes_per_op": 16,
+          "allocs_per_op": 1
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/fields=0",
+          "ns_per_op": 267.3,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/fields=8",
+          "ns_per_op": 985.5,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/fields=64",
+          "ns_per_op": 5748.0,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/urls",
+          "ns_per_op": 1220.0,
+          "bytes_per_op": 112,
+          "allocs_per_op": 3
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/actions",
+          "ns_per_op": 14392.0,
+          "bytes_per_op": 4516,
+          "allocs_per_op": 124
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/unknown",
+          "ns_per_op": 11104.0,
+          "bytes_per_op": 4092,
+          "allocs_per_op": 112
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/structured",
+          "ns_per_op": 11883.0,
+          "bytes_per_op": 4378,
+          "allocs_per_op": 116
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/malformed",
+          "ns_per_op": 11066.0,
+          "bytes_per_op": 3996,
+          "allocs_per_op": 109
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/mixed-late",
+          "ns_per_op": 2440.0,
+          "bytes_per_op": 720,
+          "allocs_per_op": 13
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/plain",
+          "ns_per_op": 30.68,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/typed",
+          "ns_per_op": 15.66,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/fields=0",
+          "ns_per_op": 540.7,
+          "bytes_per_op": 296,
+          "allocs_per_op": 2
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/fields=8",
+          "ns_per_op": 1788.0,
+          "bytes_per_op": 744,
+          "allocs_per_op": 11
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/fields=64",
+          "ns_per_op": 9693.0,
+          "bytes_per_op": 3880,
+          "allocs_per_op": 67
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/actions",
+          "ns_per_op": 14360.0,
+          "bytes_per_op": 5093,
+          "allocs_per_op": 139
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/unknown",
+          "ns_per_op": 13529.0,
+          "bytes_per_op": 4604,
+          "allocs_per_op": 127
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/structured",
+          "ns_per_op": 13289.0,
+          "bytes_per_op": 4924,
+          "allocs_per_op": 131
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/malformed",
+          "ns_per_op": 11987.0,
+          "bytes_per_op": 4510,
+          "allocs_per_op": 121
+        }
+      ],
+      "raw_log_sha256": "423334d75af137cdfeb89c1a7f9672ce888f007f7533b80fcc635b094bb39e36"
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "group": "history",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./channels/app",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkAttachmentMapHistory$",
+        "-benchtime=200x",
+        "-count=1",
+        "-timeout=10m",
+        "-json"
+      ],
+      "benchmarks": [
+        {
+          "name": "BenchmarkAttachmentMapHistory/plain",
+          "ns_per_op": 795907.0,
+          "bytes_per_op": 128792,
+          "allocs_per_op": 2373
+        },
+        {
+          "name": "BenchmarkAttachmentMapHistory/fields=0",
+          "ns_per_op": 1366024.0,
+          "bytes_per_op": 275384,
+          "allocs_per_op": 5974
+        },
+        {
+          "name": "BenchmarkAttachmentMapHistory/fields=8",
+          "ns_per_op": 2489125.0,
+          "bytes_per_op": 743672,
+          "allocs_per_op": 18814
+        },
+        {
+          "name": "BenchmarkAttachmentMapHistory/fields=64",
+          "ns_per_op": 9385625.0,
+          "bytes_per_op": 3793773,
+          "allocs_per_op": 106414
+        },
+        {
+          "name": "BenchmarkAttachmentMapHistory/actions",
+          "ns_per_op": 6451948.0,
+          "bytes_per_op": 1758436,
+          "allocs_per_op": 46774
+        }
+      ],
+      "raw_log_sha256": "de163094c262cea0ec07a69b4c53b34689fba6132f26a2801f95085b95633da0"
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "group": "model",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./public/model",
+        "-run",
+        "^$",
+        "-bench",
+        "^(BenchmarkAttachmentMapDecode|BenchmarkAttachmentImageMapURLs)$",
+        "-benchtime=300ms",
+        "-count=1",
+        "-timeout=10m",
+        "-json"
+      ],
+      "benchmarks": [
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/plain",
+          "ns_per_op": 24.73,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/typed",
+          "ns_per_op": 43.06,
+          "bytes_per_op": 16,
+          "allocs_per_op": 1
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/fields=0",
+          "ns_per_op": 266.8,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/fields=8",
+          "ns_per_op": 948.0,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/fields=64",
+          "ns_per_op": 5517.0,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/urls",
+          "ns_per_op": 1087.0,
+          "bytes_per_op": 112,
+          "allocs_per_op": 3
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/actions",
+          "ns_per_op": 12547.0,
+          "bytes_per_op": 4516,
+          "allocs_per_op": 124
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/unknown",
+          "ns_per_op": 11095.0,
+          "bytes_per_op": 4091,
+          "allocs_per_op": 112
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/structured",
+          "ns_per_op": 11815.0,
+          "bytes_per_op": 4378,
+          "allocs_per_op": 116
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/malformed",
+          "ns_per_op": 10639.0,
+          "bytes_per_op": 3996,
+          "allocs_per_op": 109
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/mixed-late",
+          "ns_per_op": 2134.0,
+          "bytes_per_op": 720,
+          "allocs_per_op": 13
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/plain",
+          "ns_per_op": 28.83,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/typed",
+          "ns_per_op": 15.0,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/fields=0",
+          "ns_per_op": 570.0,
+          "bytes_per_op": 296,
+          "allocs_per_op": 2
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/fields=8",
+          "ns_per_op": 1710.0,
+          "bytes_per_op": 744,
+          "allocs_per_op": 11
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/fields=64",
+          "ns_per_op": 9470.0,
+          "bytes_per_op": 3880,
+          "allocs_per_op": 67
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/actions",
+          "ns_per_op": 14481.0,
+          "bytes_per_op": 5093,
+          "allocs_per_op": 139
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/unknown",
+          "ns_per_op": 13823.0,
+          "bytes_per_op": 4603,
+          "allocs_per_op": 127
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/structured",
+          "ns_per_op": 16444.0,
+          "bytes_per_op": 4925,
+          "allocs_per_op": 131
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/malformed",
+          "ns_per_op": 15308.0,
+          "bytes_per_op": 4510,
+          "allocs_per_op": 121
+        }
+      ],
+      "raw_log_sha256": "c0d879164329f8d803eb593d143c68a467914f408aa5cf3ba14fd9330de09ef7"
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "group": "history",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./channels/app",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkAttachmentMapHistory$",
+        "-benchtime=200x",
+        "-count=1",
+        "-timeout=10m",
+        "-json"
+      ],
+      "benchmarks": [
+        {
+          "name": "BenchmarkAttachmentMapHistory/plain",
+          "ns_per_op": 710056.0,
+          "bytes_per_op": 128771,
+          "allocs_per_op": 2374
+        },
+        {
+          "name": "BenchmarkAttachmentMapHistory/fields=0",
+          "ns_per_op": 1342926.0,
+          "bytes_per_op": 275422,
+          "allocs_per_op": 5974
+        },
+        {
+          "name": "BenchmarkAttachmentMapHistory/fields=8",
+          "ns_per_op": 2453275.0,
+          "bytes_per_op": 743902,
+          "allocs_per_op": 18814
+        },
+        {
+          "name": "BenchmarkAttachmentMapHistory/fields=64",
+          "ns_per_op": 9455615.0,
+          "bytes_per_op": 3792671,
+          "allocs_per_op": 106414
+        },
+        {
+          "name": "BenchmarkAttachmentMapHistory/actions",
+          "ns_per_op": 6240622.0,
+          "bytes_per_op": 1758388,
+          "allocs_per_op": 46774
+        }
+      ],
+      "raw_log_sha256": "d5835109e9185e1a7aca7a09a7fd4adfda340424baab1116331deb59c75a232b"
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "group": "model",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./public/model",
+        "-run",
+        "^$",
+        "-bench",
+        "^(BenchmarkAttachmentMapDecode|BenchmarkAttachmentImageMapURLs)$",
+        "-benchtime=300ms",
+        "-count=1",
+        "-timeout=10m",
+        "-json",
+        "-overlay",
+        "/tmp/mattermax-attachment-image-map-x4na5dcr/overlay.json"
+      ],
+      "benchmarks": [
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/plain",
+          "ns_per_op": 38.23,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/typed",
+          "ns_per_op": 44.87,
+          "bytes_per_op": 16,
+          "allocs_per_op": 1
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/fields=0",
+          "ns_per_op": 524.3,
+          "bytes_per_op": 296,
+          "allocs_per_op": 2
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/fields=8",
+          "ns_per_op": 1673.0,
+          "bytes_per_op": 744,
+          "allocs_per_op": 11
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/fields=64",
+          "ns_per_op": 9753.0,
+          "bytes_per_op": 3880,
+          "allocs_per_op": 67
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/urls",
+          "ns_per_op": 2122.0,
+          "bytes_per_op": 856,
+          "allocs_per_op": 14
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/actions",
+          "ns_per_op": 14762.0,
+          "bytes_per_op": 4524,
+          "allocs_per_op": 125
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/unknown",
+          "ns_per_op": 13598.0,
+          "bytes_per_op": 4100,
+          "allocs_per_op": 113
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/structured",
+          "ns_per_op": 15192.0,
+          "bytes_per_op": 4386,
+          "allocs_per_op": 117
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/malformed",
+          "ns_per_op": 13152.0,
+          "bytes_per_op": 3996,
+          "allocs_per_op": 109
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/mixed-late",
+          "ns_per_op": 3547.0,
+          "bytes_per_op": 1472,
+          "allocs_per_op": 24
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/plain",
+          "ns_per_op": 33.42,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/typed",
+          "ns_per_op": 17.11,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/fields=0",
+          "ns_per_op": 625.2,
+          "bytes_per_op": 296,
+          "allocs_per_op": 2
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/fields=8",
+          "ns_per_op": 2085.0,
+          "bytes_per_op": 744,
+          "allocs_per_op": 11
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/fields=64",
+          "ns_per_op": 11338.0,
+          "bytes_per_op": 3880,
+          "allocs_per_op": 67
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/actions",
+          "ns_per_op": 13911.0,
+          "bytes_per_op": 5093,
+          "allocs_per_op": 139
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/unknown",
+          "ns_per_op": 13010.0,
+          "bytes_per_op": 4604,
+          "allocs_per_op": 127
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/structured",
+          "ns_per_op": 12846.0,
+          "bytes_per_op": 4924,
+          "allocs_per_op": 131
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/malformed",
+          "ns_per_op": 11795.0,
+          "bytes_per_op": 4511,
+          "allocs_per_op": 121
+        }
+      ],
+      "raw_log_sha256": "55fff4a2fab39c4721cb104b3f03e45eccc813f1de54918d3ba0a331e02ed3e4"
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "group": "history",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./channels/app",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkAttachmentMapHistory$",
+        "-benchtime=200x",
+        "-count=1",
+        "-timeout=10m",
+        "-json",
+        "-overlay",
+        "/tmp/mattermax-attachment-image-map-x4na5dcr/overlay.json"
+      ],
+      "benchmarks": [
+        {
+          "name": "BenchmarkAttachmentMapHistory/plain",
+          "ns_per_op": 692419.0,
+          "bytes_per_op": 128805,
+          "allocs_per_op": 2374
+        },
+        {
+          "name": "BenchmarkAttachmentMapHistory/fields=0",
+          "ns_per_op": 1360203.0,
+          "bytes_per_op": 292950,
+          "allocs_per_op": 6093
+        },
+        {
+          "name": "BenchmarkAttachmentMapHistory/fields=8",
+          "ns_per_op": 2608293.0,
+          "bytes_per_op": 788495,
+          "allocs_per_op": 19474
+        },
+        {
+          "name": "BenchmarkAttachmentMapHistory/fields=64",
+          "ns_per_op": 9517853.0,
+          "bytes_per_op": 4026019,
+          "allocs_per_op": 110434
+        },
+        {
+          "name": "BenchmarkAttachmentMapHistory/actions",
+          "ns_per_op": 6101956.0,
+          "bytes_per_op": 1759325,
+          "allocs_per_op": 46834
+        }
+      ],
+      "raw_log_sha256": "359d135eba3dbd616e1de6fb1300685f64ef6fbfed239938237d33dd3ed31540"
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "group": "model",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./public/model",
+        "-run",
+        "^$",
+        "-bench",
+        "^(BenchmarkAttachmentMapDecode|BenchmarkAttachmentImageMapURLs)$",
+        "-benchtime=300ms",
+        "-count=1",
+        "-timeout=10m",
+        "-json",
+        "-overlay",
+        "/tmp/mattermax-attachment-image-map-x4na5dcr/overlay.json"
+      ],
+      "benchmarks": [
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/plain",
+          "ns_per_op": 38.46,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/typed",
+          "ns_per_op": 42.49,
+          "bytes_per_op": 16,
+          "allocs_per_op": 1
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/fields=0",
+          "ns_per_op": 511.7,
+          "bytes_per_op": 296,
+          "allocs_per_op": 2
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/fields=8",
+          "ns_per_op": 1670.0,
+          "bytes_per_op": 744,
+          "allocs_per_op": 11
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/fields=64",
+          "ns_per_op": 10564.0,
+          "bytes_per_op": 3880,
+          "allocs_per_op": 67
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/urls",
+          "ns_per_op": 1846.0,
+          "bytes_per_op": 856,
+          "allocs_per_op": 14
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/actions",
+          "ns_per_op": 12504.0,
+          "bytes_per_op": 4524,
+          "allocs_per_op": 125
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/unknown",
+          "ns_per_op": 10825.0,
+          "bytes_per_op": 4099,
+          "allocs_per_op": 113
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/structured",
+          "ns_per_op": 11111.0,
+          "bytes_per_op": 4387,
+          "allocs_per_op": 117
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/malformed",
+          "ns_per_op": 10545.0,
+          "bytes_per_op": 3996,
+          "allocs_per_op": 109
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/mixed-late",
+          "ns_per_op": 2921.0,
+          "bytes_per_op": 1472,
+          "allocs_per_op": 24
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/plain",
+          "ns_per_op": 28.4,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/typed",
+          "ns_per_op": 14.96,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/fields=0",
+          "ns_per_op": 522.4,
+          "bytes_per_op": 296,
+          "allocs_per_op": 2
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/fields=8",
+          "ns_per_op": 1703.0,
+          "bytes_per_op": 744,
+          "allocs_per_op": 11
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/fields=64",
+          "ns_per_op": 9292.0,
+          "bytes_per_op": 3880,
+          "allocs_per_op": 67
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/actions",
+          "ns_per_op": 14582.0,
+          "bytes_per_op": 5093,
+          "allocs_per_op": 139
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/unknown",
+          "ns_per_op": 13248.0,
+          "bytes_per_op": 4605,
+          "allocs_per_op": 127
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/structured",
+          "ns_per_op": 14271.0,
+          "bytes_per_op": 4925,
+          "allocs_per_op": 131
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/malformed",
+          "ns_per_op": 12514.0,
+          "bytes_per_op": 4510,
+          "allocs_per_op": 121
+        }
+      ],
+      "raw_log_sha256": "2ecb584952703d4eeaad2d329d8eb84c3c8412a60dcdb431ab65021383e82222"
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "group": "history",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./channels/app",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkAttachmentMapHistory$",
+        "-benchtime=200x",
+        "-count=1",
+        "-timeout=10m",
+        "-json",
+        "-overlay",
+        "/tmp/mattermax-attachment-image-map-x4na5dcr/overlay.json"
+      ],
+      "benchmarks": [
+        {
+          "name": "BenchmarkAttachmentMapHistory/plain",
+          "ns_per_op": 784415.0,
+          "bytes_per_op": 128815,
+          "allocs_per_op": 2374
+        },
+        {
+          "name": "BenchmarkAttachmentMapHistory/fields=0",
+          "ns_per_op": 1335461.0,
+          "bytes_per_op": 292983,
+          "allocs_per_op": 6094
+        },
+        {
+          "name": "BenchmarkAttachmentMapHistory/fields=8",
+          "ns_per_op": 2628900.0,
+          "bytes_per_op": 788372,
+          "allocs_per_op": 19474
+        },
+        {
+          "name": "BenchmarkAttachmentMapHistory/fields=64",
+          "ns_per_op": 9388593.0,
+          "bytes_per_op": 4026213,
+          "allocs_per_op": 110434
+        },
+        {
+          "name": "BenchmarkAttachmentMapHistory/actions",
+          "ns_per_op": 6141639.0,
+          "bytes_per_op": 1759438,
+          "allocs_per_op": 46834
+        }
+      ],
+      "raw_log_sha256": "669e22ca133d663695390dd3a2e536abc447a1a2d6c8ae2d310198c1ec924f0b"
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "group": "model",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./public/model",
+        "-run",
+        "^$",
+        "-bench",
+        "^(BenchmarkAttachmentMapDecode|BenchmarkAttachmentImageMapURLs)$",
+        "-benchtime=300ms",
+        "-count=1",
+        "-timeout=10m",
+        "-json"
+      ],
+      "benchmarks": [
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/plain",
+          "ns_per_op": 24.47,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/typed",
+          "ns_per_op": 44.6,
+          "bytes_per_op": 16,
+          "allocs_per_op": 1
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/fields=0",
+          "ns_per_op": 255.8,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/fields=8",
+          "ns_per_op": 930.6,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/fields=64",
+          "ns_per_op": 5366.0,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/urls",
+          "ns_per_op": 1054.0,
+          "bytes_per_op": 112,
+          "allocs_per_op": 3
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/actions",
+          "ns_per_op": 12148.0,
+          "bytes_per_op": 4516,
+          "allocs_per_op": 124
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/unknown",
+          "ns_per_op": 11211.0,
+          "bytes_per_op": 4091,
+          "allocs_per_op": 112
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/structured",
+          "ns_per_op": 11678.0,
+          "bytes_per_op": 4378,
+          "allocs_per_op": 116
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/malformed",
+          "ns_per_op": 10467.0,
+          "bytes_per_op": 3996,
+          "allocs_per_op": 109
+        },
+        {
+          "name": "BenchmarkAttachmentImageMapURLs/mixed-late",
+          "ns_per_op": 2195.0,
+          "bytes_per_op": 720,
+          "allocs_per_op": 13
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/plain",
+          "ns_per_op": 28.52,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/typed",
+          "ns_per_op": 14.56,
+          "bytes_per_op": 0,
+          "allocs_per_op": 0
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/fields=0",
+          "ns_per_op": 520.6,
+          "bytes_per_op": 296,
+          "allocs_per_op": 2
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/fields=8",
+          "ns_per_op": 1683.0,
+          "bytes_per_op": 744,
+          "allocs_per_op": 11
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/fields=64",
+          "ns_per_op": 9490.0,
+          "bytes_per_op": 3880,
+          "allocs_per_op": 67
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/actions",
+          "ns_per_op": 13555.0,
+          "bytes_per_op": 5093,
+          "allocs_per_op": 139
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/unknown",
+          "ns_per_op": 12765.0,
+          "bytes_per_op": 4604,
+          "allocs_per_op": 127
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/structured",
+          "ns_per_op": 14100.0,
+          "bytes_per_op": 4925,
+          "allocs_per_op": 131
+        },
+        {
+          "name": "BenchmarkAttachmentMapDecode/malformed",
+          "ns_per_op": 12497.0,
+          "bytes_per_op": 4510,
+          "allocs_per_op": 121
+        }
+      ],
+      "raw_log_sha256": "38e26674ceed5a7a6b0b8b45bfcc287c3c9d73d133d0b247abcdd99a1d388347"
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "group": "history",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./channels/app",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkAttachmentMapHistory$",
+        "-benchtime=200x",
+        "-count=1",
+        "-timeout=10m",
+        "-json"
+      ],
+      "benchmarks": [
+        {
+          "name": "BenchmarkAttachmentMapHistory/plain",
+          "ns_per_op": 772076.0,
+          "bytes_per_op": 128858,
+          "allocs_per_op": 2374
+        },
+        {
+          "name": "BenchmarkAttachmentMapHistory/fields=0",
+          "ns_per_op": 1225926.0,
+          "bytes_per_op": 275183,
+          "allocs_per_op": 5973
+        },
+        {
+          "name": "BenchmarkAttachmentMapHistory/fields=8",
+          "ns_per_op": 2517655.0,
+          "bytes_per_op": 743651,
+          "allocs_per_op": 18813
+        },
+        {
+          "name": "BenchmarkAttachmentMapHistory/fields=64",
+          "ns_per_op": 9048657.0,
+          "bytes_per_op": 3793959,
+          "allocs_per_op": 106414
+        },
+        {
+          "name": "BenchmarkAttachmentMapHistory/actions",
+          "ns_per_op": 6327696.0,
+          "bytes_per_op": 1758397,
+          "allocs_per_op": 46774
+        }
+      ],
+      "raw_log_sha256": "4cfc94ab6f204b0d36a21191e98a5282ee1c94f0b5f40832340ea0d0c1634c1c"
+    }
+  ],
+  "scope": "Stacked on standalone PR58 only, not the combined20 stack. Before restores both original production files and adds unused validator/JSON fallback declarations to keep new test/helper files compilable. No initializer effects. Model image accessor and attachment-decoder controls plus identical SQL-stored 60-post history fixtures. Synthetic component/preparation measurements, not HTTP throughput."
+}
