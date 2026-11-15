@@ -519,3 +519,14 @@ and channels keep their names. Gates removed: `createChannel` in
 `PluginAPI.CreateChannel` in `app/plugin_api.go`, the webapp selector
 `isAnonymousURLEnabled` that hides the URL editors, and the System Console
 toggle's Enterprise Advanced check.
+
+### history-priority-metadata.patch
+
+2026-11-15. Read post-list priority and acknowledgement metadata with one
+bounded PostgreSQL query per 200 post IDs. Optional store capabilities preserve
+existing interfaces, retry policy and duration metrics. Unsupported stores or
+query failures fall back to the original independent reads. Preserve nullable
+flags, acknowledgement values, output ownership and feature-disabled behavior.
+Includes race-tested regression coverage and a reproducible preparation
+benchmark. See docs/benchmarks/history-priority-metadata for measurements and
+limits. No schema or dependency changes.

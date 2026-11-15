@@ -1,0 +1,29 @@
+{
+  "status": "passed",
+  "source_sha": "bc6b1680c1dbdeb42f3e48357e091605f44ae6a4",
+  "race_tests": 175,
+  "preparation_pairs": 3,
+  "preparation_cases": 18,
+  "http_enabled_requests": 10000,
+  "http_disabled_requests": 10000,
+  "patches": 39,
+  "prior_patches_byte_identical": true,
+  "public_builds_and_exclusions": "passed",
+  "files": {
+    "README.md": "f0d06283477b694d02fce5e17231e269baa0457866026795bd741924c2da57df",
+    "benchmark.py": "3495fc29de7876c2c72a4b0fd1fafaf0f1229a6f8e91eabb0759203a5a15ab02",
+    "http-build.json": "d4d05b80a1480b4394c097eceaa5288de8a35d930bce8f29cc099ef4305417c3",
+    "http-disabled-summary.json": "0894e8ae8c771a02cfb93a9c547ecfed40285756e37dab251d9aedd9fc0f3404",
+    "http-disabled.json": "6c0eb6291cacc114f1213ad64e5fd90e25faf8018f7b541cab113c23089e7c7a",
+    "http-enabled-summary.json": "53e4f5abab116b2054e43ee5bff1fae3ecfd575dce273a78baeaf9ac4e1436b9",
+    "http-enabled.json": "e7c171351f59335933a9d74b3b61580afb33d190dab533a5b0729f556a7a8cd1",
+    "http-pilot-disabled.json": "24b27684ee65c8ec484460bae3d75a94e345ae50e86afe2b7bfac7100501ff34",
+    "http-pilot-enabled.json": "087407e2be7ccaf50974404a670e1b4d7e7562bc70ad9e23c2c693a6418d83a2",
+    "http_build.py": "cd4e8d4f8698bf4a6a30617da5f2e52ba3a883dd5fc5c63d81a4abfcad03d6bc",
+    "http_requests.py": "34a2089b3eda784e5bfc4e02feba28629bf381e1a012bf4b8aa3e7af1111cb83",
+    "race-tests.json": "779125051883efa4453a7aaa99855f946817c5164a872a18a0c2722614180787",
+    "results.json": "9689644f0744d358ea672e7e16cf1e80916078f7ee1cf582fdd3b4889910f175",
+    "summarize_http.py": "5c1ee12b9f2c319c170a06411bb41b87f72498285c27cf210e0adc2c0a0c46ac",
+    "summary.json": "127c44913161d6176534bcded1677643d904a1e7bddff09900d760ca95f047d4"
+  }
+}

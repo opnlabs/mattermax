@@ -1,0 +1,73 @@
+{
+  "status": "passed",
+  "comparison_context": "original38",
+  "source_sha": "bc6b1680c1dbdeb42f3e48357e091605f44ae6a4",
+  "baseline_source_sha": "c9dbbcc480b242f7349cb7f4e9dcb6ea35cf6404",
+  "source_tree_sha": "63b61682cedda27cc44c992cb7dd0ddada72d68b",
+  "file_sha256": {
+    "server/channels/app/history_priority_metadata_benchmark_test.go": "978e1c58ef3971767892cc1b58ead99bc120c48fa2d813f5420e64c209b015ea",
+    "server/channels/app/post_list_priority_metadata.go": "1206ff078931ed9b22942c4068949d717e3312afd6cd60f53a3bbc88301251e0",
+    "server/channels/app/post_list_priority_metadata_test.go": "d619311bd4ec614d8c96528fff42cbed81ffa718b917b663bde39eaad78e0733",
+    "server/channels/app/post_metadata.go": "4aeba5624020b6cb98aeeee04d4445c6c7ca21eef0606a6bb17168c21797cde5",
+    "server/channels/store/post_priority_metadata.go": "8ee0209191c845d42d5334f18692370764697f017d529867f57b8f78e2bd5ee8",
+    "server/channels/store/retrylayer/post_priority_metadata.go": "72acbd2077fd253caf3ac2a8e2518f6940f5b9535d0fd2ecb2f5b5da764b2f66",
+    "server/channels/store/retrylayer/post_priority_metadata_test.go": "adcd0c54a63fdc30564f43ecc74cb57cbd90dc089c4780ad19595d59ce1f5205",
+    "server/channels/store/sqlstore/post_priority_metadata.go": "fa2f349b65fa15869b85f4640a3d90f973edd674337f45d77e0ad17bf94bf8f3",
+    "server/channels/store/sqlstore/post_priority_metadata_test.go": "6361281f03bfdd1df01f1987ea0e16e2f5a4803ba188ea8bb973b85fce67dce4",
+    "server/channels/store/timerlayer/post_priority_metadata.go": "3f35b8a7d543c8def11a971f0489285a9f06f25ea2214f4759bcbc4bd97bd4cb",
+    "server/channels/store/timerlayer/post_priority_metadata_test.go": "2d839cd9dc7c5e9b7412b23c67a4f15f6b42dd7dc8ed0763dbfc517c3f50d65f"
+  },
+  "baseline_post_metadata_sha256": "7c1df926962309717a8bbb013c12f9bd18ca1882da213f4346ae370be66340b7",
+  "runner_sha256": "cd4e8d4f8698bf4a6a30617da5f2e52ba3a883dd5fc5c63d81a4abfcad03d6bc",
+  "go_version": "go version go1.26.10 linux/amd64",
+  "variants": {
+    "before": {
+      "binary": "/home/rhnvrm/.bb/thread-storage/thr_jynvcygccx/history-priority-http-build/server-before",
+      "binary_sha256": "4ba53f1434d73a0c2f7768599eded917e7898af34635873e663733c8d98afd07",
+      "build_hash": "c9dbbcc480b242f7349cb7f4e9dcb6ea35cf6404",
+      "build_number": "12.0.2-1.priority-metadata-http-before",
+      "build_enterprise_ready": false,
+      "command": [
+        "go",
+        "build",
+        "-tags",
+        "production",
+        "-ldflags",
+        "-X github.com/mattermost/mattermost/server/public/model.BuildNumber=12.0.2-1.priority-metadata-http-before -X github.com/mattermost/mattermost/server/public/model.BuildHash=c9dbbcc480b242f7349cb7f4e9dcb6ea35cf6404 -X github.com/mattermost/mattermost/server/public/model.BuildEnterpriseReady=false",
+        "-o",
+        "/home/rhnvrm/.bb/thread-storage/thr_jynvcygccx/history-priority-http-build/server-before",
+        "-overlay",
+        "/tmp/mattermax-priority-meta-build-atnx6em5/overlay.json",
+        "./cmd/mattermost"
+      ],
+      "combined_read_entrypoint_linked": false,
+      "forbidden_tags": false,
+      "enterprise_symbols": false,
+      "buildinfo_sha256": "2e62221ecf7622bfa5266c242b3a7c1354855f800783ad29dc1a5018514e05ca",
+      "build_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "after": {
+      "binary": "/home/rhnvrm/.bb/thread-storage/thr_jynvcygccx/history-priority-http-build/server-after",
+      "binary_sha256": "46ae832e17973fb40faa7473936c54a7d9cb0525634dcaa4429232a2c65c8b15",
+      "build_hash": "bc6b1680c1dbdeb42f3e48357e091605f44ae6a4",
+      "build_number": "12.0.2-1.priority-metadata-http-after",
+      "build_enterprise_ready": false,
+      "command": [
+        "go",
+        "build",
+        "-tags",
+        "production",
+        "-ldflags",
+        "-X github.com/mattermost/mattermost/server/public/model.BuildNumber=12.0.2-1.priority-metadata-http-after -X github.com/mattermost/mattermost/server/public/model.BuildHash=bc6b1680c1dbdeb42f3e48357e091605f44ae6a4 -X github.com/mattermost/mattermost/server/public/model.BuildEnterpriseReady=false",
+        "-o",
+        "/home/rhnvrm/.bb/thread-storage/thr_jynvcygccx/history-priority-http-build/server-after",
+        "./cmd/mattermost"
+      ],
+      "combined_read_entrypoint_linked": true,
+      "forbidden_tags": false,
+      "enterprise_symbols": false,
+      "buildinfo_sha256": "6d6b2f0ec67fc8a60ff09f74473ef6ce63924f7255de9782357b8ed88e41a6ea",
+      "build_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  }
+}

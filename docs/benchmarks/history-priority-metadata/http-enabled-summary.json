@@ -1,0 +1,172 @@
+{
+  "status": "passed",
+  "priority_enabled": true,
+  "source_sha": "bc6b1680c1dbdeb42f3e48357e091605f44ae6a4",
+  "trials": 5,
+  "requests": 10000,
+  "scope": "Regular team/channel member, one persistent HTTP/1.1 client, uncompressed GET /api/v4/channels/{id}/posts?page=0&per_page=60&collapsedThreads=false. Five equally weighted empty/priority/acknowledgement/mixed/dense metadata page types in fixed shuffled order. Fresh database/server and all-API fixtures for each process. Timing spans request send through complete response read, excluding JSON decode/assertions; wall loop includes them. Localhost without TLS, no concurrent clients or production throughput/tail claim.",
+  "cases": [
+    {
+      "name": "all",
+      "before_mean_ns": [
+        3457637.862,
+        3665538.858,
+        3587602.902,
+        3588000.774,
+        3729745.177
+      ],
+      "after_mean_ns": [
+        3333166.339,
+        3339629.269,
+        3339645.73,
+        3332032.069,
+        3329939.2
+      ],
+      "before_median_ns": 3588000.774,
+      "after_median_ns": 3333166.339,
+      "median_change_percent": -7.102407470104966,
+      "paired_change_percent": [
+        -3.59990050918757,
+        -8.891178122111732,
+        -6.9114999283162,
+        -7.134020339539648,
+        -10.719391219149765
+      ]
+    },
+    {
+      "name": "empty",
+      "before_mean_ns": [
+        3317366.565,
+        3457367.885,
+        3418692.455,
+        3403224.95,
+        3489309.75
+      ],
+      "after_mean_ns": [
+        3240875.66,
+        3187268.58,
+        3168029.36,
+        3185676.63,
+        3184028.01
+      ],
+      "before_median_ns": 3418692.455,
+      "after_median_ns": 3185676.63,
+      "median_change_percent": -6.8159341054268685,
+      "paired_change_percent": [
+        -2.3057718675717043,
+        -7.8122813071713315,
+        -7.3321335071656835,
+        -6.39241669875511,
+        -8.749058176907344
+      ]
+    },
+    {
+      "name": "priority",
+      "before_mean_ns": [
+        3408402.705,
+        3645812.455,
+        3530709.97,
+        3566378.945,
+        3687687.215
+      ],
+      "after_mean_ns": [
+        3286357.635,
+        3301233.28,
+        3318947.865,
+        3326918.98,
+        3340912.545
+      ],
+      "before_median_ns": 3566378.945,
+      "after_median_ns": 3318947.865,
+      "median_change_percent": -6.937879676159864,
+      "paired_change_percent": [
+        -3.5807115697028657,
+        -9.451368638763402,
+        -5.997720197901158,
+        -6.714372440307237,
+        -9.403581426034801
+      ]
+    },
+    {
+      "name": "acknowledgements",
+      "before_mean_ns": [
+        3490548.07,
+        3712898.09,
+        3644097.385,
+        3635084.3,
+        3806113.15
+      ],
+      "after_mean_ns": [
+        3383013.02,
+        3396088.905,
+        3398009.675,
+        3397386.82,
+        3376352.705
+      ],
+      "before_median_ns": 3644097.385,
+      "after_median_ns": 3396088.905,
+      "median_change_percent": -6.805758842254428,
+      "paired_change_percent": [
+        -3.08074972306569,
+        -8.53266578614874,
+        -6.7530497679056944,
+        -6.538981228028195,
+        -11.291320779572722
+      ]
+    },
+    {
+      "name": "mixed",
+      "before_mean_ns": [
+        3441950.55,
+        3655971.385,
+        3573846.605,
+        3544580.575,
+        3733721.52
+      ],
+      "after_mean_ns": [
+        3310054.635,
+        3330081.88,
+        3316591.75,
+        3314470.61,
+        3298198.915
+      ],
+      "before_median_ns": 3573846.605,
+      "after_median_ns": 3314470.61,
+      "median_change_percent": -7.25761409673038,
+      "paired_change_percent": [
+        -3.8320107475105947,
+        -8.91389649101425,
+        -7.198262360787588,
+        -6.491881341983607,
+        -11.664571197050599
+      ]
+    },
+    {
+      "name": "dense",
+      "before_mean_ns": [
+        3629921.42,
+        3855644.475,
+        3770668.095,
+        3790735.1,
+        3931894.25
+      ],
+      "after_mean_ns": [
+        3445530.745,
+        3483473.7,
+        3496650,
+        3435707.305,
+        3450203.825
+      ],
+      "before_median_ns": 3790735.1,
+      "after_median_ns": 3450203.825,
+      "median_change_percent": -8.983251691736516,
+      "paired_change_percent": [
+        -5.079742883249516,
+        -9.65262169303096,
+        -7.267096654923167,
+        -9.365671449846225,
+        -12.250848938778036
+      ]
+    }
+  ]
+}

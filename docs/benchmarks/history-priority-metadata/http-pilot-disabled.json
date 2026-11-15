@@ -1,0 +1,160 @@
+{
+  "status": "passed",
+  "comparison_context": "original38",
+  "priority_enabled": false,
+  "build_report_sha256": "d4d05b80a1480b4394c097eceaa5288de8a35d930bce8f29cc099ef4305417c3",
+  "source_sha": "bc6b1680c1dbdeb42f3e48357e091605f44ae6a4",
+  "baseline_source_sha": "c9dbbcc480b242f7349cb7f4e9dcb6ea35cf6404",
+  "binaries": {
+    "before": {
+      "binary_sha256": "4ba53f1434d73a0c2f7768599eded917e7898af34635873e663733c8d98afd07",
+      "build_hash": "c9dbbcc480b242f7349cb7f4e9dcb6ea35cf6404",
+      "build_number": "12.0.2-1.priority-metadata-http-before"
+    },
+    "after": {
+      "binary_sha256": "46ae832e17973fb40faa7473936c54a7d9cb0525634dcaa4429232a2c65c8b15",
+      "build_hash": "bc6b1680c1dbdeb42f3e48357e091605f44ae6a4",
+      "build_number": "12.0.2-1.priority-metadata-http-after"
+    }
+  },
+  "runner_sha256": "34a2089b3eda784e5bfc4e02feba28629bf381e1a012bf4b8aa3e7af1111cb83",
+  "trials": 1,
+  "requests_per_process": 10,
+  "warmup_per_process": 5,
+  "measurement_kind": "fixture/output pilot",
+  "runs": [
+    {
+      "trial": 0,
+      "variant": "before",
+      "status": "passed",
+      "database": "mm_priority_meta_http_6f5c6b420c28",
+      "database_removed": true,
+      "server_stopped": true,
+      "runtime_directory_removed": true,
+      "verified_build_number": "12.0.2-1.priority-metadata-http-before",
+      "latencies_ns": {
+        "empty": [
+          2273793,
+          2362623
+        ],
+        "priority": [
+          2357592,
+          2969244
+        ],
+        "acknowledgements": [
+          2405471,
+          2316658
+        ],
+        "mixed": [
+          2526014,
+          2614414
+        ],
+        "dense": [
+          2459844,
+          2864400
+        ]
+      },
+      "response_bytes": {
+        "empty": [
+          29097
+        ],
+        "priority": [
+          29097
+        ],
+        "acknowledgements": [
+          29097
+        ],
+        "mixed": [
+          29097
+        ],
+        "dense": [
+          29097
+        ]
+      },
+      "mean_latency_ns": 2515005.3,
+      "wall_loop_ns": 32153168,
+      "regular_member": true,
+      "persistent_connection_verified": true,
+      "normalized_response_sha256": {
+        "empty": "f2f19cd12e5d1a9678e49724ac8c2d14e4e56f7dda4eb471936e8676c4509897",
+        "priority": "3ed8820fe432e645f9731e3326a87d8de809bc9ab6ea2c95eac3fabe7845298e",
+        "acknowledgements": "471f4c8f0451c85eb4c6fbb98ffefa0c2adc44b0646b6e15e7de550f7a2d660b",
+        "mixed": "9393c084934279541d1319d3cc174420d374d8fec685416b73c63527250ac331",
+        "dense": "2acb231238a441942ab6e7d742e988dc3f336e993f33e7100de9c0e11f8e8cec"
+      },
+      "environment": {
+        "GOMAXPROCS": 4,
+        "GOGC": 100,
+        "TZ": "UTC"
+      },
+      "fixture_posts": 300
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "status": "passed",
+      "database": "mm_priority_meta_http_0ef6906d83a8",
+      "database_removed": true,
+      "server_stopped": true,
+      "runtime_directory_removed": true,
+      "verified_build_number": "12.0.2-1.priority-metadata-http-after",
+      "latencies_ns": {
+        "empty": [
+          2988357,
+          2662221
+        ],
+        "priority": [
+          2538296,
+          3721495
+        ],
+        "acknowledgements": [
+          2638482,
+          2723449
+        ],
+        "mixed": [
+          2954144,
+          2627033
+        ],
+        "dense": [
+          2693029,
+          2765345
+        ]
+      },
+      "response_bytes": {
+        "empty": [
+          29097
+        ],
+        "priority": [
+          29097
+        ],
+        "acknowledgements": [
+          29097
+        ],
+        "mixed": [
+          29097
+        ],
+        "dense": [
+          29097
+        ]
+      },
+      "mean_latency_ns": 2831185.1,
+      "wall_loop_ns": 38487610,
+      "regular_member": true,
+      "persistent_connection_verified": true,
+      "normalized_response_sha256": {
+        "empty": "f2f19cd12e5d1a9678e49724ac8c2d14e4e56f7dda4eb471936e8676c4509897",
+        "priority": "3ed8820fe432e645f9731e3326a87d8de809bc9ab6ea2c95eac3fabe7845298e",
+        "acknowledgements": "471f4c8f0451c85eb4c6fbb98ffefa0c2adc44b0646b6e15e7de550f7a2d660b",
+        "mixed": "9393c084934279541d1319d3cc174420d374d8fec685416b73c63527250ac331",
+        "dense": "2acb231238a441942ab6e7d742e988dc3f336e993f33e7100de9c0e11f8e8cec"
+      },
+      "environment": {
+        "GOMAXPROCS": 4,
+        "GOGC": 100,
+        "TZ": "UTC"
+      },
+      "fixture_posts": 300
+    }
+  ],
+  "scope": "Regular team/channel member, one persistent HTTP/1.1 client, uncompressed GET /api/v4/channels/{id}/posts?page=0&per_page=60&collapsedThreads=false. Five equally weighted empty/priority/acknowledgement/mixed/dense metadata page types in fixed shuffled order. Fresh database/server and all-API fixtures for each process. Timing spans request send through complete response read, excluding JSON decode/assertions; wall loop includes them. Localhost without TLS, no concurrent clients or production throughput/tail claim."
+}

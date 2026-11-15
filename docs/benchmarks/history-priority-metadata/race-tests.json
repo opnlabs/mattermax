@@ -1,0 +1,52 @@
+{
+  "status": "passed",
+  "source_sha": "bc6b1680c1dbdeb42f3e48357e091605f44ae6a4",
+  "race": {
+    "command": [
+      "go",
+      "test",
+      "-race",
+      "-p",
+      "1",
+      "./channels/store/retrylayer",
+      "./channels/store/timerlayer",
+      "./channels/store/sqlstore",
+      "./channels/app",
+      "./channels/api4",
+      "-run",
+      "^(TestHistoryPriorityMetadata.*|TestRetry|TestPreparePostListForClient|TestPreparePostForClient|TestPreparePostForClientWithImageProxy|TestPostPriorityStore|TestPostAcknowledgementsStore|TestPostAcknowledgementsApp|TestCreatePostForPriority|TestAcknowledgePost|TestGetPostsForChannel|TestGetPostThread|TestGetPostsByIds)$",
+      "-count=1",
+      "-timeout=30m",
+      "-json"
+    ],
+    "packages": {
+      "retrylayer": {
+        "pass": 14,
+        "fail": 0,
+        "skip": 0
+      },
+      "timerlayer": {
+        "pass": 6,
+        "fail": 0,
+        "skip": 0
+      },
+      "sqlstore": {
+        "pass": 37,
+        "fail": 0,
+        "skip": 0
+      },
+      "app": {
+        "pass": 90,
+        "fail": 0,
+        "skip": 0
+      },
+      "api4": {
+        "pass": 28,
+        "fail": 0,
+        "skip": 0
+      }
+    },
+    "private_log_sha256": "11efbcbfd0f0af9346cd1cbb079553c1e412bc63789330ba0f81f85f69ae6687"
+  },
+  "scope": "175 selected race parent/subtest passes, not the entire server suite"
+}

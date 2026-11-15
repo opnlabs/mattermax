@@ -1,0 +1,819 @@
+{
+  "status": "passed",
+  "source_sha": "bc6b1680c1dbdeb42f3e48357e091605f44ae6a4",
+  "baseline_source_sha": "c9dbbcc480b242f7349cb7f4e9dcb6ea35cf6404",
+  "source_tree_sha": "63b61682cedda27cc44c992cb7dd0ddada72d68b",
+  "file_sha256": {
+    "server/channels/app/history_priority_metadata_benchmark_test.go": "978e1c58ef3971767892cc1b58ead99bc120c48fa2d813f5420e64c209b015ea",
+    "server/channels/app/post_list_priority_metadata.go": "1206ff078931ed9b22942c4068949d717e3312afd6cd60f53a3bbc88301251e0",
+    "server/channels/app/post_list_priority_metadata_test.go": "d619311bd4ec614d8c96528fff42cbed81ffa718b917b663bde39eaad78e0733",
+    "server/channels/app/post_metadata.go": "4aeba5624020b6cb98aeeee04d4445c6c7ca21eef0606a6bb17168c21797cde5",
+    "server/channels/store/post_priority_metadata.go": "8ee0209191c845d42d5334f18692370764697f017d529867f57b8f78e2bd5ee8",
+    "server/channels/store/retrylayer/post_priority_metadata.go": "72acbd2077fd253caf3ac2a8e2518f6940f5b9535d0fd2ecb2f5b5da764b2f66",
+    "server/channels/store/retrylayer/post_priority_metadata_test.go": "adcd0c54a63fdc30564f43ecc74cb57cbd90dc089c4780ad19595d59ce1f5205",
+    "server/channels/store/sqlstore/post_priority_metadata.go": "fa2f349b65fa15869b85f4640a3d90f973edd674337f45d77e0ad17bf94bf8f3",
+    "server/channels/store/sqlstore/post_priority_metadata_test.go": "6361281f03bfdd1df01f1987ea0e16e2f5a4803ba188ea8bb973b85fce67dce4",
+    "server/channels/store/timerlayer/post_priority_metadata.go": "3f35b8a7d543c8def11a971f0489285a9f06f25ea2214f4759bcbc4bd97bd4cb",
+    "server/channels/store/timerlayer/post_priority_metadata_test.go": "2d839cd9dc7c5e9b7412b23c67a4f15f6b42dd7dc8ed0763dbfc517c3f50d65f"
+  },
+  "baseline_post_metadata_sha256": "7c1df926962309717a8bbb013c12f9bd18ca1882da213f4346ae370be66340b7",
+  "runner_sha256": "3495fc29de7876c2c72a4b0fd1fafaf0f1229a6f8e91eabb0759203a5a15ab02",
+  "trials": 3,
+  "iterations": 100,
+  "go_version": "go version go1.26.10 linux/amd64",
+  "environment": {
+    "GOMAXPROCS": "4",
+    "GOGC": "100",
+    "GOMEMLIMIT": null,
+    "TZ": "UTC"
+  },
+  "samples": [
+    {
+      "trial": 0,
+      "variant": "before",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./channels/app",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkHistoryPriorityMetadata$",
+        "-benchtime=100x",
+        "-count=1",
+        "-timeout=15m",
+        "-json",
+        "-overlay",
+        "/tmp/mattermax-history-priority-4dec4060/overlay.json"
+      ],
+      "benchmarks": [
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=1/empty",
+          "ns_per_op": 365876.0,
+          "bytes_per_op": 16250,
+          "allocs_per_op": 284
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=1/priority",
+          "ns_per_op": 437818.0,
+          "bytes_per_op": 16722,
+          "allocs_per_op": 302
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=1/acknowledgements",
+          "ns_per_op": 424748.0,
+          "bytes_per_op": 17553,
+          "allocs_per_op": 323
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=1/mixed",
+          "ns_per_op": 441540.0,
+          "bytes_per_op": 18031,
+          "allocs_per_op": 340
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=1/dense",
+          "ns_per_op": 440549.0,
+          "bytes_per_op": 18033,
+          "allocs_per_op": 341
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=1/disabled",
+          "ns_per_op": 3260.0,
+          "bytes_per_op": 1696,
+          "allocs_per_op": 34
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=60/empty",
+          "ns_per_op": 789459.0,
+          "bytes_per_op": 128800,
+          "allocs_per_op": 2374
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=60/priority",
+          "ns_per_op": 977759.0,
+          "bytes_per_op": 152140,
+          "allocs_per_op": 3232
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=60/acknowledgements",
+          "ns_per_op": 1151064.0,
+          "bytes_per_op": 198418,
+          "allocs_per_op": 4434
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=60/mixed",
+          "ns_per_op": 1014906.0,
+          "bytes_per_op": 162024,
+          "allocs_per_op": 3502
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=60/dense",
+          "ns_per_op": 1288974.0,
+          "bytes_per_op": 221719,
+          "allocs_per_op": 5292
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=60/disabled",
+          "ns_per_op": 126920.0,
+          "bytes_per_op": 81448,
+          "allocs_per_op": 1747
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=201/empty",
+          "ns_per_op": 2171732.0,
+          "bytes_per_op": 436327,
+          "allocs_per_op": 7571
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=201/priority",
+          "ns_per_op": 2498131.0,
+          "bytes_per_op": 506003,
+          "allocs_per_op": 10409
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=201/acknowledgements",
+          "ns_per_op": 3177276.0,
+          "bytes_per_op": 649201,
+          "allocs_per_op": 14433
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=201/mixed",
+          "ns_per_op": 2899268.0,
+          "bytes_per_op": 547538,
+          "allocs_per_op": 11308
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=201/dense",
+          "ns_per_op": 4012468.0,
+          "bytes_per_op": 718854,
+          "allocs_per_op": 17271
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=201/disabled",
+          "ns_per_op": 405463.0,
+          "bytes_per_op": 267261,
+          "allocs_per_op": 5836
+        }
+      ],
+      "raw_log_sha256": "e9b2c30f9961919dd51849039b47f5a1369764254b81597b202ba23131a9366a"
+    },
+    {
+      "trial": 0,
+      "variant": "after",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./channels/app",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkHistoryPriorityMetadata$",
+        "-benchtime=100x",
+        "-count=1",
+        "-timeout=15m",
+        "-json"
+      ],
+      "benchmarks": [
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=1/empty",
+          "ns_per_op": 336269.0,
+          "bytes_per_op": 5476,
+          "allocs_per_op": 99
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=1/priority",
+          "ns_per_op": 363729.0,
+          "bytes_per_op": 5897,
+          "allocs_per_op": 112
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=1/acknowledgements",
+          "ns_per_op": 371409.0,
+          "bytes_per_op": 6626,
+          "allocs_per_op": 130
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=1/mixed",
+          "ns_per_op": 353702.0,
+          "bytes_per_op": 7058,
+          "allocs_per_op": 143
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=1/dense",
+          "ns_per_op": 399530.0,
+          "bytes_per_op": 7057,
+          "allocs_per_op": 143
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=1/disabled",
+          "ns_per_op": 3336.0,
+          "bytes_per_op": 1696,
+          "allocs_per_op": 34
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=60/empty",
+          "ns_per_op": 598725.0,
+          "bytes_per_op": 94764,
+          "allocs_per_op": 1817
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=60/priority",
+          "ns_per_op": 726589.0,
+          "bytes_per_op": 115371,
+          "allocs_per_op": 2433
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=60/acknowledgements",
+          "ns_per_op": 868835.0,
+          "bytes_per_op": 157040,
+          "allocs_per_op": 3515
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=60/mixed",
+          "ns_per_op": 716688.0,
+          "bytes_per_op": 124369,
+          "allocs_per_op": 2701
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=60/dense",
+          "ns_per_op": 960456.0,
+          "bytes_per_op": 177622,
+          "allocs_per_op": 4129
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=60/disabled",
+          "ns_per_op": 126013.0,
+          "bytes_per_op": 81448,
+          "allocs_per_op": 1747
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=201/empty",
+          "ns_per_op": 1274559.0,
+          "bytes_per_op": 318022,
+          "allocs_per_op": 5973
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=201/priority",
+          "ns_per_op": 1908929.0,
+          "bytes_per_op": 378789,
+          "allocs_per_op": 8003
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=201/acknowledgements",
+          "ns_per_op": 2347999.0,
+          "bytes_per_op": 506626,
+          "allocs_per_op": 11623
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=201/mixed",
+          "ns_per_op": 2034543.0,
+          "bytes_per_op": 416856,
+          "allocs_per_op": 8895
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=201/dense",
+          "ns_per_op": 3060973.0,
+          "bytes_per_op": 567322,
+          "allocs_per_op": 13653
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=201/disabled",
+          "ns_per_op": 450670.0,
+          "bytes_per_op": 267261,
+          "allocs_per_op": 5836
+        }
+      ],
+      "raw_log_sha256": "4c750b981487fc25058a797b74ccc4f0aa079557e8554ed2aec54e2382848ee8"
+    },
+    {
+      "trial": 1,
+      "variant": "after",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./channels/app",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkHistoryPriorityMetadata$",
+        "-benchtime=100x",
+        "-count=1",
+        "-timeout=15m",
+        "-json"
+      ],
+      "benchmarks": [
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=1/empty",
+          "ns_per_op": 356636.0,
+          "bytes_per_op": 5472,
+          "allocs_per_op": 99
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=1/priority",
+          "ns_per_op": 380810.0,
+          "bytes_per_op": 5896,
+          "allocs_per_op": 112
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=1/acknowledgements",
+          "ns_per_op": 289907.0,
+          "bytes_per_op": 6624,
+          "allocs_per_op": 130
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=1/mixed",
+          "ns_per_op": 379750.0,
+          "bytes_per_op": 7056,
+          "allocs_per_op": 143
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=1/dense",
+          "ns_per_op": 353176.0,
+          "bytes_per_op": 7056,
+          "allocs_per_op": 143
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=1/disabled",
+          "ns_per_op": 3210.0,
+          "bytes_per_op": 1696,
+          "allocs_per_op": 34
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=60/empty",
+          "ns_per_op": 586796.0,
+          "bytes_per_op": 94719,
+          "allocs_per_op": 1817
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=60/priority",
+          "ns_per_op": 720980.0,
+          "bytes_per_op": 115427,
+          "allocs_per_op": 2432
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=60/acknowledgements",
+          "ns_per_op": 861916.0,
+          "bytes_per_op": 157033,
+          "allocs_per_op": 3514
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=60/mixed",
+          "ns_per_op": 800441.0,
+          "bytes_per_op": 124334,
+          "allocs_per_op": 2700
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=60/dense",
+          "ns_per_op": 987875.0,
+          "bytes_per_op": 177654,
+          "allocs_per_op": 4130
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=60/disabled",
+          "ns_per_op": 122953.0,
+          "bytes_per_op": 81448,
+          "allocs_per_op": 1747
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=201/empty",
+          "ns_per_op": 1274363.0,
+          "bytes_per_op": 318001,
+          "allocs_per_op": 5973
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=201/priority",
+          "ns_per_op": 1877076.0,
+          "bytes_per_op": 378804,
+          "allocs_per_op": 8003
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=201/acknowledgements",
+          "ns_per_op": 2377469.0,
+          "bytes_per_op": 506657,
+          "allocs_per_op": 11623
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=201/mixed",
+          "ns_per_op": 1987766.0,
+          "bytes_per_op": 416858,
+          "allocs_per_op": 8895
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=201/dense",
+          "ns_per_op": 2621077.0,
+          "bytes_per_op": 567313,
+          "allocs_per_op": 13653
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=201/disabled",
+          "ns_per_op": 416831.0,
+          "bytes_per_op": 267261,
+          "allocs_per_op": 5836
+        }
+      ],
+      "raw_log_sha256": "654859a77f458268873bbbc2a5e298c0d9501045f3d9d84aaee269858b6786b1"
+    },
+    {
+      "trial": 1,
+      "variant": "before",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./channels/app",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkHistoryPriorityMetadata$",
+        "-benchtime=100x",
+        "-count=1",
+        "-timeout=15m",
+        "-json",
+        "-overlay",
+        "/tmp/mattermax-history-priority-4dec4060/overlay.json"
+      ],
+      "benchmarks": [
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=1/empty",
+          "ns_per_op": 408130.0,
+          "bytes_per_op": 16265,
+          "allocs_per_op": 285
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=1/priority",
+          "ns_per_op": 537075.0,
+          "bytes_per_op": 16722,
+          "allocs_per_op": 302
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=1/acknowledgements",
+          "ns_per_op": 447573.0,
+          "bytes_per_op": 17554,
+          "allocs_per_op": 324
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=1/mixed",
+          "ns_per_op": 444734.0,
+          "bytes_per_op": 18034,
+          "allocs_per_op": 341
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=1/dense",
+          "ns_per_op": 361635.0,
+          "bytes_per_op": 18032,
+          "allocs_per_op": 341
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=1/disabled",
+          "ns_per_op": 3357.0,
+          "bytes_per_op": 1696,
+          "allocs_per_op": 34
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=60/empty",
+          "ns_per_op": 831153.0,
+          "bytes_per_op": 128768,
+          "allocs_per_op": 2373
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=60/priority",
+          "ns_per_op": 1021980.0,
+          "bytes_per_op": 152136,
+          "allocs_per_op": 3232
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=60/acknowledgements",
+          "ns_per_op": 1131446.0,
+          "bytes_per_op": 198378,
+          "allocs_per_op": 4434
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=60/mixed",
+          "ns_per_op": 1045764.0,
+          "bytes_per_op": 162035,
+          "allocs_per_op": 3503
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=60/dense",
+          "ns_per_op": 1340419.0,
+          "bytes_per_op": 221733,
+          "allocs_per_op": 5293
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=60/disabled",
+          "ns_per_op": 117285.0,
+          "bytes_per_op": 81448,
+          "allocs_per_op": 1747
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=201/empty",
+          "ns_per_op": 2150161.0,
+          "bytes_per_op": 436318,
+          "allocs_per_op": 7571
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=201/priority",
+          "ns_per_op": 2578347.0,
+          "bytes_per_op": 506024,
+          "allocs_per_op": 10409
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=201/acknowledgements",
+          "ns_per_op": 3051219.0,
+          "bytes_per_op": 649186,
+          "allocs_per_op": 14433
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=201/mixed",
+          "ns_per_op": 3053035.0,
+          "bytes_per_op": 547512,
+          "allocs_per_op": 11308
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=201/dense",
+          "ns_per_op": 4186330.0,
+          "bytes_per_op": 718872,
+          "allocs_per_op": 17271
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=201/disabled",
+          "ns_per_op": 454903.0,
+          "bytes_per_op": 267261,
+          "allocs_per_op": 5836
+        }
+      ],
+      "raw_log_sha256": "d85686cade3107e16339289c74136815a3acbd16390ea2f0ab2008908d890f59"
+    },
+    {
+      "trial": 2,
+      "variant": "before",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./channels/app",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkHistoryPriorityMetadata$",
+        "-benchtime=100x",
+        "-count=1",
+        "-timeout=15m",
+        "-json",
+        "-overlay",
+        "/tmp/mattermax-history-priority-4dec4060/overlay.json"
+      ],
+      "benchmarks": [
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=1/empty",
+          "ns_per_op": 323120.0,
+          "bytes_per_op": 16260,
+          "allocs_per_op": 284
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=1/priority",
+          "ns_per_op": 453631.0,
+          "bytes_per_op": 16812,
+          "allocs_per_op": 302
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=1/acknowledgements",
+          "ns_per_op": 301381.0,
+          "bytes_per_op": 17554,
+          "allocs_per_op": 323
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=1/mixed",
+          "ns_per_op": 440284.0,
+          "bytes_per_op": 18033,
+          "allocs_per_op": 341
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=1/dense",
+          "ns_per_op": 453649.0,
+          "bytes_per_op": 18032,
+          "allocs_per_op": 340
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=1/disabled",
+          "ns_per_op": 3454.0,
+          "bytes_per_op": 1696,
+          "allocs_per_op": 34
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=60/empty",
+          "ns_per_op": 587132.0,
+          "bytes_per_op": 128764,
+          "allocs_per_op": 2373
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=60/priority",
+          "ns_per_op": 949993.0,
+          "bytes_per_op": 152149,
+          "allocs_per_op": 3232
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=60/acknowledgements",
+          "ns_per_op": 1132504.0,
+          "bytes_per_op": 198436,
+          "allocs_per_op": 4434
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=60/mixed",
+          "ns_per_op": 1052573.0,
+          "bytes_per_op": 162043,
+          "allocs_per_op": 3503
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=60/dense",
+          "ns_per_op": 1311933.0,
+          "bytes_per_op": 221721,
+          "allocs_per_op": 5292
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=60/disabled",
+          "ns_per_op": 108354.0,
+          "bytes_per_op": 81448,
+          "allocs_per_op": 1747
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=201/empty",
+          "ns_per_op": 2145752.0,
+          "bytes_per_op": 436326,
+          "allocs_per_op": 7571
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=201/priority",
+          "ns_per_op": 2582380.0,
+          "bytes_per_op": 506007,
+          "allocs_per_op": 10409
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=201/acknowledgements",
+          "ns_per_op": 3081169.0,
+          "bytes_per_op": 649195,
+          "allocs_per_op": 14433
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=201/mixed",
+          "ns_per_op": 2862188.0,
+          "bytes_per_op": 547513,
+          "allocs_per_op": 11308
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=201/dense",
+          "ns_per_op": 3550099.0,
+          "bytes_per_op": 718872,
+          "allocs_per_op": 17271
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=201/disabled",
+          "ns_per_op": 460498.0,
+          "bytes_per_op": 267261,
+          "allocs_per_op": 5836
+        }
+      ],
+      "raw_log_sha256": "d05ea9d3de513e949891f9aca6a6970c9f1141fff7fcfa48c597e2354aeaef71"
+    },
+    {
+      "trial": 2,
+      "variant": "after",
+      "command": [
+        "go",
+        "test",
+        "-p",
+        "1",
+        "./channels/app",
+        "-run",
+        "^$",
+        "-bench",
+        "^BenchmarkHistoryPriorityMetadata$",
+        "-benchtime=100x",
+        "-count=1",
+        "-timeout=15m",
+        "-json"
+      ],
+      "benchmarks": [
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=1/empty",
+          "ns_per_op": 259382.0,
+          "bytes_per_op": 5536,
+          "allocs_per_op": 99
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=1/priority",
+          "ns_per_op": 350582.0,
+          "bytes_per_op": 5896,
+          "allocs_per_op": 112
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=1/acknowledgements",
+          "ns_per_op": 280237.0,
+          "bytes_per_op": 6624,
+          "allocs_per_op": 130
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=1/mixed",
+          "ns_per_op": 386823.0,
+          "bytes_per_op": 7060,
+          "allocs_per_op": 143
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=1/dense",
+          "ns_per_op": 375669.0,
+          "bytes_per_op": 7058,
+          "allocs_per_op": 143
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=1/disabled",
+          "ns_per_op": 2264.0,
+          "bytes_per_op": 1696,
+          "allocs_per_op": 34
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=60/empty",
+          "ns_per_op": 630666.0,
+          "bytes_per_op": 94764,
+          "allocs_per_op": 1817
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=60/priority",
+          "ns_per_op": 764109.0,
+          "bytes_per_op": 115321,
+          "allocs_per_op": 2432
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=60/acknowledgements",
+          "ns_per_op": 901376.0,
+          "bytes_per_op": 157050,
+          "allocs_per_op": 3515
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=60/mixed",
+          "ns_per_op": 858000.0,
+          "bytes_per_op": 124354,
+          "allocs_per_op": 2701
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=60/dense",
+          "ns_per_op": 1071338.0,
+          "bytes_per_op": 177658,
+          "allocs_per_op": 4130
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=60/disabled",
+          "ns_per_op": 106947.0,
+          "bytes_per_op": 81448,
+          "allocs_per_op": 1747
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=201/empty",
+          "ns_per_op": 1811507.0,
+          "bytes_per_op": 318031,
+          "allocs_per_op": 5973
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=201/priority",
+          "ns_per_op": 2102848.0,
+          "bytes_per_op": 378786,
+          "allocs_per_op": 8003
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=201/acknowledgements",
+          "ns_per_op": 2650678.0,
+          "bytes_per_op": 506618,
+          "allocs_per_op": 11623
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=201/mixed",
+          "ns_per_op": 2446339.0,
+          "bytes_per_op": 416880,
+          "allocs_per_op": 8895
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=201/dense",
+          "ns_per_op": 2816714.0,
+          "bytes_per_op": 567435,
+          "allocs_per_op": 13653
+        },
+        {
+          "name": "BenchmarkHistoryPriorityMetadata/posts=201/disabled",
+          "ns_per_op": 398534.0,
+          "bytes_per_op": 267261,
+          "allocs_per_op": 5836
+        }
+      ],
+      "raw_log_sha256": "17f33e6732d2eef424851b690b8a81414818a99dee33852b12e8541854581632"
+    }
+  ],
+  "scope": "Independent candidate over original38 patches. Before overlays original post_metadata.go, retaining original separate app/store reads. Both variants compile the new optional capability files and identical fixture/check code; setup is outside timing. SQL-stored ordered pages, priority/custom emoji enabled except explicit disabled control; previews/image proxy off, no attachments/files/reactions. Timer includes output checks. Synthetic preparation comparison, not HTTP or concurrent throughput."
+}

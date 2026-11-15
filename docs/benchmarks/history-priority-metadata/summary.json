@@ -1,0 +1,583 @@
+{
+  "status": "passed",
+  "source_sha": "bc6b1680c1dbdeb42f3e48357e091605f44ae6a4",
+  "pairs": 3,
+  "cases": [
+    {
+      "name": "posts=1/empty",
+      "metrics": {
+        "ns_per_op": {
+          "before_median": 365876.0,
+          "after_median": 336269.0,
+          "paired_change_percent": [
+            -8.09,
+            -12.62,
+            -19.73
+          ]
+        },
+        "bytes_per_op": {
+          "before_median": 16260,
+          "after_median": 5476,
+          "paired_change_percent": [
+            -66.3,
+            -66.36,
+            -65.95
+          ]
+        },
+        "allocs_per_op": {
+          "before_median": 284,
+          "after_median": 99,
+          "paired_change_percent": [
+            -65.14,
+            -65.26,
+            -65.14
+          ]
+        }
+      }
+    },
+    {
+      "name": "posts=1/priority",
+      "metrics": {
+        "ns_per_op": {
+          "before_median": 453631.0,
+          "after_median": 363729.0,
+          "paired_change_percent": [
+            -16.92,
+            -29.1,
+            -22.72
+          ]
+        },
+        "bytes_per_op": {
+          "before_median": 16722,
+          "after_median": 5896,
+          "paired_change_percent": [
+            -64.74,
+            -64.74,
+            -64.93
+          ]
+        },
+        "allocs_per_op": {
+          "before_median": 302,
+          "after_median": 112,
+          "paired_change_percent": [
+            -62.91,
+            -62.91,
+            -62.91
+          ]
+        }
+      }
+    },
+    {
+      "name": "posts=1/acknowledgements",
+      "metrics": {
+        "ns_per_op": {
+          "before_median": 424748.0,
+          "after_median": 289907.0,
+          "paired_change_percent": [
+            -12.56,
+            -35.23,
+            -7.02
+          ]
+        },
+        "bytes_per_op": {
+          "before_median": 17554,
+          "after_median": 6624,
+          "paired_change_percent": [
+            -62.25,
+            -62.27,
+            -62.27
+          ]
+        },
+        "allocs_per_op": {
+          "before_median": 323,
+          "after_median": 130,
+          "paired_change_percent": [
+            -59.75,
+            -59.88,
+            -59.75
+          ]
+        }
+      }
+    },
+    {
+      "name": "posts=1/mixed",
+      "metrics": {
+        "ns_per_op": {
+          "before_median": 441540.0,
+          "after_median": 379750.0,
+          "paired_change_percent": [
+            -19.89,
+            -14.61,
+            -12.14
+          ]
+        },
+        "bytes_per_op": {
+          "before_median": 18033,
+          "after_median": 7058,
+          "paired_change_percent": [
+            -60.86,
+            -60.87,
+            -60.85
+          ]
+        },
+        "allocs_per_op": {
+          "before_median": 341,
+          "after_median": 143,
+          "paired_change_percent": [
+            -57.94,
+            -58.06,
+            -58.06
+          ]
+        }
+      }
+    },
+    {
+      "name": "posts=1/dense",
+      "metrics": {
+        "ns_per_op": {
+          "before_median": 440549.0,
+          "after_median": 375669.0,
+          "paired_change_percent": [
+            -9.31,
+            -2.34,
+            -17.19
+          ]
+        },
+        "bytes_per_op": {
+          "before_median": 18032,
+          "after_median": 7057,
+          "paired_change_percent": [
+            -60.87,
+            -60.87,
+            -60.86
+          ]
+        },
+        "allocs_per_op": {
+          "before_median": 341,
+          "after_median": 143,
+          "paired_change_percent": [
+            -58.06,
+            -58.06,
+            -57.94
+          ]
+        }
+      }
+    },
+    {
+      "name": "posts=1/disabled",
+      "metrics": {
+        "ns_per_op": {
+          "before_median": 3357.0,
+          "after_median": 3210.0,
+          "paired_change_percent": [
+            2.33,
+            -4.38,
+            -34.45
+          ]
+        },
+        "bytes_per_op": {
+          "before_median": 1696,
+          "after_median": 1696,
+          "paired_change_percent": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "allocs_per_op": {
+          "before_median": 34,
+          "after_median": 34,
+          "paired_change_percent": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      }
+    },
+    {
+      "name": "posts=60/empty",
+      "metrics": {
+        "ns_per_op": {
+          "before_median": 789459.0,
+          "after_median": 598725.0,
+          "paired_change_percent": [
+            -24.16,
+            -29.4,
+            7.41
+          ]
+        },
+        "bytes_per_op": {
+          "before_median": 128768,
+          "after_median": 94764,
+          "paired_change_percent": [
+            -26.43,
+            -26.44,
+            -26.4
+          ]
+        },
+        "allocs_per_op": {
+          "before_median": 2373,
+          "after_median": 1817,
+          "paired_change_percent": [
+            -23.46,
+            -23.43,
+            -23.43
+          ]
+        }
+      }
+    },
+    {
+      "name": "posts=60/priority",
+      "metrics": {
+        "ns_per_op": {
+          "before_median": 977759.0,
+          "after_median": 726589.0,
+          "paired_change_percent": [
+            -25.69,
+            -29.45,
+            -19.57
+          ]
+        },
+        "bytes_per_op": {
+          "before_median": 152140,
+          "after_median": 115371,
+          "paired_change_percent": [
+            -24.17,
+            -24.13,
+            -24.21
+          ]
+        },
+        "allocs_per_op": {
+          "before_median": 3232,
+          "after_median": 2432,
+          "paired_change_percent": [
+            -24.72,
+            -24.75,
+            -24.75
+          ]
+        }
+      }
+    },
+    {
+      "name": "posts=60/acknowledgements",
+      "metrics": {
+        "ns_per_op": {
+          "before_median": 1132504.0,
+          "after_median": 868835.0,
+          "paired_change_percent": [
+            -24.52,
+            -23.82,
+            -20.41
+          ]
+        },
+        "bytes_per_op": {
+          "before_median": 198418,
+          "after_median": 157040,
+          "paired_change_percent": [
+            -20.85,
+            -20.84,
+            -20.86
+          ]
+        },
+        "allocs_per_op": {
+          "before_median": 4434,
+          "after_median": 3515,
+          "paired_change_percent": [
+            -20.73,
+            -20.75,
+            -20.73
+          ]
+        }
+      }
+    },
+    {
+      "name": "posts=60/mixed",
+      "metrics": {
+        "ns_per_op": {
+          "before_median": 1045764.0,
+          "after_median": 800441.0,
+          "paired_change_percent": [
+            -29.38,
+            -23.46,
+            -18.49
+          ]
+        },
+        "bytes_per_op": {
+          "before_median": 162035,
+          "after_median": 124354,
+          "paired_change_percent": [
+            -23.24,
+            -23.27,
+            -23.26
+          ]
+        },
+        "allocs_per_op": {
+          "before_median": 3503,
+          "after_median": 2701,
+          "paired_change_percent": [
+            -22.87,
+            -22.92,
+            -22.89
+          ]
+        }
+      }
+    },
+    {
+      "name": "posts=60/dense",
+      "metrics": {
+        "ns_per_op": {
+          "before_median": 1311933.0,
+          "after_median": 987875.0,
+          "paired_change_percent": [
+            -25.49,
+            -26.3,
+            -18.34
+          ]
+        },
+        "bytes_per_op": {
+          "before_median": 221721,
+          "after_median": 177654,
+          "paired_change_percent": [
+            -19.89,
+            -19.88,
+            -19.87
+          ]
+        },
+        "allocs_per_op": {
+          "before_median": 5292,
+          "after_median": 4130,
+          "paired_change_percent": [
+            -21.98,
+            -21.97,
+            -21.96
+          ]
+        }
+      }
+    },
+    {
+      "name": "posts=60/disabled",
+      "metrics": {
+        "ns_per_op": {
+          "before_median": 117285.0,
+          "after_median": 122953.0,
+          "paired_change_percent": [
+            -0.71,
+            4.83,
+            -1.3
+          ]
+        },
+        "bytes_per_op": {
+          "before_median": 81448,
+          "after_median": 81448,
+          "paired_change_percent": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "allocs_per_op": {
+          "before_median": 1747,
+          "after_median": 1747,
+          "paired_change_percent": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      }
+    },
+    {
+      "name": "posts=201/empty",
+      "metrics": {
+        "ns_per_op": {
+          "before_median": 2150161.0,
+          "after_median": 1274559.0,
+          "paired_change_percent": [
+            -41.31,
+            -40.73,
+            -15.58
+          ]
+        },
+        "bytes_per_op": {
+          "before_median": 436326,
+          "after_median": 318022,
+          "paired_change_percent": [
+            -27.11,
+            -27.12,
+            -27.11
+          ]
+        },
+        "allocs_per_op": {
+          "before_median": 7571,
+          "after_median": 5973,
+          "paired_change_percent": [
+            -21.11,
+            -21.11,
+            -21.11
+          ]
+        }
+      }
+    },
+    {
+      "name": "posts=201/priority",
+      "metrics": {
+        "ns_per_op": {
+          "before_median": 2578347.0,
+          "after_median": 1908929.0,
+          "paired_change_percent": [
+            -23.59,
+            -27.2,
+            -18.57
+          ]
+        },
+        "bytes_per_op": {
+          "before_median": 506007,
+          "after_median": 378789,
+          "paired_change_percent": [
+            -25.14,
+            -25.14,
+            -25.14
+          ]
+        },
+        "allocs_per_op": {
+          "before_median": 10409,
+          "after_median": 8003,
+          "paired_change_percent": [
+            -23.11,
+            -23.11,
+            -23.11
+          ]
+        }
+      }
+    },
+    {
+      "name": "posts=201/acknowledgements",
+      "metrics": {
+        "ns_per_op": {
+          "before_median": 3081169.0,
+          "after_median": 2377469.0,
+          "paired_change_percent": [
+            -26.1,
+            -22.08,
+            -13.97
+          ]
+        },
+        "bytes_per_op": {
+          "before_median": 649195,
+          "after_median": 506626,
+          "paired_change_percent": [
+            -21.96,
+            -21.96,
+            -21.96
+          ]
+        },
+        "allocs_per_op": {
+          "before_median": 14433,
+          "after_median": 11623,
+          "paired_change_percent": [
+            -19.47,
+            -19.47,
+            -19.47
+          ]
+        }
+      }
+    },
+    {
+      "name": "posts=201/mixed",
+      "metrics": {
+        "ns_per_op": {
+          "before_median": 2899268.0,
+          "after_median": 2034543.0,
+          "paired_change_percent": [
+            -29.83,
+            -34.89,
+            -14.53
+          ]
+        },
+        "bytes_per_op": {
+          "before_median": 547513,
+          "after_median": 416858,
+          "paired_change_percent": [
+            -23.87,
+            -23.86,
+            -23.86
+          ]
+        },
+        "allocs_per_op": {
+          "before_median": 11308,
+          "after_median": 8895,
+          "paired_change_percent": [
+            -21.34,
+            -21.34,
+            -21.34
+          ]
+        }
+      }
+    },
+    {
+      "name": "posts=201/dense",
+      "metrics": {
+        "ns_per_op": {
+          "before_median": 4012468.0,
+          "after_median": 2816714.0,
+          "paired_change_percent": [
+            -23.71,
+            -37.39,
+            -20.66
+          ]
+        },
+        "bytes_per_op": {
+          "before_median": 718872,
+          "after_median": 567322,
+          "paired_change_percent": [
+            -21.08,
+            -21.08,
+            -21.07
+          ]
+        },
+        "allocs_per_op": {
+          "before_median": 17271,
+          "after_median": 13653,
+          "paired_change_percent": [
+            -20.95,
+            -20.95,
+            -20.95
+          ]
+        }
+      }
+    },
+    {
+      "name": "posts=201/disabled",
+      "metrics": {
+        "ns_per_op": {
+          "before_median": 454903.0,
+          "after_median": 416831.0,
+          "paired_change_percent": [
+            11.15,
+            -8.37,
+            -13.46
+          ]
+        },
+        "bytes_per_op": {
+          "before_median": 267261,
+          "after_median": 267261,
+          "paired_change_percent": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "allocs_per_op": {
+          "before_median": 5836,
+          "after_median": 5836,
+          "paired_change_percent": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      }
+    }
+  ]
+}

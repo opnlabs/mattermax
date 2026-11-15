@@ -1,0 +1,891 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: rhnvrm <hello@rohanverma.net>
+Date: Sun, 15 Nov 2026 07:15:11 +0530
+Subject: [PATCH] perf: read history priority and acknowledgement metadata
+ together
+
+Add an optional combined store read with bounded SQL UNION ALL queries. Preserve independent best-effort fallback, nullable model values, chunk semantics, store retries and timing. Keep existing store interfaces and generated wrappers unchanged.
+
+Mattermax-Patch: history-priority-metadata.patch
+---
+ ...istory_priority_metadata_benchmark_test.go | 183 ++++++++++++++++++
+ .../app/post_list_priority_metadata.go        |  41 ++++
+ .../app/post_list_priority_metadata_test.go   | 165 ++++++++++++++++
+ server/channels/app/post_metadata.go          |   3 +-
+ .../channels/store/post_priority_metadata.go  |  17 ++
+ .../retrylayer/post_priority_metadata.go      |  30 +++
+ .../retrylayer/post_priority_metadata_test.go |  58 ++++++
+ .../store/sqlstore/post_priority_metadata.go  |  66 +++++++
+ .../sqlstore/post_priority_metadata_test.go   | 108 +++++++++++
+ .../timerlayer/post_priority_metadata.go      |  30 +++
+ .../timerlayer/post_priority_metadata_test.go |  86 ++++++++
+ 11 files changed, 785 insertions(+), 2 deletions(-)
+ create mode 100644 server/channels/app/history_priority_metadata_benchmark_test.go
+ create mode 100644 server/channels/app/post_list_priority_metadata.go
+ create mode 100644 server/channels/app/post_list_priority_metadata_test.go
+ create mode 100644 server/channels/store/post_priority_metadata.go
+ create mode 100644 server/channels/store/retrylayer/post_priority_metadata.go
+ create mode 100644 server/channels/store/retrylayer/post_priority_metadata_test.go
+ create mode 100644 server/channels/store/sqlstore/post_priority_metadata.go
+ create mode 100644 server/channels/store/sqlstore/post_priority_metadata_test.go
+ create mode 100644 server/channels/store/timerlayer/post_priority_metadata.go
+ create mode 100644 server/channels/store/timerlayer/post_priority_metadata_test.go
+
+diff --git a/server/channels/app/history_priority_metadata_benchmark_test.go b/server/channels/app/history_priority_metadata_benchmark_test.go
+new file mode 100644
+index 000000000000..6aecd17a5b63
+--- /dev/null
++++ b/server/channels/app/history_priority_metadata_benchmark_test.go
+@@ -0,0 +1,183 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++package app
++
++import (
++	"fmt"
++	"reflect"
++	"testing"
++
++	"github.com/mattermost/mattermost/server/public/model"
++	"github.com/mattermost/mattermost/server/v8/channels/store"
++	"github.com/stretchr/testify/require"
++)
++
++type historyPriorityFixture struct {
++	th               *TestHelper
++	list             *model.PostList
++	priority         map[string]*model.PostPriority
++	acknowledgements map[string][]*model.PostAcknowledgement
++}
++
++func newHistoryPriorityFixture(tb testing.TB, n int, kind string) *historyPriorityFixture {
++	th := Setup(tb).InitBasic(tb)
++	th.App.UpdateConfig(func(c *model.Config) {
++		*c.ServiceSettings.PostPriority = kind != "disabled"
++		*c.ServiceSettings.EnableCustomEmoji = true
++		*c.ServiceSettings.EnableLinkPreviews = false
++		*c.ImageProxySettings.Enable = false
++	})
++	posts := make([]*model.Post, n)
++	for i := range posts {
++		posts[i] = &model.Post{UserId: th.BasicUser.Id, ChannelId: th.BasicChannel.Id, Message: "priority history", CreateAt: model.GetMillis() + int64(i)}
++	}
++	saved, index, err := th.App.Srv().Store().Post().SaveMultiple(th.Context, posts)
++	require.NoError(tb, err)
++	require.Equal(tb, -1, index)
++	ids := make([]string, len(saved))
++	for i, p := range saved {
++		ids[i] = p.Id
++		withP := kind == "priority" || kind == "dense" || kind == "disabled" || kind == "mixed" && i%2 == 0
++		withA := kind == "acknowledgements" || kind == "dense" || kind == "disabled" || kind == "mixed" && i%3 == 0
++		if withP {
++			_, err := th.SQLStore.GetMaster().Exec(`INSERT INTO PostsPriority(PostId,ChannelId,Priority,RequestedAck,PersistentNotifications) VALUES($1,$2,$3,$4,$5)`, p.Id, p.ChannelId, []string{"important", "urgent"}[i%2], i%2 == 0, i%3 == 0)
++			require.NoError(tb, err)
++		}
++		if withA {
++			for j := 0; j < 3; j++ {
++				var remote any
++				if j == 1 {
++					remote = ""
++				}
++				if j == 2 {
++					remote = model.NewId()
++				}
++				_, err := th.SQLStore.GetMaster().Exec(`INSERT INTO PostAcknowledgements(PostId,UserId,ChannelId,AcknowledgedAt,RemoteId) VALUES($1,$2,$3,$4,$5)`, p.Id, model.NewId(), p.ChannelId, int64(j+1), remote)
++				require.NoError(tb, err)
++			}
++		}
++	}
++	loaded, err := th.SQLStore.Post().GetPostsByIds(ids)
++	require.NoError(tb, err)
++	require.Len(tb, loaded, n)
++	list := &model.PostList{Posts: make(map[string]*model.Post), Order: make([]string, 0, n)}
++	for _, p := range loaded {
++		require.Nil(tb, p.Metadata)
++		list.Posts[p.Id] = p
++		list.Order = append(list.Order, p.Id)
++	}
++	expectedP, pErr := th.App.GetPriorityForPostList(list)
++	require.Nil(tb, pErr)
++	expectedA, aErr := th.App.GetAcknowledgementsForPostList(list)
++	require.Nil(tb, aErr)
++	if kind == "disabled" {
++		expectedP = nil
++		expectedA = nil
++	}
++	return &historyPriorityFixture{th: th, list: list, priority: expectedP, acknowledgements: expectedA}
++}
++
++func (f *historyPriorityFixture) check(tb testing.TB, got *model.PostList) {
++	if !reflect.DeepEqual(got.Order, f.list.Order) || len(got.Posts) != len(f.list.Posts) {
++		tb.Fatal("ordered page changed")
++	}
++	for _, id := range f.list.Order {
++		p := got.Posts[id]
++		if p == nil || p.Message != "priority history" || p.Metadata == nil {
++			tb.Fatal("post content/metadata missing")
++		}
++		if !reflect.DeepEqual(p.Metadata.Priority, f.priority[id]) {
++			tb.Fatalf("priority changed for %s: %#v want%#v", id, p.Metadata.Priority, f.priority[id])
++		}
++		// SQL does not promise acknowledgement row order. Compare all fields and
++		// preserve multiplicity, including nil versus empty remote IDs.
++		want, actual := f.acknowledgements[id], p.Metadata.Acknowledgements
++		if len(want) != len(actual) {
++			tb.Fatal("acknowledgement count changed")
++		}
++		for _, a := range want {
++			count := 0
++			for _, b := range actual {
++				if reflect.DeepEqual(a, b) {
++					count++
++				}
++			}
++			if count != 1 {
++				tb.Fatal("acknowledgement content/ownership changed")
++			}
++		}
++	}
++}
++
++type historyPriorityReadProbe struct {
++	store.PostPriorityStore
++	reader           store.PostPriorityMetadataReader
++	combined, legacy int
++}
++
++func (p *historyPriorityReadProbe) GetForPosts(ids []string) ([]*model.PostPriority, error) {
++	p.legacy++
++	return p.PostPriorityStore.GetForPosts(ids)
++}
++func (p *historyPriorityReadProbe) GetForPostsWithAcknowledgements(ids []string) ([]*model.PostPriority, []*model.PostAcknowledgement, error) {
++	p.combined++
++	return p.reader.GetForPostsWithAcknowledgements(ids)
++}
++
++type historyPriorityAckReadProbe struct {
++	store.PostAcknowledgementStore
++	calls int
++}
++
++func (p *historyPriorityAckReadProbe) GetForPosts(ids []string) ([]*model.PostAcknowledgement, error) {
++	p.calls++
++	return p.PostAcknowledgementStore.GetForPosts(ids)
++}
++
++type historyPriorityStoreProbe struct {
++	store.Store
++	p *historyPriorityReadProbe
++	a *historyPriorityAckReadProbe
++}
++
++func (s *historyPriorityStoreProbe) PostPriority() store.PostPriorityStore               { return s.p }
++func (s *historyPriorityStoreProbe) PostAcknowledgement() store.PostAcknowledgementStore { return s.a }
++
++func TestHistoryPriorityMetadataPreparation(t *testing.T) {
++	for _, kind := range []string{"empty", "priority", "acknowledgements", "mixed", "dense", "disabled"} {
++		t.Run(kind, func(t *testing.T) {
++			f := newHistoryPriorityFixture(t, 60, kind)
++			actual := f.th.App.Srv().Store()
++			p := actual.PostPriority()
++			reader, ok := p.(store.PostPriorityMetadataReader)
++			require.True(t, ok, "store decorators must expose the capability")
++			probe := &historyPriorityStoreProbe{Store: actual, p: &historyPriorityReadProbe{PostPriorityStore: p, reader: reader}, a: &historyPriorityAckReadProbe{PostAcknowledgementStore: actual.PostAcknowledgement()}}
++			f.th.App.Srv().SetStore(probe)
++			f.check(t, f.th.App.PreparePostListForClient(f.th.Context, f.list))
++			want := 1
++			if kind == "disabled" {
++				want = 0
++			}
++			require.Equal(t, want, probe.p.combined)
++			require.Zero(t, probe.p.legacy)
++			require.Zero(t, probe.a.calls)
++		})
++	}
++}
++
++func BenchmarkHistoryPriorityMetadata(b *testing.B) {
++	for _, n := range []int{1, 60, 201} {
++		for _, kind := range []string{"empty", "priority", "acknowledgements", "mixed", "dense", "disabled"} {
++			b.Run(fmt.Sprintf("posts=%d/%s", n, kind), func(b *testing.B) {
++				f := newHistoryPriorityFixture(b, n, kind)
++				f.check(b, f.th.App.PreparePostListForClient(f.th.Context, f.list))
++				b.ReportAllocs()
++				b.ResetTimer()
++				for range b.N {
++					f.check(b, f.th.App.PreparePostListForClient(f.th.Context, f.list))
++				}
++			})
++		}
++	}
++}
+diff --git a/server/channels/app/post_list_priority_metadata.go b/server/channels/app/post_list_priority_metadata.go
+new file mode 100644
+index 000000000000..87f7b42d05dd
+--- /dev/null
++++ b/server/channels/app/post_list_priority_metadata.go
+@@ -0,0 +1,41 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++package app
++
++import (
++	"github.com/mattermost/mattermost/server/public/model"
++	"github.com/mattermost/mattermost/server/v8/channels/store"
++)
++
++// readPostListPriorityMetadata keeps independent best-effort reads when a store
++// lacks the combined capability or the combined query fails.
++func readPostListPriorityMetadata(s store.Store, ids []string) (map[string]*model.PostPriority, map[string][]*model.PostAcknowledgement) {
++	priorityStore := s.PostPriority()
++	if reader, ok := priorityStore.(store.PostPriorityMetadataReader); ok {
++		if p, a, err := reader.GetForPostsWithAcknowledgements(ids); err == nil {
++			return postListPriorityMaps(p, a, nil, nil)
++		}
++	}
++	p, pErr := priorityStore.GetForPosts(ids)
++	a, aErr := s.PostAcknowledgement().GetForPosts(ids)
++	return postListPriorityMaps(p, a, pErr, aErr)
++}
++
++func postListPriorityMaps(priority []*model.PostPriority, acknowledgements []*model.PostAcknowledgement, priorityErr, acknowledgementErr error) (map[string]*model.PostPriority, map[string][]*model.PostAcknowledgement) {
++	var p map[string]*model.PostPriority
++	var a map[string][]*model.PostAcknowledgement
++	if priorityErr == nil {
++		p = make(map[string]*model.PostPriority)
++		for _, row := range priority {
++			p[row.PostId] = row
++		}
++	}
++	if acknowledgementErr == nil {
++		a = make(map[string][]*model.PostAcknowledgement)
++		for _, row := range acknowledgements {
++			a[row.PostId] = append(a[row.PostId], row)
++		}
++	}
++	return p, a
++}
+diff --git a/server/channels/app/post_list_priority_metadata_test.go b/server/channels/app/post_list_priority_metadata_test.go
+new file mode 100644
+index 000000000000..07d6a0cc876a
+--- /dev/null
++++ b/server/channels/app/post_list_priority_metadata_test.go
+@@ -0,0 +1,165 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++package app
++
++import (
++	"errors"
++	"reflect"
++	"testing"
++
++	"github.com/mattermost/mattermost/server/public/model"
++	"github.com/mattermost/mattermost/server/v8/channels/store"
++)
++
++type priorityMetadataLegacyProbe struct {
++	store.PostPriorityStore
++	rows  []*model.PostPriority
++	err   error
++	calls int
++	ids   []string
++}
++
++func (p *priorityMetadataLegacyProbe) GetForPosts(ids []string) ([]*model.PostPriority, error) {
++	p.calls++
++	p.ids = append([]string(nil), ids...)
++	return p.rows, p.err
++}
++
++type priorityMetadataCombinedProbe struct {
++	*priorityMetadataLegacyProbe
++	combinedP     []*model.PostPriority
++	combinedA     []*model.PostAcknowledgement
++	combinedErr   error
++	combinedCalls int
++}
++
++func (p *priorityMetadataCombinedProbe) GetForPostsWithAcknowledgements(ids []string) ([]*model.PostPriority, []*model.PostAcknowledgement, error) {
++	p.combinedCalls++
++	p.ids = append([]string(nil), ids...)
++	return p.combinedP, p.combinedA, p.combinedErr
++}
++
++type priorityMetadataAckProbe struct {
++	store.PostAcknowledgementStore
++	rows  []*model.PostAcknowledgement
++	err   error
++	calls int
++	ids   []string
++}
++
++func (a *priorityMetadataAckProbe) GetForPosts(ids []string) ([]*model.PostAcknowledgement, error) {
++	a.calls++
++	a.ids = append([]string(nil), ids...)
++	return a.rows, a.err
++}
++
++type priorityMetadataStoreProbe struct {
++	store.Store
++	p                           store.PostPriorityStore
++	a                           store.PostAcknowledgementStore
++	priorityGetters, ackGetters int
++}
++
++func (s *priorityMetadataStoreProbe) PostPriority() store.PostPriorityStore {
++	s.priorityGetters++
++	return s.p
++}
++func (s *priorityMetadataStoreProbe) PostAcknowledgement() store.PostAcknowledgementStore {
++	s.ackGetters++
++	return s.a
++}
++
++func TestHistoryPriorityMetadataFallback(t *testing.T) {
++	for _, combined := range []bool{false, true} {
++		for _, pFail := range []bool{false, true} {
++			for _, aFail := range []bool{false, true} {
++				name := "legacy"
++				if combined {
++					name = "combined_error"
++				}
++				if pFail {
++					name += "/priority_error"
++				}
++				if aFail {
++					name += "/ack_error"
++				}
++				t.Run(name, func(t *testing.T) {
++					row := &model.PostPriority{PostId: "post", Priority: new("urgent"), RequestedAck: new(true), PersistentNotifications: new(false)}
++					ack := &model.PostAcknowledgement{PostId: "post", UserId: "reader", AcknowledgedAt: 42, RemoteId: new("remote")}
++					legacy := &priorityMetadataLegacyProbe{rows: []*model.PostPriority{row}}
++					a := &priorityMetadataAckProbe{rows: []*model.PostAcknowledgement{ack}}
++					if pFail {
++						legacy.err = errors.New("priority error")
++					}
++					if aFail {
++						a.err = errors.New("ack error")
++					}
++					var p store.PostPriorityStore = legacy
++					var capability *priorityMetadataCombinedProbe
++					if combined {
++						capability = &priorityMetadataCombinedProbe{priorityMetadataLegacyProbe: legacy, combinedP: []*model.PostPriority{{PostId: "discarded-partial"}}, combinedErr: errors.New("combined error")}
++						p = capability
++					}
++					s := &priorityMetadataStoreProbe{p: p, a: a}
++					ids := []string{"post", "missing", "post"}
++					gotP, gotA := readPostListPriorityMetadata(s, ids)
++					if pFail {
++						if gotP != nil {
++							t.Fatal("priority error exposed partial rows")
++						}
++					} else if !reflect.DeepEqual(gotP, map[string]*model.PostPriority{"post": row}) {
++						t.Fatalf("priority got%#v", gotP)
++					}
++					if aFail {
++						if gotA != nil {
++							t.Fatal("ack error exposed partial rows")
++						}
++					} else if !reflect.DeepEqual(gotA, map[string][]*model.PostAcknowledgement{"post": {ack}}) {
++						t.Fatalf("ack got%#v", gotA)
++					}
++					if legacy.calls != 1 || a.calls != 1 || s.priorityGetters != 1 || s.ackGetters != 1 || !reflect.DeepEqual(legacy.ids, ids) || !reflect.DeepEqual(a.ids, ids) {
++						t.Fatal("fallback changed getter/read count or IDs")
++					}
++					if combined && capability.combinedCalls != 1 {
++						t.Fatal("missing capability attempt")
++					}
++				})
++			}
++		}
++	}
++}
++
++func TestHistoryPriorityMetadataCombined(t *testing.T) {
++	for _, empty := range []bool{false, true} {
++		t.Run(map[bool]string{false: "populated", true: "empty"}[empty], func(t *testing.T) {
++			p := &model.PostPriority{PostId: "post", Priority: new("important"), RequestedAck: new(false), PersistentNotifications: new(true)}
++			a1 := &model.PostAcknowledgement{PostId: "post", UserId: "a", AcknowledgedAt: 1}
++			a2 := &model.PostAcknowledgement{PostId: "post", UserId: "b", AcknowledgedAt: 2, RemoteId: new("")}
++			base := &priorityMetadataLegacyProbe{}
++			reader := &priorityMetadataCombinedProbe{priorityMetadataLegacyProbe: base, combinedP: []*model.PostPriority{p}, combinedA: []*model.PostAcknowledgement{a1, a2}}
++			ids := []string{"post"}
++			if empty {
++				reader.combinedP = nil
++				reader.combinedA = nil
++				ids = nil
++			}
++			a := &priorityMetadataAckProbe{}
++			s := &priorityMetadataStoreProbe{p: reader, a: a}
++			gotP, gotA := readPostListPriorityMetadata(s, ids)
++			if gotP == nil || gotA == nil {
++				t.Fatal("successful empty results must retain nonnil maps")
++			}
++			if empty {
++				if len(gotP) != 0 || len(gotA) != 0 {
++					t.Fatal("unexpected empty result")
++				}
++			} else if !reflect.DeepEqual(gotP, map[string]*model.PostPriority{"post": p}) || !reflect.DeepEqual(gotA, map[string][]*model.PostAcknowledgement{"post": {a1, a2}}) {
++				t.Fatal("combined result/order changed")
++			}
++			if reader.combinedCalls != 1 || base.calls != 0 || a.calls != 0 || s.priorityGetters != 1 || s.ackGetters != 0 || !reflect.DeepEqual(reader.ids, ids) {
++				t.Fatal("successful capability performed fallback reads")
++			}
++		})
++	}
++}
+diff --git a/server/channels/app/post_metadata.go b/server/channels/app/post_metadata.go
+index 8021a3f38709..29a1d631be64 100644
+--- a/server/channels/app/post_metadata.go
++++ b/server/channels/app/post_metadata.go
+@@ -68,8 +68,7 @@ func (a *App) PreparePostListForClient(rctx request.CTX, originalList *model.Pos
+ 	}
+ 
+ 	if a.IsPostPriorityEnabled() {
+-		priority, _ := a.GetPriorityForPostList(list)
+-		acknowledgements, _ := a.GetAcknowledgementsForPostList(list)
++		priority, acknowledgements := readPostListPriorityMetadata(a.Srv().Store(), list.Order)
+ 
+ 		for _, id := range list.Order {
+ 			if _, ok := priority[id]; ok {
+diff --git a/server/channels/store/post_priority_metadata.go b/server/channels/store/post_priority_metadata.go
+new file mode 100644
+index 000000000000..972465ace4f7
+--- /dev/null
++++ b/server/channels/store/post_priority_metadata.go
+@@ -0,0 +1,17 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++package store
++
++import (
++	"errors"
++	"github.com/mattermost/mattermost/server/public/model"
++)
++
++// PostPriorityMetadataReader is an optional combined read capability. Stores
++// without it keep the independent priority and acknowledgement reads.
++type PostPriorityMetadataReader interface {
++	GetForPostsWithAcknowledgements(postIDs []string) ([]*model.PostPriority, []*model.PostAcknowledgement, error)
++}
++
++var ErrPostPriorityMetadataUnavailable = errors.New("combined post priority metadata read is unavailable")
+diff --git a/server/channels/store/retrylayer/post_priority_metadata.go b/server/channels/store/retrylayer/post_priority_metadata.go
+new file mode 100644
+index 000000000000..893e5e79544e
+--- /dev/null
++++ b/server/channels/store/retrylayer/post_priority_metadata.go
+@@ -0,0 +1,30 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++package retrylayer
++
++import (
++	"github.com/mattermost/mattermost/server/public/model"
++	"github.com/mattermost/mattermost/server/v8/channels/store"
++	"github.com/pkg/errors"
++	"time"
++)
++
++var _ store.PostPriorityMetadataReader = (*RetryLayerPostPriorityStore)(nil)
++
++func (s *RetryLayerPostPriorityStore) GetForPostsWithAcknowledgements(ids []string) ([]*model.PostPriority, []*model.PostAcknowledgement, error) {
++	reader, ok := s.PostPriorityStore.(store.PostPriorityMetadataReader)
++	if !ok {
++		return nil, nil, store.ErrPostPriorityMetadataUnavailable
++	}
++	for tries := 1; ; tries++ {
++		p, a, err := reader.GetForPostsWithAcknowledgements(ids)
++		if err == nil || !isRepeatableError(err) {
++			return p, a, err
++		}
++		if tries >= 3 {
++			return p, a, errors.Wrap(err, "giving up after 3 consecutive repeatable transaction failures")
++		}
++		time.Sleep(100 * time.Millisecond)
++	}
++}
+diff --git a/server/channels/store/retrylayer/post_priority_metadata_test.go b/server/channels/store/retrylayer/post_priority_metadata_test.go
+new file mode 100644
+index 000000000000..74989040a1a7
+--- /dev/null
++++ b/server/channels/store/retrylayer/post_priority_metadata_test.go
+@@ -0,0 +1,58 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++package retrylayer
++
++import (
++	"errors"
++	"github.com/lib/pq"
++	"github.com/mattermost/mattermost/server/public/model"
++	"github.com/mattermost/mattermost/server/v8/channels/store"
++	"testing"
++)
++
++type metadataRetryProbe struct {
++	store.PostPriorityStore
++	calls    int
++	failures []error
++}
++
++func (p *metadataRetryProbe) GetForPostsWithAcknowledgements([]string) ([]*model.PostPriority, []*model.PostAcknowledgement, error) {
++	p.calls++
++	var err error
++	if p.calls <= len(p.failures) {
++		err = p.failures[p.calls-1]
++	}
++	return []*model.PostPriority{{PostId: "post"}}, []*model.PostAcknowledgement{{PostId: "post"}}, err
++}
++
++func TestHistoryPriorityMetadataRetry(t *testing.T) {
++	for _, tc := range []struct {
++		name     string
++		failures []error
++		calls    int
++		wantErr  bool
++	}{
++		{name: "success", calls: 1},
++		{name: "ordinary", failures: []error{errors.New("ordinary")}, calls: 1, wantErr: true},
++		{name: "serialization_then_success", failures: []error{&pq.Error{Code: "40001"}}, calls: 2},
++		{name: "deadlock_then_success", failures: []error{&pq.Error{Code: "40P01"}}, calls: 2},
++		{name: "exhausted", failures: []error{&pq.Error{Code: "40001"}, &pq.Error{Code: "40001"}, &pq.Error{Code: "40001"}}, calls: 3, wantErr: true},
++	} {
++		t.Run(tc.name, func(t *testing.T) {
++			p := &metadataRetryProbe{failures: tc.failures}
++			w := &RetryLayerPostPriorityStore{PostPriorityStore: p}
++			gotP, gotA, err := w.GetForPostsWithAcknowledgements([]string{"post"})
++			if p.calls != tc.calls || (err != nil) != tc.wantErr || len(gotP) != 1 || len(gotA) != 1 {
++				t.Fatalf("calls=%d error=%v rows%d/%d", p.calls, err, len(gotP), len(gotA))
++			}
++		})
++	}
++	t.Run("unsupported", func(t *testing.T) {
++		w := &RetryLayerPostPriorityStore{PostPriorityStore: &struct{ store.PostPriorityStore }{}}
++		p, a, err := w.GetForPostsWithAcknowledgements(nil)
++		if !errors.Is(err, store.ErrPostPriorityMetadataUnavailable) || p != nil || a != nil {
++			t.Fatal("unsupported capability changed")
++		}
++	})
++}
+diff --git a/server/channels/store/sqlstore/post_priority_metadata.go b/server/channels/store/sqlstore/post_priority_metadata.go
+new file mode 100644
+index 000000000000..2afd05326e6a
+--- /dev/null
++++ b/server/channels/store/sqlstore/post_priority_metadata.go
+@@ -0,0 +1,66 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++package sqlstore
++
++import (
++	"github.com/lib/pq"
++	"github.com/mattermost/mattermost/server/public/model"
++	"github.com/mattermost/mattermost/server/v8/channels/store"
++	"github.com/pkg/errors"
++)
++
++var _ store.PostPriorityMetadataReader = (*SqlPostPriorityStore)(nil)
++
++// GetForPostsWithAcknowledgements reads both metadata tables in one round trip
++// per bounded chunk. UNION ALL avoids multiplying priority rows by the number
++// of acknowledgements. Nullable priority flags and remote IDs retain nilness.
++func (s *SqlPostPriorityStore) GetForPostsWithAcknowledgements(postIDs []string) ([]*model.PostPriority, []*model.PostAcknowledgement, error) {
++	var priority []*model.PostPriority
++	var acknowledgements []*model.PostAcknowledgement
++	for start := 0; start < len(postIDs); start += 200 {
++		p, a, err := s.readPriorityMetadataChunk(postIDs[start:min(start+200, len(postIDs))])
++		if err != nil {
++			return nil, nil, err
++		}
++		priority = append(priority, p...)
++		acknowledgements = append(acknowledgements, a...)
++	}
++	return priority, acknowledgements, nil
++}
++
++func (s *SqlPostPriorityStore) readPriorityMetadataChunk(postIDs []string) ([]*model.PostPriority, []*model.PostAcknowledgement, error) {
++	rows, err := s.GetReplica().Query(`
++ SELECT true, PostId, ChannelId, Priority, RequestedAck, PersistentNotifications,
++        ''::varchar, 0::bigint, NULL::varchar
++ FROM PostsPriority WHERE PostId = ANY($1)
++ UNION ALL
++ SELECT false, PostId, ChannelId, NULL::varchar, NULL::boolean, NULL::boolean,
++        UserId, AcknowledgedAt, RemoteId
++ FROM PostAcknowledgements WHERE PostId = ANY($1) AND AcknowledgedAt <> 0`, pq.Array(postIDs))
++	if err != nil {
++		return nil, nil, errors.Wrap(err, "query combined post priority metadata")
++	}
++	defer rows.Close()
++	var priority []*model.PostPriority
++	var acknowledgements []*model.PostAcknowledgement
++	var isPriority bool
++	var postID, channelID, userID string
++	var level, remoteID *string
++	var requested, persistent *bool
++	var acknowledgedAt int64
++	for rows.Next() {
++		if err := rows.Scan(&isPriority, &postID, &channelID, &level, &requested, &persistent, &userID, &acknowledgedAt, &remoteID); err != nil {
++			return nil, nil, errors.Wrap(err, "scan combined post priority metadata")
++		}
++		if isPriority {
++			priority = append(priority, &model.PostPriority{PostId: postID, ChannelId: channelID, Priority: level, RequestedAck: requested, PersistentNotifications: persistent})
++		} else {
++			acknowledgements = append(acknowledgements, &model.PostAcknowledgement{PostId: postID, ChannelId: channelID, UserId: userID, AcknowledgedAt: acknowledgedAt, RemoteId: remoteID})
++		}
++	}
++	if err := rows.Err(); err != nil {
++		return nil, nil, errors.Wrap(err, "iterate combined post priority metadata")
++	}
++	return priority, acknowledgements, nil
++}
+diff --git a/server/channels/store/sqlstore/post_priority_metadata_test.go b/server/channels/store/sqlstore/post_priority_metadata_test.go
+new file mode 100644
+index 000000000000..1f61adefbf90
+--- /dev/null
++++ b/server/channels/store/sqlstore/post_priority_metadata_test.go
+@@ -0,0 +1,108 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++package sqlstore
++
++import (
++	"fmt"
++	"reflect"
++	"testing"
++
++	"github.com/mattermost/mattermost/server/public/model"
++	"github.com/mattermost/mattermost/server/public/shared/request"
++	"github.com/mattermost/mattermost/server/v8/channels/store"
++	"github.com/mattermost/mattermost/server/v8/channels/store/storetest"
++	"github.com/stretchr/testify/require"
++)
++
++func TestHistoryPriorityMetadataSQL(t *testing.T) {
++	StoreTestWithSqlStore(t, func(t *testing.T, _ request.CTX, ss store.Store, _ storetest.SqlStore) {
++		sql := ss.(*SqlStore)
++		reader := ss.PostPriority().(store.PostPriorityMetadataReader)
++		var ids []string
++		for i := 0; i < 205; i++ {
++			id := model.NewId()
++			ids = append(ids, id)
++			if i%2 == 0 {
++				var requested, persistent any
++				if i%4 == 0 {
++					requested = true
++					persistent = false
++				}
++				_, err := sql.GetMaster().Exec(`INSERT INTO PostsPriority(PostId,ChannelId,Priority,RequestedAck,PersistentNotifications) VALUES($1,$2,$3,$4,$5)`, id, "channel", "urgent", requested, persistent)
++				require.NoError(t, err)
++			}
++			if i%3 == 0 {
++				for j := 0; j < 3; j++ {
++					var remote any
++					if j == 1 {
++						remote = ""
++					}
++					if j == 2 {
++						remote = "remote"
++					}
++					at := int64(j + 1)
++					if i == 0 && j == 2 {
++						at = -7
++					}
++					_, err := sql.GetMaster().Exec(`INSERT INTO PostAcknowledgements(PostId,UserId,ChannelId,AcknowledgedAt,RemoteId) VALUES($1,$2,$3,$4,$5)`, id, model.NewId(), "channel", at, remote)
++					require.NoError(t, err)
++				}
++				_, err := sql.GetMaster().Exec(`INSERT INTO PostAcknowledgements(PostId,UserId,ChannelId,AcknowledgedAt) VALUES($1,$2,$3,0),($1,$4,$3,NULL)`, id, model.NewId(), "channel", model.NewId())
++				require.NoError(t, err)
++			}
++		}
++		for _, n := range []int{0, 1, 60, 200, 201, 205} {
++			t.Run(fmt.Sprintf("requested=%d", n), func(t *testing.T) {
++				input := append([]string(nil), ids[:n]...)
++				if n > 0 {
++					input = append(input, ids[0], "missing", "")
++				}
++				wantP, err := ss.PostPriority().GetForPosts(input)
++				require.NoError(t, err)
++				wantA, err := ss.PostAcknowledgement().GetForPosts(input)
++				require.NoError(t, err)
++				gotP, gotA, err := reader.GetForPostsWithAcknowledgements(input)
++				require.NoError(t, err)
++				require.ElementsMatch(t, wantP, gotP)
++				require.ElementsMatch(t, wantA, gotA)
++				if n == 0 {
++					require.Nil(t, gotP)
++					require.Nil(t, gotA)
++				}
++				for i := 1; i < len(gotP); i++ {
++					require.NotSame(t, gotP[i-1], gotP[i])
++					if gotP[i-1].Priority != nil && gotP[i].Priority != nil {
++						require.NotSame(t, gotP[i-1].Priority, gotP[i].Priority)
++					}
++				}
++				for i := 1; i < len(gotA); i++ {
++					require.NotSame(t, gotA[i-1], gotA[i])
++					if gotA[i-1].RemoteId != nil && gotA[i].RemoteId != nil {
++						require.NotSame(t, gotA[i-1].RemoteId, gotA[i].RemoteId)
++					}
++				}
++			})
++		}
++		p1, a1, err := reader.GetForPostsWithAcknowledgements(ids)
++		require.NoError(t, err)
++		p2, a2, err := reader.GetForPostsWithAcknowledgements(ids)
++		require.NoError(t, err)
++		*p1[0].Priority = "changed"
++		a1[0].UserId = "changed"
++		require.False(t, reflect.DeepEqual(p1, p2))
++		require.False(t, reflect.DeepEqual(a1, a2))
++		// Acknowledgements with a NULL channel fail the old scanner. The composite
++		// read must return an error and no partial slices so app fallback can retain
++		// an independently successful priority read.
++		bad := model.NewId()
++		_, err = sql.GetMaster().Exec(`INSERT INTO PostAcknowledgements(PostId,UserId,ChannelId,AcknowledgedAt) VALUES($1,$2,NULL,1)`, bad, model.NewId())
++		require.NoError(t, err)
++		_, err = ss.PostAcknowledgement().GetForPosts([]string{bad})
++		require.Error(t, err)
++		p, a, err := reader.GetForPostsWithAcknowledgements(append(ids, bad))
++		require.Error(t, err)
++		require.Nil(t, p)
++		require.Nil(t, a)
++	})
++}
+diff --git a/server/channels/store/timerlayer/post_priority_metadata.go b/server/channels/store/timerlayer/post_priority_metadata.go
+new file mode 100644
+index 000000000000..5038a6073bd5
+--- /dev/null
++++ b/server/channels/store/timerlayer/post_priority_metadata.go
+@@ -0,0 +1,30 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++package timerlayer
++
++import (
++	"errors"
++	"github.com/mattermost/mattermost/server/public/model"
++	"github.com/mattermost/mattermost/server/v8/channels/store"
++	"time"
++)
++
++var _ store.PostPriorityMetadataReader = (*TimerLayerPostPriorityStore)(nil)
++
++func (s *TimerLayerPostPriorityStore) GetForPostsWithAcknowledgements(ids []string) ([]*model.PostPriority, []*model.PostAcknowledgement, error) {
++	reader, ok := s.PostPriorityStore.(store.PostPriorityMetadataReader)
++	if !ok {
++		return nil, nil, store.ErrPostPriorityMetadataUnavailable
++	}
++	start := time.Now()
++	p, a, err := reader.GetForPostsWithAcknowledgements(ids)
++	if s.Root.Metrics != nil && !errors.Is(err, store.ErrPostPriorityMetadataUnavailable) {
++		success := "false"
++		if err == nil {
++			success = "true"
++		}
++		s.Root.Metrics.ObserveStoreMethodDuration("PostPriorityStore.GetForPostsWithAcknowledgements", success, float64(time.Since(start))/float64(time.Second))
++	}
++	return p, a, err
++}
+diff --git a/server/channels/store/timerlayer/post_priority_metadata_test.go b/server/channels/store/timerlayer/post_priority_metadata_test.go
+new file mode 100644
+index 000000000000..0adf8f0fcb4e
+--- /dev/null
++++ b/server/channels/store/timerlayer/post_priority_metadata_test.go
+@@ -0,0 +1,86 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++package timerlayer
++
++import (
++	"errors"
++	"github.com/mattermost/mattermost/server/public/model"
++	"github.com/mattermost/mattermost/server/v8/channels/store"
++	"github.com/mattermost/mattermost/server/v8/einterfaces"
++	"testing"
++)
++
++type metadataTimerProbe struct {
++	store.PostPriorityStore
++	err   error
++	calls int
++}
++
++func (p *metadataTimerProbe) GetForPostsWithAcknowledgements([]string) ([]*model.PostPriority, []*model.PostAcknowledgement, error) {
++	p.calls++
++	return []*model.PostPriority{{PostId: "post"}}, []*model.PostAcknowledgement{{PostId: "post"}}, p.err
++}
++
++type metadataMetricProbe struct {
++	einterfaces.MetricsInterface
++	calls         int
++	name, success string
++	duration      float64
++}
++
++func (m *metadataMetricProbe) ObserveStoreMethodDuration(name, success string, duration float64) {
++	m.calls++
++	m.name = name
++	m.success = success
++	m.duration = duration
++}
++
++func TestHistoryPriorityMetadataTimer(t *testing.T) {
++	for _, fail := range []bool{false, true} {
++		name := "success"
++		if fail {
++			name = "error"
++		}
++		t.Run(name, func(t *testing.T) {
++			probe := &metadataTimerProbe{}
++			if fail {
++				probe.err = errors.New("read failed")
++			}
++			metric := &metadataMetricProbe{}
++			w := &TimerLayerPostPriorityStore{PostPriorityStore: probe, Root: &TimerLayer{Metrics: metric}}
++			p, a, err := w.GetForPostsWithAcknowledgements([]string{"post"})
++			want := "true"
++			if fail {
++				want = "false"
++			}
++			if probe.calls != 1 || metric.calls != 1 || metric.name != "PostPriorityStore.GetForPostsWithAcknowledgements" || metric.success != want || metric.duration < 0 || (err != nil) != fail || len(p) != 1 || len(a) != 1 {
++				t.Fatal("timer changed return values or metric")
++			}
++		})
++	}
++	t.Run("unsupported", func(t *testing.T) {
++		metric := &metadataMetricProbe{}
++		w := &TimerLayerPostPriorityStore{PostPriorityStore: &struct{ store.PostPriorityStore }{}, Root: &TimerLayer{Metrics: metric}}
++		p, a, err := w.GetForPostsWithAcknowledgements(nil)
++		if !errors.Is(err, store.ErrPostPriorityMetadataUnavailable) || p != nil || a != nil || metric.calls != 0 {
++			t.Fatal("unsupported capability changed")
++		}
++	})
++	t.Run("unsupported_forwarded", func(t *testing.T) {
++		metric := &metadataMetricProbe{}
++		w := &TimerLayerPostPriorityStore{PostPriorityStore: &metadataTimerProbe{err: store.ErrPostPriorityMetadataUnavailable}, Root: &TimerLayer{Metrics: metric}}
++		_, _, err := w.GetForPostsWithAcknowledgements(nil)
++		if !errors.Is(err, store.ErrPostPriorityMetadataUnavailable) || metric.calls != 0 {
++			t.Fatal("unsupported forwarding recorded a failed store operation")
++		}
++	})
++
++	t.Run("nil_metrics", func(t *testing.T) {
++		w := &TimerLayerPostPriorityStore{PostPriorityStore: &metadataTimerProbe{}, Root: &TimerLayer{}}
++		_, _, err := w.GetForPostsWithAcknowledgements(nil)
++		if err != nil {
++			t.Fatal(err)
++		}
++	})
++}
