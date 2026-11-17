@@ -2,6 +2,7 @@ server/Makefile
 server/channels/api4/channel_test.go
 server/channels/api4/commands_test.go
 server/channels/api4/doc.go
+server/channels/api4/health_dashboard_test.go
 server/channels/api4/job_test.go
 server/channels/api4/plugin_test.go
 server/channels/api4/user.go
@@ -13,6 +14,7 @@ server/channels/app/command_autocomplete_test.go
 server/channels/app/doc.go
 server/channels/app/email/email_test.go
 server/channels/app/email/service.go
+server/channels/app/health_check_snapshot_test.go
 server/channels/app/import.go
 server/channels/app/import_functions_test.go
 server/channels/app/import_test.go
@@ -26,6 +28,7 @@ server/channels/app/post.go
 server/channels/app/post_metadata_test.go
 server/channels/app/properties/access_control_attribute_validation.go
 server/channels/app/property_field_helpers.go
+server/channels/app/property_sync.go
 server/channels/app/recap_test.go
 server/channels/app/security_update_check.go
 server/channels/app/server.go
@@ -48,6 +51,7 @@ server/channels/web/web_test.go
 server/cmd/mattermost/commands/db.go
 server/cmd/mattermost/commands/db_ping.go
 server/cmd/mattermost/commands/db_ping_test.go
+server/cmd/mattermost/commands/docs.go
 server/cmd/mattermost/commands/export.go
 server/cmd/mattermost/commands/import.go
 server/cmd/mattermost/commands/init.go
@@ -158,6 +162,9 @@ server/public/pluginapi/license.go
 server/public/pluginapi/log.go
 server/public/pluginapi/plugins.go
 server/public/pluginapi/system.go
+server/public/pluginapi/testhelper/doc.go
+server/public/pluginapi/testhelper/helper.go
+server/public/pluginapi/testhelper/mmcontainer.go
 server/public/shared/httpservice/client.go
 server/public/shared/httpservice/httpservice_test.go
 server/public/shared/httpservice/transport.go
@@ -184,6 +191,7 @@ webapp/channels/src/components/admin_console/access_control/modals/simulate_acce
 webapp/channels/src/components/admin_console/admin_definition.tsx
 webapp/channels/src/components/admin_console/admin_definition_constants.tsx
 webapp/channels/src/components/admin_console/admin_definition_ldap_wizard.tsx
+webapp/channels/src/components/admin_console/admin_navbar_dropdown/admin_navbar_dropdown.test.tsx
 webapp/channels/src/components/admin_console/admin_navbar_dropdown/admin_navbar_dropdown.tsx
 webapp/channels/src/components/admin_console/billing/billing_subscriptions/contact_sales_card.tsx
 webapp/channels/src/components/admin_console/cluster_settings.tsx
@@ -204,6 +212,10 @@ webapp/channels/src/components/admin_console/feature_discovery/features/gitlab.t
 webapp/channels/src/components/admin_console/feature_discovery/features/ldap.tsx
 webapp/channels/src/components/admin_console/feature_discovery/features/saml.tsx
 webapp/channels/src/components/admin_console/feature_flags.tsx
+webapp/channels/src/components/admin_console/global_attributes/attribute_details/attribute_applies_to_constants.ts
+webapp/channels/src/components/admin_console/global_attributes/attribute_details/attribute_applies_to_user_item.test.tsx
+webapp/channels/src/components/admin_console/global_attributes/attribute_details/attribute_applies_to_user_item.tsx
+webapp/channels/src/components/admin_console/global_attributes/attribute_details/attribute_details.test.tsx
 webapp/channels/src/components/admin_console/global_attributes/classification_attribute/remove_channel_resource_modal.tsx
 webapp/channels/src/components/admin_console/group_settings/__snapshots__/group_settings.test.tsx.snap
 webapp/channels/src/components/admin_console/group_settings/group_details/__snapshots__/group_details.test.tsx.snap
@@ -249,6 +261,7 @@ webapp/channels/src/components/announcement_bar/version_bar/version_bar.test.tsx
 webapp/channels/src/components/announcement_bar/version_bar/version_bar.tsx
 webapp/channels/src/components/authorize/authorize.tsx
 webapp/channels/src/components/backstage/components/backstage_navbar.test.tsx
+webapp/channels/src/components/call_options_menu/call_options_menu.tsx
 webapp/channels/src/components/channel_notifications_modal/channel_notifications_modal.tsx
 webapp/channels/src/components/claim/components/ldap_to_email.tsx
 webapp/channels/src/components/cloud_preview_modal/cloud_preview_modal_controller.test.tsx
@@ -267,8 +280,12 @@ webapp/channels/src/components/error_page/__snapshots__/error_title.test.tsx.sna
 webapp/channels/src/components/error_page/error_message.tsx
 webapp/channels/src/components/error_page/error_page.tsx
 webapp/channels/src/components/error_page/error_title.tsx
+webapp/channels/src/components/global_header/center_controls/user_guide_dropdown/user_guide_dropdown.test.tsx
 webapp/channels/src/components/global_header/center_controls/user_guide_dropdown/user_guide_dropdown.tsx
-webapp/channels/src/components/global_header/left_controls/product_menu/product_menu_list/index.ts
+webapp/channels/src/components/global_header/left_controls/switch_product_menu/switch_product_about_menuitem.test.tsx
+webapp/channels/src/components/global_header/left_controls/switch_product_menu/switch_product_about_menuitem.tsx
+webapp/channels/src/components/global_header/left_controls/switch_product_menu/switch_product_edition_menuitem.tsx
+webapp/channels/src/components/global_header/left_controls/switch_product_menu/switch_product_menu.test.tsx
 webapp/channels/src/components/header_footer_route/footer.tsx
 webapp/channels/src/components/header_footer_route/header.tsx
 webapp/channels/src/components/header_footer_template/__snapshots__/header_footer_template.test.tsx.snap
@@ -378,6 +395,7 @@ webapp/channels/src/packages/mattermost-redux/src/selectors/entities/report_a_pr
 webapp/channels/src/packages/mattermost-redux/src/selectors/entities/users.test.ts
 webapp/channels/src/packages/mattermost-redux/src/utils/theme_utils.test.ts
 webapp/channels/src/packages/mattermost-redux/src/utils/user_utils.test.ts
+webapp/channels/src/plugins/call_button/call_button.tsx
 webapp/channels/src/plugins/registry.ts
 webapp/channels/src/root.html
 webapp/channels/src/root.tsx
