@@ -52,17 +52,17 @@ Mattermax-Patch: read-receipts.patch
  create mode 100644 webapp/channels/src/components/user_settings/display/read_receipts/read_receipts.tsx
 
 diff --git a/server/channels/api4/api.go b/server/channels/api4/api.go
-index d14b65e7a628..b058db68d6fa 100644
+index ee2ee79d9521..0010bee21aba 100644
 --- a/server/channels/api4/api.go
 +++ b/server/channels/api4/api.go
-@@ -419,6 +419,7 @@ func Init(srv *app.Server) (*API, error) {
+@@ -423,6 +423,7 @@ func Init(srv *app.Server) (*API, error) {
  	api.InitAuditLogging()
  	api.InitAccessControlPolicy()
  	api.InitContentFlagging()
 +	api.InitReadReceipts()
  	api.InitDeliveryTracking()
+ 	api.InitHealthDashboard()
  	api.InitAgents()
- 	api.InitProperties()
 diff --git a/server/channels/api4/read_receipts.go b/server/channels/api4/read_receipts.go
 new file mode 100644
 index 000000000000..fd5bf03c67d6
@@ -708,7 +708,7 @@ index 000000000000..1c3f2c031f78
 +	return nil
 +}
 diff --git a/server/config/client.go b/server/config/client.go
-index 9e882062be2a..811193c83531 100644
+index b28175ce11e7..99257feb3a4e 100644
 --- a/server/config/client.go
 +++ b/server/config/client.go
 @@ -18,6 +18,7 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
@@ -755,10 +755,10 @@ index a6bdc1515b6f..ce739071a093 100644
  			"unlicensed announcement banner",
  			&model.Config{
 diff --git a/server/public/model/config.go b/server/public/model/config.go
-index a80835f1abd8..9dbef6abc706 100644
+index b8aaf05aea0a..45a79785e0ec 100644
 --- a/server/public/model/config.go
 +++ b/server/public/model/config.go
-@@ -2612,6 +2612,7 @@ type TeamSettings struct {
+@@ -2659,6 +2659,7 @@ type TeamSettings struct {
  	CustomDescriptionText           *string `access:"site_customization"`
  	RestrictDirectMessage           *string `access:"site_users_and_teams"`
  	EnableLastActiveTime            *bool   `access:"site_users_and_teams"`
@@ -766,7 +766,7 @@ index a80835f1abd8..9dbef6abc706 100644
  	// In seconds.
  	UserStatusAwayTimeout               *int64   `access:"site_users_and_teams"`
  	MaxChannelsPerTeam                  *int64   `access:"site_users_and_teams"`
-@@ -2659,6 +2660,10 @@ func (s *TeamSettings) SetDefaults() {
+@@ -2706,6 +2707,10 @@ func (s *TeamSettings) SetDefaults() {
  		s.EnableLastActiveTime = new(true)
  	}
  
@@ -924,10 +924,10 @@ index 000000000000..a28d706ef904
 +	}
 +}
 diff --git a/webapp/channels/src/components/admin_console/admin_definition.tsx b/webapp/channels/src/components/admin_console/admin_definition.tsx
-index 87d00e26c723..b8ff808c79f7 100644
+index 5098766bf0bb..e0967faef5ec 100644
 --- a/webapp/channels/src/components/admin_console/admin_definition.tsx
 +++ b/webapp/channels/src/components/admin_console/admin_definition.tsx
-@@ -3113,6 +3113,13 @@ const AdminDefinition: AdminDefinitionType = {
+@@ -3133,6 +3133,13 @@ const AdminDefinition: AdminDefinitionType = {
                              help_text: defineMessage({id: 'admin.team.lastActiveTimeDescription', defaultMessage: 'When enabled, last active time allows users to see when someone was last online.'}),
                              isDisabled: it.not(it.userHasWritePermissionOnResource(RESOURCE_KEYS.SITE.USERS_AND_TEAMS)),
                          },
@@ -2226,10 +2226,10 @@ index 000000000000..f723eda9c7a3
 +
 +export default ReadReceipts;
 diff --git a/webapp/channels/src/components/user_settings/display/user_settings_display.tsx b/webapp/channels/src/components/user_settings/display/user_settings_display.tsx
-index 1d10974ab568..f5fd73d8963e 100644
+index d8f5128fe643..01b1056209d4 100644
 --- a/webapp/channels/src/components/user_settings/display/user_settings_display.tsx
 +++ b/webapp/channels/src/components/user_settings/display/user_settings_display.tsx
-@@ -26,6 +26,7 @@ import {a11yFocus} from 'utils/utils';
+@@ -27,6 +27,7 @@ import {a11yFocus} from 'utils/utils';
  
  import ManageLanguages from './manage_languages';
  import ManageTimezones from './manage_timezones';
@@ -2237,7 +2237,7 @@ index 1d10974ab568..f5fd73d8963e 100644
  import RenderEmoticonsAsEmoji from './render_emoticons_as_emoji';
  
  import SettingDesktopHeader from '../headers/setting_desktop_header';
-@@ -1205,6 +1206,12 @@ export default class UserSettingsDisplay extends React.PureComponent<Props, Stat
+@@ -1193,6 +1194,12 @@ export default class UserSettingsDisplay extends React.PureComponent<Props, Stat
                      {teammateNameDisplaySection}
                      {availabilityStatusOnPostsSection}
                      {lastActiveSection}
@@ -2251,10 +2251,10 @@ index 1d10974ab568..f5fd73d8963e 100644
                      {linkPreviewSection}
                      {collapseSection}
 diff --git a/webapp/channels/src/i18n/en.json b/webapp/channels/src/i18n/en.json
-index bf8582e94cc5..41e1095ea257 100644
+index 1ff2423fe7d0..eb81ec9cf0c0 100644
 --- a/webapp/channels/src/i18n/en.json
 +++ b/webapp/channels/src/i18n/en.json
-@@ -16471,6 +16471,14 @@
+@@ -16931,6 +16931,14 @@
      "defaultMessage": "Enable Open Server: ",
      "description": "Admin console boolean setting name under Authentication > Signup; 'Open Server' means anyone can sign up without an invitation. Trailing space is intentional."
    },
@@ -2269,7 +2269,7 @@ index bf8582e94cc5..41e1095ea257 100644
    "admin.team.refreshPostStatsRunTimeDescription": {
      "defaultMessage": "Set the server time for updating the user post statistics, including each user's total post count and the timestamp of their most recent post. Must be a 24-hour time stamp in the form HH:MM based on the local time of the server.",
      "description": "Admin console help text for the 'User Statistics Update Time' text setting; explains the required HH:MM 24-hour format."
-@@ -27411,6 +27419,18 @@
+@@ -28031,6 +28039,18 @@
      "defaultMessage": "Action failed to execute",
      "description": "Error shown when the action behind an interactive message-attachment button (from an integration) fails to run."
    },
@@ -2288,7 +2288,7 @@ index bf8582e94cc5..41e1095ea257 100644
    "post.redacted_files.subtitle": {
      "defaultMessage": "Access to files is restricted based on attributes",
      "description": "Explanatory subtitle of the placeholder shown instead of file attachments the user is not permitted to see under attribute-based access control."
-@@ -32171,6 +32191,14 @@
+@@ -32815,6 +32835,14 @@
      "defaultMessage": "Select how you prefer time displayed.",
      "description": "Help text for the Clock Display setting asking the preferred time format."
    },
@@ -2304,7 +2304,7 @@ index bf8582e94cc5..41e1095ea257 100644
      "defaultMessage": "When enabled, text emoticons in messages will automatically be rendered as emojis (For example :D as 😄)",
      "description": "Help text for the emoticon rendering setting; ':D' is a literal text emoticon example converted to an emoji."
 diff --git a/webapp/platform/types/src/config.ts b/webapp/platform/types/src/config.ts
-index 420323446eec..299d26ebff14 100644
+index 1e1b5d2b1922..765599c2a348 100644
 --- a/webapp/platform/types/src/config.ts
 +++ b/webapp/platform/types/src/config.ts
 @@ -62,6 +62,7 @@ export type ClientConfig = {
@@ -2315,7 +2315,7 @@ index 420323446eec..299d26ebff14 100644
      EnableChannelCategorySorting: string;
      EnableTimedDND: string;
      EnableCrossTeamSearch: 'true' | 'false';
-@@ -476,6 +477,7 @@ export type TeamSettings = {
+@@ -478,6 +479,7 @@ export type TeamSettings = {
      ExperimentalPrimaryTeam: string;
      ExperimentalDefaultChannels: string[];
      EnableLastActiveTime: boolean;

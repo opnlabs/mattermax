@@ -24,7 +24,7 @@ Mattermax-Patch: unlock-custom-groups.patch
  16 files changed, 171 insertions(+), 97 deletions(-)
 
 diff --git a/server/channels/api4/channel.go b/server/channels/api4/channel.go
-index b01f609858f4..4e9602fda375 100644
+index abd5cbe0d768..457bdeb0bb96 100644
 --- a/server/channels/api4/channel.go
 +++ b/server/channels/api4/channel.go
 @@ -3103,11 +3103,6 @@ func channelMembersMinusGroupMembers(c *Context, w http.ResponseWriter, r *http.
@@ -40,10 +40,10 @@ index b01f609858f4..4e9602fda375 100644
  	if c.Err != nil {
  		return
 diff --git a/server/channels/api4/channel_test.go b/server/channels/api4/channel_test.go
-index fd20a8a671bc..6603c7d4c8c9 100644
+index f26f2bcef57a..062cef7da69d 100644
 --- a/server/channels/api4/channel_test.go
 +++ b/server/channels/api4/channel_test.go
-@@ -7645,9 +7645,10 @@ func TestGetChannelMemberCountsByGroup(t *testing.T) {
+@@ -7647,9 +7647,10 @@ func TestGetChannelMemberCountsByGroup(t *testing.T) {
  	th := Setup(t).InitBasic(t)
  
  	channel := th.BasicChannel
@@ -341,7 +341,7 @@ index 2d2dc486b80e..c4e21850bf1d 100644
  
  	th.App.Srv().SetLicense(model.NewTestLicenseSKU(model.LicenseShortSkuProfessional))
 diff --git a/server/channels/api4/user_test.go b/server/channels/api4/user_test.go
-index a54fb6d4afed..0f4c21805a31 100644
+index 05b4c73407b0..fda96abbb6a3 100644
 --- a/server/channels/api4/user_test.go
 +++ b/server/channels/api4/user_test.go
 @@ -1843,7 +1843,7 @@ func TestSearchUsers(t *testing.T) {
@@ -363,10 +363,10 @@ index a54fb6d4afed..0f4c21805a31 100644
  
  	th.App.Srv().SetLicense(model.NewTestLicenseSKU(model.LicenseShortSkuProfessional))
 diff --git a/server/channels/app/notification.go b/server/channels/app/notification.go
-index e9e6f9e204c0..ca33126d1de4 100644
+index 455238958edb..1469f948e90c 100644
 --- a/server/channels/app/notification.go
 +++ b/server/channels/app/notification.go
-@@ -1505,10 +1505,6 @@ func (a *App) allowChannelMentions(rctx request.CTX, post *model.Post, numProfil
+@@ -1504,10 +1504,6 @@ func (a *App) allowChannelMentions(rctx request.CTX, post *model.Post, numProfil
  
  // allowGroupMentions returns whether or not the group mentions are allowed for the given post.
  func (a *App) allowGroupMentions(rctx request.CTX, post *model.Post) bool {
@@ -377,7 +377,7 @@ index e9e6f9e204c0..ca33126d1de4 100644
  	if ok, _ := a.HasPermissionToChannel(rctx, post.UserId, post.ChannelId, model.PermissionUseGroupMentions); !ok {
  		return false
  	}
-@@ -1526,7 +1522,9 @@ func (a *App) getGroupsAllowedForReferenceInChannel(channel *model.Channel, team
+@@ -1525,7 +1521,9 @@ func (a *App) getGroupsAllowedForReferenceInChannel(channel *model.Channel, team
  	groupsMap := make(map[string]*model.Group)
  	opts := model.GroupSearchOpts{FilterAllowReference: true, IncludeMemberCount: true}
  
@@ -389,7 +389,7 @@ index e9e6f9e204c0..ca33126d1de4 100644
  		if channel.IsGroupConstrained() {
  			groups, err = a.Srv().Store().Group().GetGroupsByChannel(channel.Id, opts)
 diff --git a/server/channels/app/notification_test.go b/server/channels/app/notification_test.go
-index 118172ccc3b8..f965e0695d29 100644
+index 2ce5de55fe46..8c0eac492bf9 100644
 --- a/server/channels/app/notification_test.go
 +++ b/server/channels/app/notification_test.go
 @@ -60,6 +60,34 @@ func TestSendNotifications(t *testing.T) {
@@ -484,10 +484,10 @@ index ebf692f960f7..02701397734b 100644
  		return nil, errors.Wrap(err, "failed to find Groups by names")
  	}
 diff --git a/server/config/client.go b/server/config/client.go
-index 0c56bf3e164f..9ef6841c187f 100644
+index 7a03e5038018..3e443cfebfef 100644
 --- a/server/config/client.go
 +++ b/server/config/client.go
-@@ -144,7 +144,7 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
+@@ -145,7 +145,7 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
  	props["IsDefaultMarketplace"] = strconv.FormatBool(*c.PluginSettings.MarketplaceURL == model.PluginSettingsDefaultMarketplaceURL)
  	props["ExperimentalSharedChannels"] = "false"
  	props["CollapsedThreads"] = *c.ServiceSettings.CollapsedThreads
@@ -496,7 +496,7 @@ index 0c56bf3e164f..9ef6841c187f 100644
  	props["PostPriority"] = strconv.FormatBool(*c.ServiceSettings.PostPriority)
  	props["PostAcknowledgements"] = "true"
  	props["ScheduledPosts"] = strconv.FormatBool(*c.ServiceSettings.ScheduledPosts)
-@@ -228,10 +228,6 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
+@@ -229,10 +229,6 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
  			props["ExperimentalRemoteClusterService"] = strconv.FormatBool(*c.ConnectedWorkspacesSettings.EnableRemoteClusterService)
  		}
  
@@ -543,10 +543,10 @@ index a9f7ed1e4d22..6c922f8cf545 100644
  				"EnableCustomGroups": "false",
  			},
 diff --git a/webapp/channels/src/components/admin_console/admin_definition.tsx b/webapp/channels/src/components/admin_console/admin_definition.tsx
-index 98ee4a8f32ec..cc8d6999a569 100644
+index 22330d15ba36..c4379fb6f406 100644
 --- a/webapp/channels/src/components/admin_console/admin_definition.tsx
 +++ b/webapp/channels/src/components/admin_console/admin_definition.tsx
-@@ -3143,9 +3143,6 @@ const AdminDefinition: AdminDefinitionType = {
+@@ -3163,9 +3163,6 @@ const AdminDefinition: AdminDefinitionType = {
                              label: defineMessage({id: 'admin.team.customUserGroupsTitle', defaultMessage: 'Enable Custom User Groups: '}),
                              help_text: defineMessage({id: 'admin.team.customUserGroupsDescription', defaultMessage: 'When true, users with appropriate permissions can create custom user groups and enables at-mentions for those groups.'}),
                              isDisabled: it.not(it.userHasWritePermissionOnResource(RESOURCE_KEYS.SITE.USERS_AND_TEAMS)),
@@ -570,10 +570,10 @@ index 58438a20a490..906eaee7592f 100644
          }
          postsGroup.permissions.push({
 diff --git a/webapp/channels/src/components/advanced_text_editor/wysiwyg_editor/wysiwyg_suggestion_list.tsx b/webapp/channels/src/components/advanced_text_editor/wysiwyg_editor/wysiwyg_suggestion_list.tsx
-index 8e3474e5921b..e9b7eab2c96e 100644
+index b0bdf0fbbb02..7eb7cc630f26 100644
 --- a/webapp/channels/src/components/advanced_text_editor/wysiwyg_editor/wysiwyg_suggestion_list.tsx
 +++ b/webapp/channels/src/components/advanced_text_editor/wysiwyg_editor/wysiwyg_suggestion_list.tsx
-@@ -100,7 +100,7 @@ const WysiwygSuggestionList = ({editor, channelId, rootId, onSubmit}: Props) =>
+@@ -154,7 +154,7 @@ const WysiwygSuggestionList = ({editor, channelId, rootId, onSubmit}: Props) =>
      const config = useSelector(getConfig);
      const defaultAgent = useSelector(getDefaultAgent);
  

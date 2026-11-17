@@ -18,10 +18,10 @@ Mattermax-Patch: optional-policy-links.patch
  5 files changed, 98 insertions(+), 32 deletions(-)
 
 diff --git a/server/public/model/config.go b/server/public/model/config.go
-index 2d79070a18ec..a80835f1abd8 100644
+index c0b589f5e65f..b8aaf05aea0a 100644
 --- a/server/public/model/config.go
 +++ b/server/public/model/config.go
-@@ -2402,8 +2402,10 @@ type SupportSettings struct {
+@@ -2449,8 +2449,10 @@ type SupportSettings struct {
  }
  
  func (s *SupportSettings) SetDefaults() {
@@ -34,7 +34,7 @@ index 2d79070a18ec..a80835f1abd8 100644
  
  	if s.TermsOfServiceLink == nil {
 diff --git a/server/public/model/config_test.go b/server/public/model/config_test.go
-index 52b7417302dd..63bd483b5f85 100644
+index cc850452f1a8..541b4a2a251d 100644
 --- a/server/public/model/config_test.go
 +++ b/server/public/model/config_test.go
 @@ -710,6 +710,24 @@ func TestConfigDefaultFileSettingsDirectory(t *testing.T) {
@@ -204,10 +204,10 @@ index 44adeeab25a4..652e8a09dc25 100644
                                          extraClasses='signup-body-card-form-button-submit large'
                                          saving={isWaiting}
 diff --git a/webapp/channels/src/i18n/en.json b/webapp/channels/src/i18n/en.json
-index fe23733f5cf8..631a13668147 100644
+index b6bf7defc128..4550c75f743d 100644
 --- a/webapp/channels/src/i18n/en.json
 +++ b/webapp/channels/src/i18n/en.json
-@@ -30059,6 +30059,10 @@
+@@ -30695,6 +30695,10 @@
      "defaultMessage": "AD/LDAP Credentials",
      "description": "Fallback button label on the signup page for creating an account via AD/LDAP login when the admin has not set a custom name."
    },
@@ -218,7 +218,7 @@ index fe23733f5cf8..631a13668147 100644
    "signup.terms_and_privacy.checkmark.box": {
      "defaultMessage": "Terms and privacy policy checkbox",
      "description": "Accessible label of the checkbox on the signup form for accepting the terms and privacy policy."
-@@ -30067,6 +30071,10 @@
+@@ -30703,6 +30707,10 @@
      "defaultMessage": "I agree to the <termsOfUseLink>Acceptable Use Policy</termsOfUseLink> and the <privacyPolicyLink>Privacy Policy</privacyPolicyLink>",
      "description": "Consent text next to the signup checkbox; <termsOfUseLink> and <privacyPolicyLink> tags wrap links to the respective policies."
    },

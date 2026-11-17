@@ -45,10 +45,10 @@ index 7ce0808f500f..457dea43165b 100644
  		_, resp, err := th.Client.InviteMembersToTeamGracefully(context.Background(), th.BasicTeam.Id, newInvite())
  		require.Error(t, err)
 diff --git a/server/channels/api4/user_test.go b/server/channels/api4/user_test.go
-index c6e8a1c71988..8774a5ca2a02 100644
+index 4fe784df820d..b47e27218601 100644
 --- a/server/channels/api4/user_test.go
 +++ b/server/channels/api4/user_test.go
-@@ -10392,6 +10392,7 @@ func TestSetProfileImageWithProviderAttributes(t *testing.T) {
+@@ -10668,6 +10668,7 @@ func TestSetProfileImageWithProviderAttributes(t *testing.T) {
  func TestLockProfileFieldsForEmailUsers(t *testing.T) {
  	mainHelper.Parallel(t)
  	th := Setup(t).InitBasic(t)
@@ -56,7 +56,7 @@ index c6e8a1c71988..8774a5ca2a02 100644
  
  	setLock := func(value string) {
  		th.App.UpdateConfig(func(cfg *model.Config) {
-@@ -10420,21 +10421,6 @@ func TestLockProfileFieldsForEmailUsers(t *testing.T) {
+@@ -10696,21 +10697,6 @@ func TestLockProfileFieldsForEmailUsers(t *testing.T) {
  		require.NoError(t, err)
  	})
  
@@ -79,7 +79,7 @@ index c6e8a1c71988..8774a5ca2a02 100644
  		setLock(model.TeamSettingsLockProfileFieldsNameAndUsername)
  		setNames("First", "Last")
 diff --git a/server/channels/app/team.go b/server/channels/app/team.go
-index ff68a0ef4d6b..47afabd7eff3 100644
+index c6eaaac76adb..febe2371b0d9 100644
 --- a/server/channels/app/team.go
 +++ b/server/channels/app/team.go
 @@ -1656,10 +1656,6 @@ func (a *App) validateAndNormalizeMemberInviteProfiles(memberInvite *model.Membe
@@ -94,7 +94,7 @@ index ff68a0ef4d6b..47afabd7eff3 100644
  		return model.NewAppError("InviteNewUsersToTeamGracefully", "api.team.invite_members.profiles_disabled.app_error", nil, "", http.StatusBadRequest)
  	}
 diff --git a/server/channels/app/user.go b/server/channels/app/user.go
-index e17623bed0dc..dbac1a759e1e 100644
+index 09e5591b86c4..fc5cbe9afd3b 100644
 --- a/server/channels/app/user.go
 +++ b/server/channels/app/user.go
 @@ -1419,11 +1419,9 @@ func (a *App) CheckProviderAttributes(rctx request.CTX, user *model.User, patch
@@ -119,7 +119,7 @@ index e17623bed0dc..dbac1a759e1e 100644
  		*a.Config().TeamSettings.LockProfileFieldsForEmailUsers == model.TeamSettingsLockProfileFieldsAll
  }
 diff --git a/server/config/client.go b/server/config/client.go
-index 69b767013951..70ebff4c6ba9 100644
+index 01a1fc908e3d..842f04552728 100644
 --- a/server/config/client.go
 +++ b/server/config/client.go
 @@ -23,7 +23,7 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
@@ -131,7 +131,7 @@ index 69b767013951..70ebff4c6ba9 100644
  	props["ExperimentalPrimaryTeam"] = *c.TeamSettings.ExperimentalPrimaryTeam
  	props["EnableJoinLeaveMessageByDefault"] = strconv.FormatBool(*c.TeamSettings.EnableJoinLeaveMessageByDefault)
  	props["EnableChannelCategorySorting"] = strconv.FormatBool(*c.TeamSettings.EnableChannelCategorySorting)
-@@ -223,10 +223,6 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
+@@ -224,10 +224,6 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
  			props["DataRetentionFileRetentionHours"] = strconv.FormatInt(int64(c.DataRetentionSettings.GetFileRetentionHours()), 10)
  		}
  
@@ -158,10 +158,10 @@ index 36e504b27fee..ddf7720b4608 100644
  	} {
  		t.Run(name, func(t *testing.T) {
 diff --git a/webapp/channels/src/components/admin_console/admin_definition.tsx b/webapp/channels/src/components/admin_console/admin_definition.tsx
-index 947ff1882c7f..40b13b655adb 100644
+index 7942f09f71dd..bc1221512075 100644
 --- a/webapp/channels/src/components/admin_console/admin_definition.tsx
 +++ b/webapp/channels/src/components/admin_console/admin_definition.tsx
-@@ -3027,7 +3027,6 @@ const AdminDefinition: AdminDefinitionType = {
+@@ -3047,7 +3047,6 @@ const AdminDefinition: AdminDefinitionType = {
                                      display_name: defineMessage({id: 'admin.team.lockProfileFields.all', defaultMessage: 'Lock entire profile'}),
                                  },
                              ],

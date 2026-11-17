@@ -34,10 +34,10 @@ Mattermax-Patch: voice-messages.patch
  create mode 100644 webapp/channels/src/components/voice_message/voice_message_player.tsx
 
 diff --git a/webapp/channels/src/components/advanced_text_editor/advanced_text_editor.tsx b/webapp/channels/src/components/advanced_text_editor/advanced_text_editor.tsx
-index 30e95eab806b..60c190846cce 100644
+index 08f70e7ec382..547245f02402 100644
 --- a/webapp/channels/src/components/advanced_text_editor/advanced_text_editor.tsx
 +++ b/webapp/channels/src/components/advanced_text_editor/advanced_text_editor.tsx
-@@ -442,7 +442,7 @@ const AdvancedTextEditor = ({
+@@ -408,7 +408,7 @@ const AdvancedTextEditor = ({
      const hasAIActionsMenu = (aiActionMenuItems?.length ?? 0) > 0 || (aiRewriteEnabled && Boolean(rewriteMenuProps));
      const isDisabled = Boolean(readOnlyChannel || (!enableSharedChannelsDMs && isDMOrGMRemote) || rewriteIsProcessing);
  
@@ -46,7 +46,7 @@ index 30e95eab806b..60c190846cce 100644
          draft,
          rootId,
          channelId,
-@@ -1013,6 +1013,7 @@ const AdvancedTextEditor = ({
+@@ -992,6 +992,7 @@ const AdvancedTextEditor = ({
                                  />
                                  <Separator/>
                                  {fileUploadJSX}
@@ -1555,10 +1555,10 @@ index 000000000000..7a39ba77e84e
 +    );
 +}
 diff --git a/webapp/channels/src/i18n/en.json b/webapp/channels/src/i18n/en.json
-index b60cb34f082f..bf8582e94cc5 100644
+index d754e45b2bce..1ff2423fe7d0 100644
 --- a/webapp/channels/src/i18n/en.json
 +++ b/webapp/channels/src/i18n/en.json
-@@ -33839,6 +33839,62 @@
+@@ -34487,6 +34487,62 @@
      "defaultMessage": "Plugin SYNCED",
      "description": "Uppercase tag in the user group modal header indicating the group's membership is managed by a plugin; compact space."
    },

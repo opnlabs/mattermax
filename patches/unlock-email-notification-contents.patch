@@ -122,10 +122,10 @@ index 11c692084275..4060a9c6423a 100644
 +	})
 +}
 diff --git a/webapp/channels/src/components/admin_console/admin_definition.tsx b/webapp/channels/src/components/admin_console/admin_definition.tsx
-index 2dc7f19b1ef1..f94966aca3c7 100644
+index eef195a9a624..610ddb89ed74 100644
 --- a/webapp/channels/src/components/admin_console/admin_definition.tsx
 +++ b/webapp/channels/src/components/admin_console/admin_definition.tsx
-@@ -3192,7 +3192,6 @@ const AdminDefinition: AdminDefinitionType = {
+@@ -3212,7 +3212,6 @@ const AdminDefinition: AdminDefinitionType = {
                                      display_name: defineMessage({id: 'admin.environment.notifications.contents.generic', defaultMessage: 'Send generic description with only sender name'}),
                                  },
                              ],

@@ -13,10 +13,10 @@ Mattermax-Patch: unlock-announcement-banner.patch
  5 files changed, 195 insertions(+), 14 deletions(-)
 
 diff --git a/server/config/client.go b/server/config/client.go
-index 30479e155dc3..0c56bf3e164f 100644
+index bde628af3f4e..7a03e5038018 100644
 --- a/server/config/client.go
 +++ b/server/config/client.go
-@@ -125,11 +125,11 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
+@@ -126,11 +126,11 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
  	props["SamlPositionAttributeSet"] = "false"
  	props["EnableCluster"] = "false"
  	props["EnableMetrics"] = "false"
@@ -33,7 +33,7 @@ index 30479e155dc3..0c56bf3e164f 100644
  	props["EnableThemeSelection"] = "true"
  	props["DefaultTheme"] = ""
  	props["AllowCustomThemes"] = "true"
-@@ -209,14 +209,6 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
+@@ -210,14 +210,6 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
  			props["EnableNotificationMetrics"] = strconv.FormatBool(*c.MetricsSettings.EnableNotificationMetrics)
  		}
  
@@ -82,10 +82,10 @@ index d7bf934fedf1..a9f7ed1e4d22 100644
  			"licensed, but not for theme management",
  			&model.Config{
 diff --git a/webapp/channels/src/components/admin_console/admin_definition.tsx b/webapp/channels/src/components/admin_console/admin_definition.tsx
-index 1ec6f7d463be..98ee4a8f32ec 100644
+index f27e24567be8..22330d15ba36 100644
 --- a/webapp/channels/src/components/admin_console/admin_definition.tsx
 +++ b/webapp/channels/src/components/admin_console/admin_definition.tsx
-@@ -3405,7 +3405,6 @@ const AdminDefinition: AdminDefinitionType = {
+@@ -3425,7 +3425,6 @@ const AdminDefinition: AdminDefinitionType = {
                  url: 'site_config/announcement_banner',
                  title: defineMessage({id: 'admin.sidebar.announcement', defaultMessage: 'System-wide Notifications'}),
                  isHidden: it.any(
@@ -94,7 +94,7 @@ index 1ec6f7d463be..98ee4a8f32ec 100644
                  ),
                  schema: {
 diff --git a/webapp/channels/src/components/admin_console/admin_sidebar/__snapshots__/admin_sidebar.test.tsx.snap b/webapp/channels/src/components/admin_console/admin_sidebar/__snapshots__/admin_sidebar.test.tsx.snap
-index c8ce18c00299..e59620e05516 100644
+index a3b47b7cc965..ee28dab2ca54 100644
 --- a/webapp/channels/src/components/admin_console/admin_sidebar/__snapshots__/admin_sidebar.test.tsx.snap
 +++ b/webapp/channels/src/components/admin_console/admin_sidebar/__snapshots__/admin_sidebar.test.tsx.snap
 @@ -1293,6 +1293,25 @@ c0,1.1,0.9,2,2,2h16c1.1,0,2-0.9,2-2V4z M20,4v5H4V4H20z M22,15v5c0,1.1-0.9,2-2,2H

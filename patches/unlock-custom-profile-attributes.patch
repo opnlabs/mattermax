@@ -24,10 +24,10 @@ Mattermax-Patch: unlock-custom-profile-attributes.patch
  16 files changed, 120 insertions(+), 326 deletions(-)
 
 diff --git a/server/channels/api4/custom_profile_attributes.go b/server/channels/api4/custom_profile_attributes.go
-index cbf89a5c22d2..4c9ada6e6f70 100644
+index 09385bcbaf7c..f4688310ca4a 100644
 --- a/server/channels/api4/custom_profile_attributes.go
 +++ b/server/channels/api4/custom_profile_attributes.go
-@@ -318,14 +318,6 @@ func deleteCPAField(c *Context, w http.ResponseWriter, r *http.Request) {
+@@ -322,14 +322,6 @@ func deleteCPAField(c *Context, w http.ResponseWriter, r *http.Request) {
  }
  
  func getCPAGroup(c *Context, w http.ResponseWriter, r *http.Request) {
@@ -43,7 +43,7 @@ index cbf89a5c22d2..4c9ada6e6f70 100644
  	if appErr != nil {
  		c.Err = appErr
 diff --git a/server/channels/api4/custom_profile_attributes_test.go b/server/channels/api4/custom_profile_attributes_test.go
-index 87d96dc2c423..f84ab8c6987e 100644
+index 732b29df1ff7..466be231f047 100644
 --- a/server/channels/api4/custom_profile_attributes_test.go
 +++ b/server/channels/api4/custom_profile_attributes_test.go
 @@ -7,6 +7,7 @@ import (
@@ -51,10 +51,10 @@ index 87d96dc2c423..f84ab8c6987e 100644
  	"encoding/json"
  	"fmt"
 +	"net/http"
+ 	"os"
  	"strings"
  	"testing"
- 	"time"
-@@ -33,11 +34,10 @@ func TestCreateCPAField(t *testing.T) {
+@@ -35,11 +36,10 @@ func TestCreateCPAField(t *testing.T) {
  		field := &model.PropertyField{Name: celSafeName(), Type: model.PropertyFieldTypeText}
  
  		createdField, resp, err := client.CreateCPAField(context.Background(), field)
@@ -70,7 +70,7 @@ index 87d96dc2c423..f84ab8c6987e 100644
  
  	// add a valid license
  	th.App.Srv().SetLicense(model.NewTestLicenseSKU(model.LicenseShortSkuEnterprise))
-@@ -135,6 +135,23 @@ func TestCreateCPAField(t *testing.T) {
+@@ -137,6 +137,23 @@ func TestCreateCPAField(t *testing.T) {
  	})
  }
  
@@ -94,7 +94,7 @@ index 87d96dc2c423..f84ab8c6987e 100644
  func TestCPAFieldLimit(t *testing.T) {
  	mainHelper.Parallel(t)
  	th := Setup(t).InitBasic(t)
-@@ -197,15 +214,15 @@ func TestListCPAFields(t *testing.T) {
+@@ -199,15 +216,15 @@ func TestListCPAFields(t *testing.T) {
  	require.NoError(t, err)
  	require.NotNil(t, createdField)
  
@@ -115,7 +115,7 @@ index 87d96dc2c423..f84ab8c6987e 100644
  	})
  
  	t.Run("any user should be able to list fields", func(t *testing.T) {
-@@ -236,22 +253,18 @@ func TestPatchCPAField(t *testing.T) {
+@@ -238,22 +255,18 @@ func TestPatchCPAField(t *testing.T) {
  	})
  
  	th.TestForSystemAdminAndLocal(t, func(t *testing.T, client *model.Client4) {
@@ -144,7 +144,7 @@ index 87d96dc2c423..f84ab8c6987e 100644
  
  	// add a valid license
  	th.App.Srv().SetLicense(model.NewTestLicenseSKU(model.LicenseShortSkuEnterprise))
-@@ -586,20 +599,15 @@ func TestDeleteCPAField(t *testing.T) {
+@@ -588,20 +601,15 @@ func TestDeleteCPAField(t *testing.T) {
  	th := Setup(t)
  
  	th.TestForSystemAdminAndLocal(t, func(t *testing.T, client *model.Client4) {
@@ -168,7 +168,7 @@ index 87d96dc2c423..f84ab8c6987e 100644
  
  	// add a valid license
  	th.App.Srv().SetLicense(model.NewTestLicenseSKU(model.LicenseShortSkuEnterprise))
-@@ -692,15 +700,14 @@ func TestListCPAValues(t *testing.T) {
+@@ -694,15 +702,14 @@ func TestListCPAValues(t *testing.T) {
  	CheckOKStatus(t, resp)
  	require.NoError(t, err)
  
@@ -188,7 +188,7 @@ index 87d96dc2c423..f84ab8c6987e 100644
  	})
  
  	// login with Client2 from this point on
-@@ -778,16 +785,15 @@ func TestPatchCPAValues(t *testing.T) {
+@@ -780,16 +787,15 @@ func TestPatchCPAValues(t *testing.T) {
  	require.NoError(t, err)
  	require.NotNil(t, createdField)
  
@@ -210,7 +210,7 @@ index 87d96dc2c423..f84ab8c6987e 100644
  	})
  
  	t.Run("any team member should be able to create their own values", func(t *testing.T) {
-@@ -1235,16 +1241,15 @@ func TestPatchCPAValuesForUser(t *testing.T) {
+@@ -1237,16 +1243,15 @@ func TestPatchCPAValuesForUser(t *testing.T) {
  	require.NoError(t, err)
  	require.NotNil(t, createdField)
  
@@ -233,7 +233,7 @@ index 87d96dc2c423..f84ab8c6987e 100644
  
  	// add a valid license
 diff --git a/server/channels/app/server.go b/server/channels/app/server.go
-index 5a48eb70e8c3..c6c9e5e912b0 100644
+index b4787f17a89f..0d8398fd4fd0 100644
 --- a/server/channels/app/server.go
 +++ b/server/channels/app/server.go
 @@ -326,13 +326,6 @@ func NewServer(options ...Option) (*Server, error) {
@@ -299,7 +299,7 @@ index 1387600fcb4c..764046adb94f 100644
      // Refresh classification fields and values on reconnect when the feature flag is active
      if (getFeatureFlagValue(state, 'ClassificationMarkings') === 'true') {
 diff --git a/webapp/channels/src/components/admin_console/admin_definition.tsx b/webapp/channels/src/components/admin_console/admin_definition.tsx
-index 2e8b8c463521..227166cc57ed 100644
+index 119d791a470b..2c2130dfbe1e 100644
 --- a/webapp/channels/src/components/admin_console/admin_definition.tsx
 +++ b/webapp/channels/src/components/admin_console/admin_definition.tsx
 @@ -94,7 +94,6 @@ import AutoTranslationFeatureDiscovery from './feature_discovery/features/auto_t
@@ -310,7 +310,7 @@ index 2e8b8c463521..227166cc57ed 100644
  import FeatureFlags, {messages as featureFlagsMessages} from './feature_flags';
  import GlobalAttributes, {searchableStrings as globalAttributesSearchableStrings} from './global_attributes';
  import AttributeDetails from './global_attributes/attribute_details';
-@@ -639,35 +638,8 @@ const AdminDefinition: AdminDefinitionType = {
+@@ -659,35 +658,8 @@ const AdminDefinition: AdminDefinitionType = {
          sectionTitle: defineMessage({id: 'admin.sidebar.systemAttributes', defaultMessage: 'System Attributes'}),
          isHidden: it.not(it.userHasReadPermissionOnSomeResources(RESOURCE_KEYS.USER_MANAGEMENT)),
          subsections: {
@@ -346,7 +346,7 @@ index 2e8b8c463521..227166cc57ed 100644
                  schema: {
                      id: 'UserAttributesRedirect',
                      component: UserAttributesRedirect,
-@@ -704,7 +676,6 @@ const AdminDefinition: AdminDefinitionType = {
+@@ -724,7 +696,6 @@ const AdminDefinition: AdminDefinitionType = {
              },
              global_attribute_details_edit: {
                  url: `system_attributes/manage_attributes/attribute_details/:field_id(${ID_PATH_PATTERN})`,
@@ -354,7 +354,7 @@ index 2e8b8c463521..227166cc57ed 100644
                  isDisabled: it.not(it.isSystemAdmin),
                  schema: {
                      id: 'GlobalAttributeDetails',
-@@ -713,7 +684,6 @@ const AdminDefinition: AdminDefinitionType = {
+@@ -733,7 +704,6 @@ const AdminDefinition: AdminDefinitionType = {
              },
              global_attribute_details: {
                  url: 'system_attributes/manage_attributes/attribute_details',
@@ -362,7 +362,7 @@ index 2e8b8c463521..227166cc57ed 100644
                  isDisabled: it.not(it.isSystemAdmin),
                  schema: {
                      id: 'GlobalAttributeDetails',
-@@ -724,7 +694,6 @@ const AdminDefinition: AdminDefinitionType = {
+@@ -744,7 +714,6 @@ const AdminDefinition: AdminDefinitionType = {
                  url: 'system_attributes/manage_attributes',
                  title: defineMessage({id: 'admin.sidebar.global_attributes', defaultMessage: 'Attribute Management'}),
                  searchableStrings: globalAttributesSearchableStrings,
@@ -496,7 +496,7 @@ index 80a68d60d039..4dcf248ed193 100644
      });
  });
 diff --git a/webapp/channels/src/components/admin_console/admin_sidebar/__snapshots__/admin_sidebar.test.tsx.snap b/webapp/channels/src/components/admin_console/admin_sidebar/__snapshots__/admin_sidebar.test.tsx.snap
-index 177e4906cf8a..405a91265a52 100644
+index a27cf8e00db4..851aa6e5ec03 100644
 --- a/webapp/channels/src/components/admin_console/admin_sidebar/__snapshots__/admin_sidebar.test.tsx.snap
 +++ b/webapp/channels/src/components/admin_console/admin_sidebar/__snapshots__/admin_sidebar.test.tsx.snap
 @@ -834,32 +834,17 @@ exports[`components/AdminSidebar should match snapshot 1`] = `
@@ -759,18 +759,19 @@ index 177e4906cf8a..405a91265a52 100644
                              </a>
                              <ul
 diff --git a/webapp/channels/src/components/admin_console/system_user_detail/index.ts b/webapp/channels/src/components/admin_console/system_user_detail/index.ts
-index 5cc5d4b2efad..05489988a3af 100644
+index b4850c14b529..a78356b746b8 100644
 --- a/webapp/channels/src/components/admin_console/system_user_detail/index.ts
 +++ b/webapp/channels/src/components/admin_console/system_user_detail/index.ts
-@@ -10,22 +10,18 @@ import {getCustomProfileAttributeFields} from 'mattermost-redux/actions/general'
- import {getUserPreferences} from 'mattermost-redux/actions/preferences';
+@@ -11,7 +11,7 @@ import {getUserPreferences} from 'mattermost-redux/actions/preferences';
  import {addUserToTeam} from 'mattermost-redux/actions/teams';
  import {updateUserActive, updateUserAuth, getUser, patchUser, updateUserMfa, getCustomProfileAttributeValues, saveCustomProfileAttribute, uploadProfileImage, setDefaultProfileImage} from 'mattermost-redux/actions/users';
+ import {Permissions} from 'mattermost-redux/constants';
 -import {getConfig, getCustomProfileAttributes, getLicense} from 'mattermost-redux/selectors/entities/general';
 +import {getConfig, getCustomProfileAttributes} from 'mattermost-redux/selectors/entities/general';
+ import {haveISystemPermission} from 'mattermost-redux/selectors/entities/roles';
  import {getCurrentUserId} from 'mattermost-redux/selectors/entities/users';
  
- import {setNavigationBlocked} from 'actions/admin_actions';
+@@ -19,15 +19,11 @@ import {setNavigationBlocked} from 'actions/admin_actions';
  import {openModal} from 'actions/views/modals';
  import {getShowLockedManageUserSettings, getShowManageUserSettings} from 'selectors/admin_console';
  
@@ -787,15 +788,15 @@ index 5cc5d4b2efad..05489988a3af 100644
  
      const showManageUserSettings = getShowManageUserSettings(state);
      const showLockedManageUserSettings = getShowLockedManageUserSettings(state);
-@@ -35,7 +31,7 @@ function mapStateToProps(state: GlobalState) {
+@@ -37,7 +33,7 @@ function mapStateToProps(state: GlobalState) {
          mfaEnabled: config?.EnableMultifactorAuthentication === 'true' || false,
          maxFileSize: parseInt(config?.MaxFileSize || '', 10),
          ldapPictureAttributeSet: config?.LdapPictureAttributeSet === 'true',
 -        customProfileAttributeEnabled,
 +        customProfileAttributeEnabled: true,
          customProfileAttributeFields,
+         canEditAdminManaged: haveISystemPermission(state, {permission: Permissions.MANAGE_SYSTEM}),
          showManageUserSettings,
-         showLockedManageUserSettings,
 diff --git a/webapp/channels/src/components/logged_in/index.test.ts b/webapp/channels/src/components/logged_in/index.test.ts
 index 6f602ab5668a..fb5d109e42d8 100644
 --- a/webapp/channels/src/components/logged_in/index.test.ts
@@ -858,10 +859,10 @@ index c6753eb484f9..0dbc92218d15 100644
  }
  
 diff --git a/webapp/channels/src/components/profile_popover/profile_popover.test.tsx b/webapp/channels/src/components/profile_popover/profile_popover.test.tsx
-index 3e85a19728f1..7e24538dc854 100644
+index ccfeef8f9ec5..dc6962f676c1 100644
 --- a/webapp/channels/src/components/profile_popover/profile_popover.test.tsx
 +++ b/webapp/channels/src/components/profile_popover/profile_popover.test.tsx
-@@ -585,9 +585,7 @@ describe('components/ProfilePopover', () => {
+@@ -605,9 +605,7 @@ describe('components/ProfilePopover', () => {
          };
  
          renderWithPluginReducers(<ProfilePopover {...props}/>, initialState);
@@ -872,7 +873,7 @@ index 3e85a19728f1..7e24538dc854 100644
      });
  
      test('should display attributes if attribute exists for user', async () => {
-@@ -703,7 +701,7 @@ describe('components/ProfilePopover', () => {
+@@ -723,7 +721,7 @@ describe('components/ProfilePopover', () => {
          });
      });
  
@@ -881,7 +882,7 @@ index 3e85a19728f1..7e24538dc854 100644
          const [props, initialState] = getBasePropsAndState();
          (Client4.getUserCustomProfileAttributesValues as jest.Mock).mockImplementation(async () => {
              return {
-@@ -722,12 +720,10 @@ describe('components/ProfilePopover', () => {
+@@ -742,12 +740,10 @@ describe('components/ProfilePopover', () => {
          };
  
          renderWithPluginReducers(<ProfilePopover {...props}/>, initialState);
@@ -899,7 +900,7 @@ index 3e85a19728f1..7e24538dc854 100644
  
      test('should display attributes with Enterprise license and feature flag', async () => {
 diff --git a/webapp/channels/src/components/profile_popover/profile_popover.tsx b/webapp/channels/src/components/profile_popover/profile_popover.tsx
-index 24cc1f272558..a0cc32d338a3 100644
+index 9f9f34d41dc3..f5b5296897be 100644
 --- a/webapp/channels/src/components/profile_popover/profile_popover.tsx
 +++ b/webapp/channels/src/components/profile_popover/profile_popover.tsx
 @@ -5,7 +5,6 @@ import React, {useCallback, useEffect, useMemo, useState} from 'react';
@@ -928,15 +929,15 @@ index 24cc1f272558..a0cc32d338a3 100644
  
      const [loadingDMChannel, setLoadingDMChannel] = useState<string>();
  
-@@ -196,7 +191,7 @@ const ProfilePopover = ({
-                     />
-                 </div>
+@@ -157,7 +152,7 @@ const ProfilePopover = ({
+     const fullname = overwriteName || Utils.getFullName(user);
  
--                {enableCustomProfileAttributes && !user.is_bot && (
-+                {!fromWebhook && !user.is_bot && (
-                     <ProfilePopoverCustomAttributes
-                         userID={userId}
-                         hideStatus={hideStatus}
+     // Bot entry points pass hideStatus to hide presence; that shouldn't hide a bot's attributes.
+-    const showCustomProfileAttributes = enableCustomProfileAttributes && (user.is_bot ? !haveOverrideProp : !hideStatus);
++    const showCustomProfileAttributes = !fromWebhook && (user.is_bot ? !haveOverrideProp : !hideStatus);
+ 
+     return (
+         <div className='user-profile-popover_container'>
 diff --git a/webapp/channels/src/components/user_settings/general/index.ts b/webapp/channels/src/components/user_settings/general/index.ts
 index 580092c48c16..881667a02e9c 100644
 --- a/webapp/channels/src/components/user_settings/general/index.ts
@@ -977,10 +978,10 @@ index 580092c48c16..881667a02e9c 100644
  }
  
 diff --git a/webapp/channels/src/i18n/en.json b/webapp/channels/src/i18n/en.json
-index ebf1ac46debd..28da8e312120 100644
+index abdf3288a9c5..73c18390768c 100644
 --- a/webapp/channels/src/i18n/en.json
 +++ b/webapp/channels/src/i18n/en.json
-@@ -14711,10 +14711,6 @@
+@@ -15163,10 +15163,6 @@
      "defaultMessage": "Team Statistics",
      "description": "Navigation item in the System Console sidebar under Reporting; opens the per-team statistics page; compact space."
    },

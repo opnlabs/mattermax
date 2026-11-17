@@ -174,10 +174,10 @@ index d9aac8b3842c..c03e34ed5612 100644
  	model.AddEventParameterToAuditRec(auditRec, "user_id", c.Params.UserId)
  	defer c.LogAuditRec(auditRec)
 diff --git a/server/channels/api4/user_test.go b/server/channels/api4/user_test.go
-index 0f4c21805a31..4c6ba1497e5e 100644
+index fda96abbb6a3..20bb9a40949a 100644
 --- a/server/channels/api4/user_test.go
 +++ b/server/channels/api4/user_test.go
-@@ -5556,6 +5556,67 @@ func TestLoginWithGuestMagicLinkTokenRejectsDeactivatedUser(t *testing.T) {
+@@ -5832,6 +5832,67 @@ func TestLoginWithGuestMagicLinkTokenRejectsDeactivatedUser(t *testing.T) {
  	})
  }
  
@@ -245,7 +245,7 @@ index 0f4c21805a31..4c6ba1497e5e 100644
  func TestLoginCookies(t *testing.T) {
  	mainHelper.Parallel(t)
  	t.Run("should return cookies with X-Requested-With header", func(t *testing.T) {
-@@ -8159,14 +8220,18 @@ func TestDemoteUserToGuest(t *testing.T) {
+@@ -8435,14 +8496,18 @@ func TestDemoteUserToGuest(t *testing.T) {
  	user := th.BasicUser
  	user2 := th.BasicUser2
  
@@ -271,10 +271,10 @@ index 0f4c21805a31..4c6ba1497e5e 100644
  
  	t.Run("Guest Account available in license returns OK", func(t *testing.T) {
 diff --git a/webapp/channels/src/components/admin_console/admin_definition.tsx b/webapp/channels/src/components/admin_console/admin_definition.tsx
-index cc8d6999a569..1a9e2714c574 100644
+index c4379fb6f406..582c1208a982 100644
 --- a/webapp/channels/src/components/admin_console/admin_definition.tsx
 +++ b/webapp/channels/src/components/admin_console/admin_definition.tsx
-@@ -5819,7 +5819,6 @@ const AdminDefinition: AdminDefinitionType = {
+@@ -5867,7 +5867,6 @@ const AdminDefinition: AdminDefinitionType = {
                  title: defineMessage({id: 'admin.sidebar.guest_access', defaultMessage: 'Guest Access'}),
                  searchableStrings: magicLinkSearchableStrings,
                  isHidden: it.any(
@@ -283,7 +283,7 @@ index cc8d6999a569..1a9e2714c574 100644
                  ),
                  schema: {
 diff --git a/webapp/channels/src/components/admin_console/admin_sidebar/__snapshots__/admin_sidebar.test.tsx.snap b/webapp/channels/src/components/admin_console/admin_sidebar/__snapshots__/admin_sidebar.test.tsx.snap
-index e59620e05516..177e4906cf8a 100644
+index ee28dab2ca54..a27cf8e00db4 100644
 --- a/webapp/channels/src/components/admin_console/admin_sidebar/__snapshots__/admin_sidebar.test.tsx.snap
 +++ b/webapp/channels/src/components/admin_console/admin_sidebar/__snapshots__/admin_sidebar.test.tsx.snap
 @@ -1689,6 +1689,25 @@ c0,1.1,0.9,2,2,2h16c1.1,0,2-0.9,2-2V4z M20,4v5H4V4H20z M22,15v5c0,1.1-0.9,2-2,2H
@@ -495,7 +495,7 @@ index e59620e05516..177e4906cf8a 100644
                              class="sidebar-section"
                              data-testid="authentication.guest_access_feature_discovery"
 diff --git a/webapp/channels/src/components/admin_console/system_users/system_users_list_actions/index.tsx b/webapp/channels/src/components/admin_console/system_users/system_users_list_actions/index.tsx
-index de1e38417390..e57b417cf9e7 100644
+index c836bf00a4d9..c82d5049f111 100644
 --- a/webapp/channels/src/components/admin_console/system_users/system_users_list_actions/index.tsx
 +++ b/webapp/channels/src/components/admin_console/system_users/system_users_list_actions/index.tsx
 @@ -13,7 +13,6 @@ import {updateUserActive} from 'mattermost-redux/actions/users';
@@ -514,12 +514,12 @@ index de1e38417390..e57b417cf9e7 100644
      const haveSysConsoleWriteUserManagementUsersPermissions = useSelector((state: GlobalState) => haveISystemPermission(state, {permission: Permissions.SYSCONSOLE_WRITE_USERMANAGEMENT_USERS}));
      const showManageUserSettings = useSelector(getShowManageUserSettings);
  
-@@ -505,7 +503,7 @@ export function SystemUsersListAction({user, currentUser, tableId, rowIndex, onE
+@@ -507,7 +505,7 @@ export function SystemUsersListAction({user, currentUser, tableId, rowIndex, onE
                      onClick={handlePromoteToMemberClick}
                  />
              }
--            {!isGuest(user.roles) && user.id !== currentUser.id && isLicensed && config.GuestAccountsSettings?.Enable &&
-+            {!isGuest(user.roles) && user.id !== currentUser.id && config.GuestAccountsSettings?.Enable &&
+-            {!isGuestUser && user.id !== currentUser.id && isLicensed && config.GuestAccountsSettings?.Enable &&
++            {!isGuestUser && user.id !== currentUser.id && config.GuestAccountsSettings?.Enable &&
                  <Menu.Item
                      id={`${menuItemIdPrefix}-demoteToGuest`}
                      labels={

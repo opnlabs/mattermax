@@ -15,10 +15,10 @@ Mattermax-Patch: unlock-lock-teammate-name-display.patch
  create mode 100644 webapp/channels/src/components/admin_console/admin_definition_lock_teammate_name_display.test.tsx
 
 diff --git a/webapp/channels/src/components/admin_console/admin_definition.tsx b/webapp/channels/src/components/admin_console/admin_definition.tsx
-index c9dbe4295fba..2dc7f19b1ef1 100644
+index 8371e1735cf2..eef195a9a624 100644
 --- a/webapp/channels/src/components/admin_console/admin_definition.tsx
 +++ b/webapp/channels/src/components/admin_console/admin_definition.tsx
-@@ -3005,7 +3005,6 @@ const AdminDefinition: AdminDefinitionType = {
+@@ -3025,7 +3025,6 @@ const AdminDefinition: AdminDefinitionType = {
                              help_text_values: {
                                  strong: (msg: string) => <strong>{msg}</strong>,
                              },

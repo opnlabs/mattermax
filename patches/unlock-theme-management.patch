@@ -12,10 +12,10 @@ Mattermax-Patch: unlock-theme-management.patch
  4 files changed, 38 insertions(+), 31 deletions(-)
 
 diff --git a/server/config/client.go b/server/config/client.go
-index e57259413a61..9e882062be2a 100644
+index 787abc9da56e..b28175ce11e7 100644
 --- a/server/config/client.go
 +++ b/server/config/client.go
-@@ -130,10 +130,10 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
+@@ -131,10 +131,10 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
  	props["BannerColor"] = *c.AnnouncementSettings.BannerColor
  	props["BannerTextColor"] = *c.AnnouncementSettings.BannerTextColor
  	props["AllowBannerDismissal"] = strconv.FormatBool(*c.AnnouncementSettings.AllowBannerDismissal)
@@ -30,7 +30,7 @@ index e57259413a61..9e882062be2a 100644
  	props["DataRetentionEnableMessageDeletion"] = "false"
  	props["DataRetentionMessageRetentionHours"] = "0"
  	props["DataRetentionEnableFileDeletion"] = "false"
-@@ -210,13 +210,6 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
+@@ -211,13 +211,6 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
  			props["EnableNotificationMetrics"] = strconv.FormatBool(*c.MetricsSettings.EnableNotificationMetrics)
  		}
  
@@ -110,10 +110,10 @@ index 823541754de7..a6bdc1515b6f 100644
  			nil,
  		},
 diff --git a/webapp/channels/src/components/admin_console/admin_definition.tsx b/webapp/channels/src/components/admin_console/admin_definition.tsx
-index 95b9110a533f..87d00e26c723 100644
+index 8bcf7a1398f2..5098766bf0bb 100644
 --- a/webapp/channels/src/components/admin_console/admin_definition.tsx
 +++ b/webapp/channels/src/components/admin_console/admin_definition.tsx
-@@ -2680,10 +2680,6 @@ const AdminDefinition: AdminDefinitionType = {
+@@ -2700,10 +2700,6 @@ const AdminDefinition: AdminDefinitionType = {
                              label: defineMessage({id: 'admin.customization.enableThemeSelectionTitle', defaultMessage: 'Enable Theme Selection:'}),
                              help_text: defineMessage({id: 'admin.customization.enableThemeSelectionDesc', defaultMessage: 'Enables the **Display > Theme** tab in Settings so users can select their theme.'}),
                              help_text_markdown: true,
@@ -124,7 +124,7 @@ index 95b9110a533f..87d00e26c723 100644
                              isDisabled: it.not(it.userHasWritePermissionOnResource(RESOURCE_KEYS.SITE.CUSTOMIZATION)),
                          },
                          {
-@@ -2692,10 +2688,6 @@ const AdminDefinition: AdminDefinitionType = {
+@@ -2712,10 +2708,6 @@ const AdminDefinition: AdminDefinitionType = {
                              label: defineMessage({id: 'admin.customization.allowCustomThemesTitle', defaultMessage: 'Allow Custom Themes:'}),
                              help_text: defineMessage({id: 'admin.customization.allowCustomThemesDesc', defaultMessage: 'Enables the **Display > Theme > Custom Theme** section in Settings.'}),
                              help_text_markdown: true,
@@ -135,7 +135,7 @@ index 95b9110a533f..87d00e26c723 100644
                              isDisabled: it.any(
                                  it.not(it.userHasWritePermissionOnResource(RESOURCE_KEYS.SITE.CUSTOMIZATION)),
                                  it.stateIsFalse('ThemeSettings.EnableThemeSelection'),
-@@ -2709,10 +2701,6 @@ const AdminDefinition: AdminDefinitionType = {
+@@ -2729,10 +2721,6 @@ const AdminDefinition: AdminDefinitionType = {
                              help_text: defineMessage({id: 'admin.customization.allowedThemesDesc', defaultMessage: 'Restrict the themes users can select in **Display > Theme** to a comma-separated list of theme names. Valid names are `denim`, `sapphire`, `quartz`, `indigo`, and `onyx`. Leave this field blank to allow all themes.'}),
                              help_text_markdown: true,
                              placeholder: defineMessage({id: 'admin.customization.allowedThemesPlaceholder', defaultMessage: 'E.g.: "denim,onyx"'}),
@@ -146,7 +146,7 @@ index 95b9110a533f..87d00e26c723 100644
                              isDisabled: it.any(
                                  it.not(it.userHasWritePermissionOnResource(RESOURCE_KEYS.SITE.CUSTOMIZATION)),
                                  it.stateIsFalse('ThemeSettings.EnableThemeSelection'),
-@@ -2746,10 +2734,6 @@ const AdminDefinition: AdminDefinitionType = {
+@@ -2766,10 +2754,6 @@ const AdminDefinition: AdminDefinitionType = {
                                      display_name: defineMessage({id: 'admin.customization.defaultTheme.options.onyx', defaultMessage: 'Onyx'}),
                                  },
                              ],

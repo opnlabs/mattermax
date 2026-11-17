@@ -7,7 +7,7 @@ Subject: [PATCH] feat: shared channels and connected workspaces without a
 Mattermax-Patch: unlock-shared-channels.patch
 ---
  server/channels/api4/apitestlib.go            |  7 ++--
- server/channels/api4/remote_cluster_test.go   | 36 +++++++++++++++++++
+ server/channels/api4/remote_cluster_test.go   | 35 +++++++++++++++++++
  server/channels/app/helper_test.go            |  7 ++--
  server/channels/app/server.go                 | 21 ++---------
  .../channels/app/slashcommands/helper_test.go |  7 ++--
@@ -16,10 +16,10 @@ Mattermax-Patch: unlock-shared-channels.patch
  server/config/client.go                       |  8 ++---
  server/config/client_test.go                  | 20 +++++++++--
  .../admin_console/admin_definition.tsx        |  2 --
- 10 files changed, 66 insertions(+), 46 deletions(-)
+ 10 files changed, 65 insertions(+), 46 deletions(-)
 
 diff --git a/server/channels/api4/apitestlib.go b/server/channels/api4/apitestlib.go
-index 27b9c1cc19ed..6fa7b8c35e3b 100644
+index a5bca0befd54..a71b71857f15 100644
 --- a/server/channels/api4/apitestlib.go
 +++ b/server/channels/api4/apitestlib.go
 @@ -189,7 +189,7 @@ func setupTestHelper(tb testing.TB, dbStore store.Store, sqlSettings *model.SqlS
@@ -44,19 +44,18 @@ index 27b9c1cc19ed..6fa7b8c35e3b 100644
  		return model.NewTestLicense()
  	}
 diff --git a/server/channels/api4/remote_cluster_test.go b/server/channels/api4/remote_cluster_test.go
-index a5deb9ddab54..cbcb967968dd 100644
+index 147366f0bde9..f7cd29c64eae 100644
 --- a/server/channels/api4/remote_cluster_test.go
 +++ b/server/channels/api4/remote_cluster_test.go
-@@ -6,6 +6,8 @@ package api4
+@@ -6,6 +6,7 @@ package api4
  import (
  	"context"
  	"encoding/base64"
 +	"encoding/json"
-+	"net/http"
+ 	"net/http"
  	"testing"
  
- 	"github.com/mattermost/mattermost/server/public/model"
-@@ -601,6 +603,40 @@ func TestGetRemoteCluster(t *testing.T) {
+@@ -618,6 +619,40 @@ func TestGetRemoteCluster(t *testing.T) {
  	})
  }
  
@@ -98,7 +97,7 @@ index a5deb9ddab54..cbcb967968dd 100644
  	mainHelper.Parallel(t)
  	th := setupForSharedChannels(t).InitBasic(t)
 diff --git a/server/channels/app/helper_test.go b/server/channels/app/helper_test.go
-index 681603340317..c5c0bb33e291 100644
+index 5ec2c62abfbf..63308a2c1201 100644
 --- a/server/channels/app/helper_test.go
 +++ b/server/channels/app/helper_test.go
 @@ -144,7 +144,7 @@ func setupTestHelper(dbStore store.Store, sqlStore *sqlstore.SqlStore, sqlSettin
@@ -123,10 +122,10 @@ index 681603340317..c5c0bb33e291 100644
  		return model.NewTestLicense()
  	}
 diff --git a/server/channels/app/server.go b/server/channels/app/server.go
-index 83fe3590f87b..74bd6abd64be 100644
+index a4e746eacc3c..3f67776071ed 100644
 --- a/server/channels/app/server.go
 +++ b/server/channels/app/server.go
-@@ -707,20 +707,9 @@ func (s *Server) Channels() *Channels {
+@@ -734,20 +734,9 @@ func (s *Server) Channels() *Channels {
  	return s.ch
  }
  
@@ -148,7 +147,7 @@ index 83fe3590f87b..74bd6abd64be 100644
  	// Config check
  	if !*s.platform.Config().ConnectedWorkspacesSettings.EnableRemoteClusterService && !*s.platform.Config().ConnectedWorkspacesSettings.EnableSharedChannels {
  		mlog.Debug("Remote Cluster Service disabled via config")
-@@ -744,12 +733,6 @@ func (s *Server) startInterClusterServices(license *model.License) error {
+@@ -771,12 +760,6 @@ func (s *Server) startInterClusterServices(license *model.License) error {
  
  	// Shared Channels service (depends on remote cluster service)
  
@@ -161,7 +160,7 @@ index 83fe3590f87b..74bd6abd64be 100644
  	// Config check
  	if !*s.platform.Config().ConnectedWorkspacesSettings.EnableSharedChannels {
  		mlog.Debug("Shared Channels Service disabled via config")
-@@ -980,7 +963,7 @@ func stripPort(hostport string) string {
+@@ -1007,7 +990,7 @@ func stripPort(hostport string) string {
  func (s *Server) Start() error {
  	// Start inter-cluster services first so shared channels APIs are
  	// available when plugins activate during channels startup.
@@ -171,7 +170,7 @@ index 83fe3590f87b..74bd6abd64be 100644
  	}
  
 diff --git a/server/channels/app/slashcommands/helper_test.go b/server/channels/app/slashcommands/helper_test.go
-index f9accaaaaf72..bac6c69454b1 100644
+index d0d122a21cb9..1a73e53abc6d 100644
 --- a/server/channels/app/slashcommands/helper_test.go
 +++ b/server/channels/app/slashcommands/helper_test.go
 @@ -111,7 +111,7 @@ func setupTestHelper(dbStore store.Store, enterprise bool, includeCacheLayer boo
@@ -222,10 +221,10 @@ index dc0a02774c11..fccfaa55488f 100644
  		if remoteId := c.GetRemoteID(r); remoteId == "" {
  			c.Logger.Warn("Missing remote cluster id") //
 diff --git a/server/config/client.go b/server/config/client.go
-index 9ef6841c187f..e57259413a61 100644
+index 3e443cfebfef..787abc9da56e 100644
 --- a/server/config/client.go
 +++ b/server/config/client.go
-@@ -142,7 +142,8 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
+@@ -143,7 +143,8 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
  	props["CustomUrlSchemes"] = strings.Join(c.DisplaySettings.CustomURLSchemes, ",")
  	props["MaxMarkdownNodes"] = strconv.FormatInt(int64(*c.DisplaySettings.MaxMarkdownNodes), 10)
  	props["IsDefaultMarketplace"] = strconv.FormatBool(*c.PluginSettings.MarketplaceURL == model.PluginSettingsDefaultMarketplaceURL)
@@ -235,7 +234,7 @@ index 9ef6841c187f..e57259413a61 100644
  	props["CollapsedThreads"] = *c.ServiceSettings.CollapsedThreads
  	props["EnableCustomGroups"] = strconv.FormatBool(*c.ServiceSettings.EnableCustomGroups)
  	props["PostPriority"] = strconv.FormatBool(*c.ServiceSettings.PostPriority)
-@@ -223,11 +224,6 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
+@@ -224,11 +225,6 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
  			props["DataRetentionFileRetentionHours"] = strconv.FormatInt(int64(c.DataRetentionSettings.GetFileRetentionHours()), 10)
  		}
  
@@ -286,10 +285,10 @@ index 6c922f8cf545..823541754de7 100644
  			nil,
  		},
 diff --git a/webapp/channels/src/components/admin_console/admin_definition.tsx b/webapp/channels/src/components/admin_console/admin_definition.tsx
-index 1a9e2714c574..95b9110a533f 100644
+index 582c1208a982..8bcf7a1398f2 100644
 --- a/webapp/channels/src/components/admin_console/admin_definition.tsx
 +++ b/webapp/channels/src/components/admin_console/admin_definition.tsx
-@@ -4364,7 +4364,6 @@ const AdminDefinition: AdminDefinitionType = {
+@@ -4391,7 +4391,6 @@ const AdminDefinition: AdminDefinitionType = {
                  isHidden: it.not(it.all(
                      it.configIsTrue('ConnectedWorkspacesSettings', 'EnableSharedChannels'),
                      it.configIsTrue('ConnectedWorkspacesSettings', 'EnableRemoteClusterService'),
@@ -297,7 +296,7 @@ index 1a9e2714c574..95b9110a533f 100644
                  )),
                  schema: {
                      id: 'SecureConnectionDetail',
-@@ -4378,7 +4377,6 @@ const AdminDefinition: AdminDefinitionType = {
+@@ -4405,7 +4404,6 @@ const AdminDefinition: AdminDefinitionType = {
                  isHidden: it.not(it.all(
                      it.configIsTrue('ConnectedWorkspacesSettings', 'EnableSharedChannels'),
                      it.configIsTrue('ConnectedWorkspacesSettings', 'EnableRemoteClusterService'),

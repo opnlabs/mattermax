@@ -16,10 +16,10 @@ Mattermax-Patch: unlock-mobile-security.patch
  create mode 100644 webapp/channels/src/components/admin_console/admin_definition_mobile_security.test.tsx
 
 diff --git a/server/config/client.go b/server/config/client.go
-index 3f948dd4bd46..bc4e31eb35d3 100644
+index 248eac486898..10060000c838 100644
 --- a/server/config/client.go
 +++ b/server/config/client.go
-@@ -177,6 +177,10 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
+@@ -178,6 +178,10 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
  	props["WranglerMoveThreadFromPrivateChannelEnable"] = strconv.FormatBool(*c.WranglerSettings.MoveThreadFromPrivateChannelEnable)
  	props["WranglerMoveThreadFromDirectMessageChannelEnable"] = strconv.FormatBool(*c.WranglerSettings.MoveThreadFromDirectMessageChannelEnable)
  	props["WranglerMoveThreadFromGroupMessageChannelEnable"] = strconv.FormatBool(*c.WranglerSettings.MoveThreadFromGroupMessageChannelEnable)
@@ -30,7 +30,7 @@ index 3f948dd4bd46..bc4e31eb35d3 100644
  
  	if license != nil {
  		props["ExperimentalEnableAuthenticationTransfer"] = strconv.FormatBool(*c.ServiceSettings.ExperimentalEnableAuthenticationTransfer)
-@@ -220,10 +224,6 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
+@@ -221,10 +225,6 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
  		}
  
  		if model.MinimumEnterpriseLicense(license) {
@@ -41,7 +41,7 @@ index 3f948dd4bd46..bc4e31eb35d3 100644
  			props["LockProfileFieldsForEmailUsers"] = *c.TeamSettings.LockProfileFieldsForEmailUsers
  		}
  
-@@ -359,6 +359,10 @@ func GenerateLimitedClientConfig(c *model.Config, telemetryID string, license *m
+@@ -360,6 +360,10 @@ func GenerateLimitedClientConfig(c *model.Config, telemetryID string, license *m
  	props["HideGuestTags"] = strconv.FormatBool(*c.GuestAccountsSettings.HideTags)
  	props["GuestAccountsEnforceMultifactorAuthentication"] = strconv.FormatBool(*c.GuestAccountsSettings.EnforceMultifactorAuthentication)
  	props["EnableGuestMagicLink"] = strconv.FormatBool(*c.GuestAccountsSettings.EnableGuestMagicLink)
@@ -52,7 +52,7 @@ index 3f948dd4bd46..bc4e31eb35d3 100644
  
  	if license != nil {
  		if *license.Features.LDAP {
-@@ -403,13 +407,6 @@ func GenerateLimitedClientConfig(c *model.Config, telemetryID string, license *m
+@@ -404,13 +408,6 @@ func GenerateLimitedClientConfig(c *model.Config, telemetryID string, license *m
  			props["GitLabButtonText"] = *c.GitLabSettings.ButtonText
  		}
  
@@ -130,7 +130,7 @@ index 9e611558b240..c546f51856f8 100644
  
  	for _, testCase := range testCases {
 diff --git a/webapp/channels/src/components/admin_console/admin_definition.tsx b/webapp/channels/src/components/admin_console/admin_definition.tsx
-index 227166cc57ed..d3e4982d15de 100644
+index 2c2130dfbe1e..1b50603b2a93 100644
 --- a/webapp/channels/src/components/admin_console/admin_definition.tsx
 +++ b/webapp/channels/src/components/admin_console/admin_definition.tsx
 @@ -83,7 +83,6 @@ import {
@@ -141,7 +141,7 @@ index 227166cc57ed..d3e4982d15de 100644
      OpenIDCustomFeatureDiscovery,
      OpenIDFeatureDiscovery,
      SAMLFeatureDiscovery,
-@@ -2346,7 +2345,6 @@ const AdminDefinition: AdminDefinitionType = {
+@@ -2366,7 +2365,6 @@ const AdminDefinition: AdminDefinitionType = {
                  title: defineMessage({id: 'admin.sidebar.mobileSecurity', defaultMessage: 'Mobile Security'}),
                  isHidden: it.any(
                      it.not(it.userHasReadPermissionOnResource(RESOURCE_KEYS.ENVIRONMENT.MOBILE_SECURITY)),
@@ -149,7 +149,7 @@ index 227166cc57ed..d3e4982d15de 100644
                  ),
                  schema: {
                      id: 'MobileSecuritySettings',
-@@ -2558,28 +2556,6 @@ const AdminDefinition: AdminDefinitionType = {
+@@ -2578,28 +2576,6 @@ const AdminDefinition: AdminDefinitionType = {
                      ],
                  },
              },
@@ -178,7 +178,7 @@ index 227166cc57ed..d3e4982d15de 100644
          },
      },
      site: {
-@@ -6723,7 +6699,6 @@ const AdminDefinition: AdminDefinitionType = {
+@@ -6771,7 +6747,6 @@ const AdminDefinition: AdminDefinitionType = {
                              label: defineMessage({id: 'admin.experimental.enableWatermark.title', defaultMessage: 'Enable Mobile Watermark:'}),
                              help_text: defineMessage({id: 'admin.experimental.enableWatermark.desc', defaultMessage: 'When true, authenticated mobile sessions will display a watermark overlay showing the username, domain, date (YYYY-MM-DD), and time (HH:mm) for data loss prevention (DLP) purposes.'}),
                              help_text_markdown: false,
@@ -310,7 +310,7 @@ index 000000000000..59602187cbf7
 +    });
 +});
 diff --git a/webapp/channels/src/components/admin_console/admin_sidebar/__snapshots__/admin_sidebar.test.tsx.snap b/webapp/channels/src/components/admin_console/admin_sidebar/__snapshots__/admin_sidebar.test.tsx.snap
-index 405a91265a52..da0dcd3c4110 100644
+index 851aa6e5ec03..d3402fe5ff44 100644
 --- a/webapp/channels/src/components/admin_console/admin_sidebar/__snapshots__/admin_sidebar.test.tsx.snap
 +++ b/webapp/channels/src/components/admin_console/admin_sidebar/__snapshots__/admin_sidebar.test.tsx.snap
 @@ -1134,33 +1134,18 @@ c0,1.1,0.9,2,2,2h16c1.1,0,2-0.9,2-2V4z M20,4v5H4V4H20z M22,15v5c0,1.1-0.9,2-2,2H

@@ -89,10 +89,10 @@ index cd130bae0782..0d5cc7549dc4 100644
 +	assert.NotZero(t, me.TermsOfServiceCreateAt)
 +}
 diff --git a/server/config/client.go b/server/config/client.go
-index 70ebff4c6ba9..500ccd95f4e3 100644
+index 842f04552728..321dd2c879df 100644
 --- a/server/config/client.go
 +++ b/server/config/client.go
-@@ -359,6 +359,8 @@ func GenerateLimitedClientConfig(c *model.Config, telemetryID string, license *m
+@@ -360,6 +360,8 @@ func GenerateLimitedClientConfig(c *model.Config, telemetryID string, license *m
  	props["MobilePreventScreenCapture"] = strconv.FormatBool(*c.NativeAppSettings.MobilePreventScreenCapture)
  	props["MobileJailbreakProtection"] = strconv.FormatBool(*c.NativeAppSettings.MobileJailbreakProtection)
  	props["ExperimentalEnableWatermark"] = strconv.FormatBool(*c.ExperimentalSettings.EnableWatermark)
@@ -101,7 +101,7 @@ index 70ebff4c6ba9..500ccd95f4e3 100644
  
  	if license != nil {
  		if *license.Features.LDAP {
-@@ -371,11 +373,6 @@ func GenerateLimitedClientConfig(c *model.Config, telemetryID string, license *m
+@@ -372,11 +374,6 @@ func GenerateLimitedClientConfig(c *model.Config, telemetryID string, license *m
  			props["SamlLoginButtonText"] = *c.SamlSettings.LoginButtonText
  		}
  
@@ -140,10 +140,10 @@ index ddf7720b4608..2914dd0d3c70 100644
  			"password settings",
  			&model.Config{
 diff --git a/webapp/channels/src/components/admin_console/admin_definition.tsx b/webapp/channels/src/components/admin_console/admin_definition.tsx
-index 40b13b655adb..3b24b7476d9e 100644
+index bc1221512075..f745e1712e5b 100644
 --- a/webapp/channels/src/components/admin_console/admin_definition.tsx
 +++ b/webapp/channels/src/components/admin_console/admin_definition.tsx
-@@ -6548,7 +6548,6 @@ const AdminDefinition: AdminDefinitionType = {
+@@ -6596,7 +6596,6 @@ const AdminDefinition: AdminDefinitionType = {
                  title: defineMessage({id: 'admin.sidebar.customTermsOfService', defaultMessage: 'Custom Terms of Service'}),
                  searchableStrings: customTermsOfServiceSearchableStrings,
                  isHidden: it.any(
@@ -152,7 +152,7 @@ index 40b13b655adb..3b24b7476d9e 100644
                  ),
                  isDisabled: it.not(it.userHasWritePermissionOnResource(RESOURCE_KEYS.COMPLIANCE.CUSTOM_TERMS_OF_SERVICE)),
 diff --git a/webapp/channels/src/components/admin_console/admin_sidebar/__snapshots__/admin_sidebar.test.tsx.snap b/webapp/channels/src/components/admin_console/admin_sidebar/__snapshots__/admin_sidebar.test.tsx.snap
-index da0dcd3c4110..4a78b29286b2 100644
+index d3402fe5ff44..6d3f645a63bf 100644
 --- a/webapp/channels/src/components/admin_console/admin_sidebar/__snapshots__/admin_sidebar.test.tsx.snap
 +++ b/webapp/channels/src/components/admin_console/admin_sidebar/__snapshots__/admin_sidebar.test.tsx.snap
 @@ -2012,6 +2012,25 @@ c0,1.1,0.9,2,2,2h16c1.1,0,2-0.9,2-2V4z M20,4v5H4V4H20z M22,15v5c0,1.1-0.9,2-2,2H

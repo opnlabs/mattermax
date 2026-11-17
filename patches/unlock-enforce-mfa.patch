@@ -22,10 +22,10 @@ Mattermax-Patch: unlock-enforce-mfa.patch
  create mode 100644 webapp/channels/src/components/admin_console/admin_definition_mfa.test.tsx
 
 diff --git a/server/channels/api4/user_test.go b/server/channels/api4/user_test.go
-index 4c6ba1497e5e..c6e8a1c71988 100644
+index 20bb9a40949a..4fe784df820d 100644
 --- a/server/channels/api4/user_test.go
 +++ b/server/channels/api4/user_test.go
-@@ -11860,6 +11860,34 @@ func TestMeEndpointsWithMfaEnforced(t *testing.T) {
+@@ -12136,6 +12136,34 @@ func TestMeEndpointsWithMfaEnforced(t *testing.T) {
  	})
  }
  
@@ -74,10 +74,10 @@ index 278ece11ddd8..098fc57a2a9b 100644
  	}
  
 diff --git a/server/config/client.go b/server/config/client.go
-index bc4e31eb35d3..69b767013951 100644
+index 10060000c838..01a1fc908e3d 100644
 --- a/server/config/client.go
 +++ b/server/config/client.go
-@@ -354,7 +354,7 @@ func GenerateLimitedClientConfig(c *model.Config, telemetryID string, license *m
+@@ -355,7 +355,7 @@ func GenerateLimitedClientConfig(c *model.Config, telemetryID string, license *m
  	props["CustomBrandText"] = *c.TeamSettings.CustomBrandText
  	props["CustomDescriptionText"] = *c.TeamSettings.CustomDescriptionText
  	props["EnableMultifactorAuthentication"] = strconv.FormatBool(*c.ServiceSettings.EnableMultifactorAuthentication)
@@ -86,7 +86,7 @@ index bc4e31eb35d3..69b767013951 100644
  	props["EnableGuestAccounts"] = strconv.FormatBool(*c.GuestAccountsSettings.Enable)
  	props["HideGuestTags"] = strconv.FormatBool(*c.GuestAccountsSettings.HideTags)
  	props["GuestAccountsEnforceMultifactorAuthentication"] = strconv.FormatBool(*c.GuestAccountsSettings.EnforceMultifactorAuthentication)
-@@ -380,10 +380,6 @@ func GenerateLimitedClientConfig(c *model.Config, telemetryID string, license *m
+@@ -381,10 +381,6 @@ func GenerateLimitedClientConfig(c *model.Config, telemetryID string, license *m
  			props["CustomTermsOfServiceReAcceptancePeriod"] = strconv.FormatInt(int64(*c.SupportSettings.CustomTermsOfServiceReAcceptancePeriod), 10)
  		}
  
@@ -123,10 +123,10 @@ index c546f51856f8..36e504b27fee 100644
  			"licensed for enforcement",
  			&model.Config{
 diff --git a/webapp/channels/src/components/admin_console/admin_definition.tsx b/webapp/channels/src/components/admin_console/admin_definition.tsx
-index d3e4982d15de..947ff1882c7f 100644
+index 1b50603b2a93..7942f09f71dd 100644
 --- a/webapp/channels/src/components/admin_console/admin_definition.tsx
 +++ b/webapp/channels/src/components/admin_console/admin_definition.tsx
-@@ -4482,7 +4482,6 @@ const AdminDefinition: AdminDefinitionType = {
+@@ -4509,7 +4509,6 @@ const AdminDefinition: AdminDefinitionType = {
                                      </ExternalLink>
                                  ),
                              },

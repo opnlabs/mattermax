@@ -13,10 +13,10 @@ Mattermax-Patch: release-license.patch
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/server/build/release.mk b/server/build/release.mk
-index 00694e217421..43eb07971249 100644
+index 4b0dc40f3e9c..ffb071944828 100644
 --- a/server/build/release.mk
 +++ b/server/build/release.mk
-@@ -212,7 +212,7 @@ ifeq ($(BUILD_ENTERPRISE_READY),true)
+@@ -224,7 +224,7 @@ ifeq ($(BUILD_ENTERPRISE_READY),true)
  	cp $(BUILD_ENTERPRISE_DIR)/ENTERPRISE-EDITION-LICENSE.txt $(DIST_PATH)
  	cp -L $(BUILD_ENTERPRISE_DIR)/cloud/config/cloud_defaults.json $(DIST_PATH)/config
  else

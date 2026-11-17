@@ -16,7 +16,7 @@ Mattermax-Patch: unlock-channel-banners.patch
  8 files changed, 64 insertions(+), 49 deletions(-)
 
 diff --git a/server/channels/api4/channel.go b/server/channels/api4/channel.go
-index 4e9602fda375..d5f0cbb6d9ab 100644
+index 457bdeb0bb96..1a2a50a92d26 100644
 --- a/server/channels/api4/channel.go
 +++ b/server/channels/api4/channel.go
 @@ -3396,10 +3396,6 @@ func convertGroupMessageToChannel(c *Context, w http.ResponseWriter, r *http.Req
@@ -31,7 +31,7 @@ index 4e9602fda375..d5f0cbb6d9ab 100644
  	case model.ChannelTypePrivate:
  		if ok, _ := c.App.SessionHasPermissionToChannel(c.AppContext, *c.AppContext.Session(), c.Params.ChannelId, model.PermissionManagePrivateChannelBanner); !ok {
 diff --git a/server/channels/api4/channel_test.go b/server/channels/api4/channel_test.go
-index 6603c7d4c8c9..c8b188720166 100644
+index 062cef7da69d..de22ebdc969e 100644
 --- a/server/channels/api4/channel_test.go
 +++ b/server/channels/api4/channel_test.go
 @@ -1572,7 +1572,7 @@ func TestPatchChannel(t *testing.T) {
@@ -263,10 +263,10 @@ index 227e13b182c1..d1174c974830 100644
      const {enabled: channelAttributesEnabled} = useChannelAttributes();
      const resolvedAttributes = useResolvedChannelAttributes(channelId);
 diff --git a/webapp/channels/src/components/channel_settings_modal/channel_settings_modal.test.tsx b/webapp/channels/src/components/channel_settings_modal/channel_settings_modal.test.tsx
-index 483f5dfbde87..254d86651d86 100644
+index 5ed309792b06..a756a7c7b6fa 100644
 --- a/webapp/channels/src/components/channel_settings_modal/channel_settings_modal.test.tsx
 +++ b/webapp/channels/src/components/channel_settings_modal/channel_settings_modal.test.tsx
-@@ -479,30 +479,30 @@ describe('ChannelSettingsModal', () => {
+@@ -504,30 +504,30 @@ describe('ChannelSettingsModal', () => {
          expect(screen.queryByRole('tab', {name: /archive channel/i})).not.toBeInTheDocument();
      });
  
@@ -304,7 +304,7 @@ index 483f5dfbde87..254d86651d86 100644
  
      it('should show banner section when enterprise advanced license', async () => {
 diff --git a/webapp/channels/src/components/channel_settings_modal/channel_settings_modal.tsx b/webapp/channels/src/components/channel_settings_modal/channel_settings_modal.tsx
-index de9ac65485da..9791b2f49a86 100644
+index d523621669f2..b56befea214b 100644
 --- a/webapp/channels/src/components/channel_settings_modal/channel_settings_modal.tsx
 +++ b/webapp/channels/src/components/channel_settings_modal/channel_settings_modal.tsx
 @@ -15,7 +15,7 @@ import type {Channel} from '@mattermost/types/channels';
@@ -315,8 +315,8 @@ index de9ac65485da..9791b2f49a86 100644
 +import {getConfig, isChannelPermissionPoliciesEnabled} from 'mattermost-redux/selectors/entities/general';
  import {haveIChannelPermission, haveISystemPermission} from 'mattermost-redux/selectors/entities/roles';
  
- import {
-@@ -31,7 +31,6 @@ import {normalizePluginIcon} from 'components/settings_sidebar/settings_sidebar'
+ import {getBasePath, isChannelAccessControlEnabled} from 'selectors/general';
+@@ -27,7 +27,6 @@ import {normalizePluginIcon} from 'components/settings_sidebar/settings_sidebar'
  
  import {focusElement} from 'utils/a11y_utils';
  import Constants from 'utils/constants';
@@ -324,7 +324,7 @@ index de9ac65485da..9791b2f49a86 100644
  
  import type {GlobalState} from 'types/store';
  
-@@ -108,7 +107,6 @@ function ChannelSettingsModal({channelId, isOpen, onExited, focusOriginElement}:
+@@ -103,7 +102,6 @@ function ChannelSettingsModal({channelId, isOpen, onExited, focusOriginElement}:
          return getChannelSettingsTabs(state).filter((registration) => registration.shouldRender?.(state, currentChannel) ?? true);
      }, shallowEqual);
      const isDMorGM = channel.type === Constants.DM_CHANNEL || channel.type === Constants.GM_CHANNEL;
@@ -332,7 +332,7 @@ index de9ac65485da..9791b2f49a86 100644
  
      const canManagePublicChannelBanner = useSelector((state: GlobalState) =>
          haveIChannelPermission(state, channel.team_id, channel.id, Permissions.MANAGE_PUBLIC_CHANNEL_BANNER),
-@@ -116,7 +114,7 @@ function ChannelSettingsModal({channelId, isOpen, onExited, focusOriginElement}:
+@@ -111,7 +109,7 @@ function ChannelSettingsModal({channelId, isOpen, onExited, focusOriginElement}:
      const canManagePrivateChannelBanner = useSelector((state: GlobalState) =>
          haveIChannelPermission(state, channel.team_id, channel.id, Permissions.MANAGE_PRIVATE_CHANNEL_BANNER),
      );
@@ -341,7 +341,7 @@ index de9ac65485da..9791b2f49a86 100644
  
      const canManageChannelTranslation = useSelector((state: GlobalState) => {
          const config = getConfig(state);
-@@ -137,7 +135,6 @@ function ChannelSettingsModal({channelId, isOpen, onExited, focusOriginElement}:
+@@ -132,7 +130,6 @@ function ChannelSettingsModal({channelId, isOpen, onExited, focusOriginElement}:
          return haveIChannelPermission(state, channel.team_id, channel.id, permissionToCheck);
      });
  

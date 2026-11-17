@@ -239,10 +239,10 @@ index 000000000000..dd7bca7c1d0e
 +	})
 +}
 diff --git a/server/i18n/en.json b/server/i18n/en.json
-index ce304e723042..dbedbb0fbc2e 100644
+index d5e05926fce4..cc00175d340c 100644
 --- a/server/i18n/en.json
 +++ b/server/i18n/en.json
-@@ -3823,6 +3823,14 @@
+@@ -3853,6 +3853,14 @@
      "translation": "Slowmode is on in this channel. You can post again in {{.Seconds}} seconds.",
      "description": "Error returned when a user posts in a channel with slowmode on before their per-user interval has passed. Seconds is the whole number of seconds until they can post again."
    },
@@ -257,7 +257,7 @@ index ce304e723042..dbedbb0fbc2e 100644
    {
      "id": "api.post.create_webhook_post.creating.app_error",
      "translation": "Error creating post.",
-@@ -15011,6 +15019,11 @@
+@@ -15236,6 +15244,11 @@
      "translation": "Invalid slowmode interval.",
      "description": "Validation error returned when a channel's slowmode interval is not one of the allowed values."
    },
@@ -644,10 +644,10 @@ index 84eebb4fab09..758e547fa071 100644
          <div
              className='post-create__container'
 diff --git a/webapp/channels/src/i18n/en.json b/webapp/channels/src/i18n/en.json
-index f7ae0328331a..ebf1ac46debd 100644
+index 7fc13e4fe668..abdf3288a9c5 100644
 --- a/webapp/channels/src/i18n/en.json
 +++ b/webapp/channels/src/i18n/en.json
-@@ -19635,6 +19635,10 @@
+@@ -20199,6 +20199,10 @@
      "defaultMessage": "Thread reply notifications",
      "description": "Section heading in the channel notification preferences modal for thread reply notification options."
    },
@@ -658,7 +658,7 @@ index f7ae0328331a..ebf1ac46debd 100644
    "channel_posting_rules.hours": {
      "defaultMessage": "{count, plural, one {# hour} other {# hours}}",
      "description": "Duration label in the channel posting rules dropdowns and the slowmode indicator, for example '1 hour'. count is the number of hours."
-@@ -19659,6 +19663,10 @@
+@@ -20223,6 +20227,10 @@
      "defaultMessage": "Slowmode is on: one message every {interval}",
      "description": "Small indicator above the message composer in a channel with slowmode on. interval is a duration such as '30 seconds' or '1 minute'."
    },
@@ -669,7 +669,7 @@ index f7ae0328331a..ebf1ac46debd 100644
    "channel_select.placeholder": {
      "defaultMessage": "--- Select a channel ---",
      "description": "Default (unselected) option of a channel dropdown in integration settings forms; the dashes are decorative."
-@@ -19915,6 +19923,14 @@
+@@ -20479,6 +20487,14 @@
      "defaultMessage": "Members must wait this long between messages, including replies. Channel admins, team admins and system admins are exempt.",
      "description": "Help text under the slowmode setting in the channel settings Moderation tab, explaining who it applies to."
    },
@@ -681,9 +681,9 @@ index f7ae0328331a..ebf1ac46debd 100644
 +    "defaultMessage": "Close threads to new replies after this long without one. Channel admins, team admins and system admins can still reply, which reopens the thread.",
 +    "description": "Help text under the thread auto-archive setting in the channel settings Moderation tab, explaining what archiving does and who can still reply."
 +  },
-   "channel_settings.permissions_policy.action.download": {
-     "defaultMessage": "Download files",
-     "description": "Permission action name in the channel Permissions Policy rule editor; allows downloading files ('Download' as a verb)."
+   "channel_settings.permissions_policy.action.create_bor": {
+     "defaultMessage": "Create burn-on-read message",
+     "description": "Permission action in the channel Permissions Policy rule editor; allows sending burn-on-read messages."
 diff --git a/webapp/platform/types/src/channel_posting_rules.ts b/webapp/platform/types/src/channel_posting_rules.ts
 index 75ff8eafa8a6..8c451693cd04 100644
 --- a/webapp/platform/types/src/channel_posting_rules.ts

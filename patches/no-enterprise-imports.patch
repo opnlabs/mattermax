@@ -7,9 +7,9 @@ Mattermax-Patch: no-enterprise-imports.patch
 ---
  server/channels/app/metrics_test.go           | 209 -----
  server/cmd/mattermost/main.go                 |   3 -
- .../cmd/mmctl/commands/compliance_export.go   | 243 ------
+ .../cmd/mmctl/commands/compliance_export.go   | 245 ------
  .../commands/compliance_export_e2e_test.go    | 744 ------------------
- .../mmctl/commands/compliance_export_test.go  | 430 ----------
+ .../mmctl/commands/compliance_export_test.go  | 556 -------------
  server/cmd/mmctl/docs/mmctl.rst               |   1 -
  .../mmctl/docs/mmctl_compliance-export.rst    |  45 --
  .../docs/mmctl_compliance-export_cancel.rst   |  51 --
@@ -17,7 +17,7 @@ Mattermax-Patch: no-enterprise-imports.patch
  .../docs/mmctl_compliance-export_download.rst |  52 --
  .../docs/mmctl_compliance-export_list.rst     |  47 --
  .../docs/mmctl_compliance-export_show.rst     |  51 --
- 12 files changed, 1932 deletions(-)
+ 12 files changed, 2060 deletions(-)
  delete mode 100644 server/channels/app/metrics_test.go
  delete mode 100644 server/cmd/mmctl/commands/compliance_export.go
  delete mode 100644 server/cmd/mmctl/commands/compliance_export_e2e_test.go
@@ -260,10 +260,10 @@ index 38eb1a2f3101..6597be938c7b 100644
  func main() {
 diff --git a/server/cmd/mmctl/commands/compliance_export.go b/server/cmd/mmctl/commands/compliance_export.go
 deleted file mode 100644
-index 614dfef8d437..000000000000
+index a17b6d415f5d..000000000000
 --- a/server/cmd/mmctl/commands/compliance_export.go
 +++ /dev/null
-@@ -1,243 +0,0 @@
+@@ -1,245 +0,0 @@
 -// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 -// See LICENSE.txt for license information.
 -
@@ -407,6 +407,8 @@ index 614dfef8d437..000000000000
 -	if err != nil {
 -		return err
 -	}
+-
+-	suggestedFilename = model.SanitizeFilename(suggestedFilename)
 -
 -	// If we didn't provide a path and got a suggested filename, rename the file
 -	if len(args) == 1 && suggestedFilename != "" && suggestedFilename != path {
@@ -1259,10 +1261,10 @@ index dd21f3554ad9..000000000000
 -}
 diff --git a/server/cmd/mmctl/commands/compliance_export_test.go b/server/cmd/mmctl/commands/compliance_export_test.go
 deleted file mode 100644
-index 88541e8be9c1..000000000000
+index 75fc605b9140..000000000000
 --- a/server/cmd/mmctl/commands/compliance_export_test.go
 +++ /dev/null
-@@ -1,430 +0,0 @@
+@@ -1,556 +0,0 @@
 -// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 -// See LICENSE.txt for license information.
 -
@@ -1271,13 +1273,17 @@ index 88541e8be9c1..000000000000
 -import (
 -	"context"
 -	"fmt"
+-	"net/http"
+-	"net/http/httptest"
 -	"os"
+-	"path/filepath"
 -	"testing"
 -
--	gomock "github.com/golang/mock/gomock"
 -	"github.com/mattermost/mattermost/server/public/model"
 -	"github.com/mattermost/mattermost/server/v8/cmd/mmctl/printer"
 -	"github.com/spf13/cobra"
+-	"github.com/stretchr/testify/assert"
+-	gomock "go.uber.org/mock/gomock"
 -)
 -
 -func (s *MmctlUnitTestSuite) TestComplianceExportListCmdF() {
@@ -1569,6 +1575,128 @@ index 88541e8be9c1..000000000000
 -		s.Error(err)
 -		s.True(os.IsNotExist(err))
 -	})
+-
+-	s.Run("uses last path element of server filename", func() {
+-		const jobID = "exportjob1"
+-		const body = "compliance export bytes"
+-		for _, tc := range serverFilenameCases() {
+-			s.Run(tc.name, func() {
+-				printer.Clean()
+-
+-				root := s.T().TempDir()
+-				workDir := filepath.Join(root, "work")
+-				s.Require().NoError(os.Mkdir(workDir, 0o700))
+-				s.T().Chdir(workDir)
+-
+-				absPath := filepath.Join(root, "outside", tc.baseName)
+-				s.Require().NoError(os.Mkdir(filepath.Dir(absPath), 0o700))
+-
+-				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+-					assert.Equal(s.T(), "/api/v4/jobs/"+jobID+"/download", r.URL.Path)
+-					w.Header().Set("Content-Disposition", tc.disposition(absPath))
+-					_, _ = w.Write([]byte(body))
+-				}))
+-				s.T().Cleanup(server.Close)
+-
+-				cmd := makeCmd()
+-				cmd.Flags().Int("num-retries", 0, "")
+-				err := complianceExportDownloadCmdF(model.NewAPIv4Client(server.URL), cmd, []string{jobID})
+-				assertDownloadUsedBaseName(s.T(), workDir, tc.baseName, unexpectedDownloadPaths(workDir, absPath, tc.baseName), []byte(body), err)
+-			})
+-		}
+-	})
+-
+-	s.Run("uses job file name when server filename is empty", func() {
+-		const jobID = "exportjob1"
+-		const body = "compliance export bytes"
+-		const localName = jobID + ".zip"
+-		for _, tc := range emptyServerFilenameCases() {
+-			s.Run(tc.name, func() {
+-				printer.Clean()
+-
+-				root := s.T().TempDir()
+-				workDir := filepath.Join(root, "work")
+-				s.Require().NoError(os.Mkdir(workDir, 0o700))
+-				s.T().Chdir(workDir)
+-
+-				absPath := filepath.Join(root, "outside", "packet.zip")
+-				s.Require().NoError(os.Mkdir(filepath.Dir(absPath), 0o700))
+-
+-				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+-					assert.Equal(s.T(), "/api/v4/jobs/"+jobID+"/download", r.URL.Path)
+-					w.Header().Set("Content-Disposition", tc.disposition)
+-					_, _ = w.Write([]byte(body))
+-				}))
+-				s.T().Cleanup(server.Close)
+-
+-				cmd := makeCmd()
+-				cmd.Flags().Int("num-retries", 0, "")
+-				err := complianceExportDownloadCmdF(model.NewAPIv4Client(server.URL), cmd, []string{jobID})
+-				assertDownloadUsedBaseName(s.T(), workDir, localName, unexpectedDownloadPaths(workDir, absPath, localName), []byte(body), err)
+-			})
+-		}
+-	})
+-
+-	s.Run("uses job file name when the response has no filename header", func() {
+-		const jobID = "exportjob1"
+-		const body = "compliance export bytes"
+-		const localName = jobID + ".zip"
+-
+-		printer.Clean()
+-
+-		root := s.T().TempDir()
+-		workDir := filepath.Join(root, "work")
+-		s.Require().NoError(os.Mkdir(workDir, 0o700))
+-		s.T().Chdir(workDir)
+-
+-		absPath := filepath.Join(root, "outside", "packet.zip")
+-		s.Require().NoError(os.Mkdir(filepath.Dir(absPath), 0o700))
+-
+-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+-			assert.Equal(s.T(), "/api/v4/jobs/"+jobID+"/download", r.URL.Path)
+-			_, _ = w.Write([]byte(body))
+-		}))
+-		s.T().Cleanup(server.Close)
+-
+-		cmd := makeCmd()
+-		cmd.Flags().Int("num-retries", 0, "")
+-		err := complianceExportDownloadCmdF(model.NewAPIv4Client(server.URL), cmd, []string{jobID})
+-		assertDownloadUsedBaseName(s.T(), workDir, localName, unexpectedDownloadPaths(workDir, absPath, localName), []byte(body), err)
+-	})
+-
+-	s.Run("keeps downloaded file when suggested name exists", func() {
+-		const jobID = "exportjob1"
+-		const body = "compliance export bytes"
+-		const localName = jobID + ".zip"
+-
+-		printer.Clean()
+-
+-		root := s.T().TempDir()
+-		workDir := filepath.Join(root, "work")
+-		s.Require().NoError(os.Mkdir(workDir, 0o700))
+-		s.T().Chdir(workDir)
+-
+-		absPath := filepath.Join(root, "outside", "packet.zip")
+-		s.Require().NoError(os.Mkdir(filepath.Dir(absPath), 0o700))
+-		s.Require().NoError(os.WriteFile(filepath.Join(workDir, "packet.zip"), []byte("keep me"), 0o600))
+-
+-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+-			assert.Equal(s.T(), "/api/v4/jobs/"+jobID+"/download", r.URL.Path)
+-			w.Header().Set("Content-Disposition", `attachment; filename="../packet.zip"`)
+-			_, _ = w.Write([]byte(body))
+-		}))
+-		s.T().Cleanup(server.Close)
+-
+-		cmd := makeCmd()
+-		cmd.Flags().Int("num-retries", 0, "")
+-		err := complianceExportDownloadCmdF(model.NewAPIv4Client(server.URL), cmd, []string{jobID})
+-		s.Require().NoError(err)
+-		assertDownloadUsedBaseName(s.T(), workDir, localName, unexpectedDownloadPaths(workDir, absPath, localName), []byte(body), err)
+-
+-		got, readErr := os.ReadFile(filepath.Join(workDir, "packet.zip"))
+-		s.Require().NoError(readErr)
+-		s.Equal([]byte("keep me"), got)
+-	})
 -}
 -
 -func TestGetStartAndEnd(t *testing.T) {
@@ -1694,7 +1822,7 @@ index 88541e8be9c1..000000000000
 -	return cmd
 -}
 diff --git a/server/cmd/mmctl/docs/mmctl.rst b/server/cmd/mmctl/docs/mmctl.rst
-index dd36371e814e..101c37e41407 100644
+index 36302cc35648..a8358c838798 100644
 --- a/server/cmd/mmctl/docs/mmctl.rst
 +++ b/server/cmd/mmctl/docs/mmctl.rst
 @@ -35,7 +35,6 @@ SEE ALSO

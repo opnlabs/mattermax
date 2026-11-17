@@ -1057,10 +1057,10 @@ index 3d6423a11a0c..0bbb2f7c5de1 100644
                          !this.state.shouldShowLoadingSpinner &&
                          !this.state.hasSuggestions &&
 diff --git a/webapp/channels/src/i18n/en.json b/webapp/channels/src/i18n/en.json
-index 9a30cbfa9c8e..f4462cf7e20a 100644
+index dc94043969d1..23cab9f32e6b 100644
 --- a/webapp/channels/src/i18n/en.json
 +++ b/webapp/channels/src/i18n/en.json
-@@ -20899,6 +20899,74 @@
+@@ -21471,6 +21471,74 @@
      "defaultMessage": "You",
      "description": "Pronoun substituted for the current user's own username inside combined join/leave system messages (e.g. 'You joined the channel'); subject position."
    },
@@ -1135,7 +1135,7 @@ index 9a30cbfa9c8e..f4462cf7e20a 100644
    "commercial_support_modal.description": {
      "defaultMessage": "If you're experiencing issues, <supportLink>submit a support ticket</supportLink>. To help with troubleshooting, it's recommended to download the Support Packet below that includes more details about your Mattermost environment.",
      "description": "Intro paragraph of the Commercial Support modal; <supportLink> tags wrap the clickable phrase that opens the support ticket site."
-@@ -27655,6 +27723,14 @@
+@@ -28283,6 +28351,14 @@
      "defaultMessage": "Quarantined messages will be sent to Content Reviewers for review.",
      "description": "Explanatory subtitle of the quarantine message modal; 'Content Reviewers' is a moderation role."
    },

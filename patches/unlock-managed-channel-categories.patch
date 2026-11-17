@@ -11,7 +11,7 @@ Mattermax-Patch: unlock-managed-channel-categories.patch
  3 files changed, 33 insertions(+), 20 deletions(-)
 
 diff --git a/server/channels/api4/channel.go b/server/channels/api4/channel.go
-index d5f0cbb6d9ab..0f571d8f4f60 100644
+index 1a2a50a92d26..a295bc0dd5ab 100644
 --- a/server/channels/api4/channel.go
 +++ b/server/channels/api4/channel.go
 @@ -695,7 +695,7 @@ func patchChannel(c *Context, w http.ResponseWriter, r *http.Request) {
@@ -45,7 +45,7 @@ index d5f0cbb6d9ab..0f571d8f4f60 100644
  	if appErr != nil {
  		c.Err = appErr
 diff --git a/server/channels/api4/channel_test.go b/server/channels/api4/channel_test.go
-index c8b188720166..64250f2ef658 100644
+index de22ebdc969e..69f68590b709 100644
 --- a/server/channels/api4/channel_test.go
 +++ b/server/channels/api4/channel_test.go
 @@ -818,21 +818,33 @@ func TestCreateChannelManagedCategory(t *testing.T) {
@@ -85,7 +85,7 @@ index c8b188720166..64250f2ef658 100644
  	})
  
  	t.Run("should ignore managed category when feature is disabled", func(t *testing.T) {
-@@ -9403,10 +9415,20 @@ func TestGetManagedCategories(t *testing.T) {
+@@ -9405,10 +9417,20 @@ func TestGetManagedCategories(t *testing.T) {
  	}).InitBasic(t)
  	client := th.Client
  
@@ -109,7 +109,7 @@ index c8b188720166..64250f2ef658 100644
  	})
  
  	t.Run("should return empty map when no managed categories exist", func(t *testing.T) {
-@@ -9508,7 +9530,7 @@ func TestPatchChannelManagedCategory(t *testing.T) {
+@@ -9510,7 +9532,7 @@ func TestPatchChannelManagedCategory(t *testing.T) {
  		CheckForbiddenStatus(t, resp)
  	})
  
@@ -118,7 +118,7 @@ index c8b188720166..64250f2ef658 100644
  		removeLicense()
  
  		channel := th.CreatePublicChannel(t)
-@@ -9518,17 +9540,13 @@ func TestPatchChannelManagedCategory(t *testing.T) {
+@@ -9520,17 +9542,13 @@ func TestPatchChannelManagedCategory(t *testing.T) {
  		_, _, err := client.PatchChannel(context.Background(), channel.Id, patch)
  		require.NoError(t, err)
  

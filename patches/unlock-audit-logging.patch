@@ -130,7 +130,7 @@ index 7956a1ec48cb..f44de16787db 100644
  	}
  
 diff --git a/server/channels/app/platform/log.go b/server/channels/app/platform/log.go
-index 755475bf86ce..fe8efed4295a 100644
+index 31624940ed59..1d40879e8f61 100644
 --- a/server/channels/app/platform/log.go
 +++ b/server/channels/app/platform/log.go
 @@ -4,7 +4,6 @@
@@ -141,7 +141,7 @@ index 755475bf86ce..fe8efed4295a 100644
  	"encoding/json"
  	"io"
  	"net/http"
-@@ -100,23 +99,6 @@ func (ps *PlatformService) EnableLoggingMetrics() {
+@@ -104,23 +103,6 @@ func (ps *PlatformService) EnableLoggingMetrics() {
  	mlog.Debug("Logging metrics enabled")
  }
  
@@ -166,10 +166,10 @@ index 755475bf86ce..fe8efed4295a 100644
  	var lines []string
  
 diff --git a/server/channels/app/server.go b/server/channels/app/server.go
-index c6c9e5e912b0..b2d42aab04c7 100644
+index 0d8398fd4fd0..62e223000738 100644
 --- a/server/channels/app/server.go
 +++ b/server/channels/app/server.go
-@@ -537,20 +537,17 @@ func NewServer(options ...Option) (*Server, error) {
+@@ -566,20 +566,17 @@ func NewServer(options ...Option) (*Server, error) {
  	mlog.Info("Printing current working", mlog.String("directory", pwd))
  	mlog.Info("Loaded config", mlog.String("source", s.platform.DescribeConfig()))
  
@@ -192,7 +192,7 @@ index c6c9e5e912b0..b2d42aab04c7 100644
  		mlog.Warn("AccessControlSettings.EnableAccessControlAuditLogging is enabled but no active audit log target is configured; ABAC policy-decision audit logging will have no effect. Enable ExperimentalAuditSettings.FileEnabled or configure an advanced audit logging target bound to an audit level.")
  	}
  
-@@ -562,13 +559,10 @@ func NewServer(options ...Option) (*Server, error) {
+@@ -591,13 +588,10 @@ func NewServer(options ...Option) (*Server, error) {
  		s.warnIfDeliveryAuditTargetMissing(newCfg)
  	})
  
@@ -207,10 +207,10 @@ index c6c9e5e912b0..b2d42aab04c7 100644
  
  	// Keep the push notification server in sync with the license's HPNS entitlement, and let a
 diff --git a/server/config/client.go b/server/config/client.go
-index 500ccd95f4e3..433af76e802e 100644
+index 321dd2c879df..98f3c82c849e 100644
 --- a/server/config/client.go
 +++ b/server/config/client.go
-@@ -167,7 +167,7 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
+@@ -168,7 +168,7 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
  	props["EnableAttributeBasedAccessControl"] = strconv.FormatBool(*c.AccessControlSettings.EnableAttributeBasedAccessControl)
  	props["EnableUserManagedAttributes"] = strconv.FormatBool(*c.AccessControlSettings.EnableUserManagedAttributes)
  	props["EnableAccessControlAuditLogging"] = strconv.FormatBool(*c.AccessControlSettings.EnableAccessControlAuditLogging)
@@ -304,10 +304,10 @@ index c3157e61caa6..dde6e08bc807 100644
  	if err := json.Unmarshal(auditSettings.GetAdvancedLoggingConfig(), &cfg); err != nil {
  		return false
 diff --git a/server/config/logger_test.go b/server/config/logger_test.go
-index f2217daaa8e1..862440a9f1e2 100644
+index 6fa5b6eb882a..a1b4eeecd18b 100644
 --- a/server/config/logger_test.go
 +++ b/server/config/logger_test.go
-@@ -225,62 +225,48 @@ func TestIsAuditLoggingActive(t *testing.T) {
+@@ -329,62 +329,48 @@ func TestIsAuditLoggingActive(t *testing.T) {
  	malformedJSON := json.RawMessage(`{not valid json`)
  
  	tests := []struct {
@@ -398,7 +398,7 @@ index f2217daaa8e1..862440a9f1e2 100644
  		},
  	}
  
-@@ -292,7 +278,7 @@ func TestIsAuditLoggingActive(t *testing.T) {
+@@ -396,7 +382,7 @@ func TestIsAuditLoggingActive(t *testing.T) {
  			*auditSettings.FileName = tc.fileName
  			auditSettings.AdvancedLoggingJSON = tc.advancedLoggingJSON
  
@@ -407,7 +407,7 @@ index f2217daaa8e1..862440a9f1e2 100644
  		})
  	}
  }
-@@ -302,75 +288,59 @@ func TestIsAuditLevelActive(t *testing.T) {
+@@ -406,75 +392,59 @@ func TestIsAuditLevelActive(t *testing.T) {
  	malformedJSON := json.RawMessage(`{not valid json`)
  
  	tests := []struct {
@@ -520,7 +520,7 @@ index f2217daaa8e1..862440a9f1e2 100644
  		},
  	}
  
-@@ -382,7 +352,7 @@ func TestIsAuditLevelActive(t *testing.T) {
+@@ -486,7 +456,7 @@ func TestIsAuditLevelActive(t *testing.T) {
  			*auditSettings.FileName = "audit.log"
  			auditSettings.AdvancedLoggingJSON = tc.advancedLoggingJSON
  
@@ -530,10 +530,10 @@ index f2217daaa8e1..862440a9f1e2 100644
  	}
  }
 diff --git a/webapp/channels/src/components/admin_console/admin_definition.tsx b/webapp/channels/src/components/admin_console/admin_definition.tsx
-index 3b24b7476d9e..84df32acfe70 100644
+index f745e1712e5b..953c889e522a 100644
 --- a/webapp/channels/src/components/admin_console/admin_definition.tsx
 +++ b/webapp/channels/src/components/admin_console/admin_definition.tsx
-@@ -6460,7 +6460,6 @@ const AdminDefinition: AdminDefinitionType = {
+@@ -6508,7 +6508,6 @@ const AdminDefinition: AdminDefinitionType = {
                  title: defineMessage({id: 'admin.sidebar.audit_logging_experimental', defaultMessage: 'Audit Logging'}),
                  isHidden: it.any(
                      it.not(it.userHasReadPermissionOnResource(RESOURCE_KEYS.EXPERIMENTAL.FEATURES)),
@@ -542,7 +542,7 @@ index 3b24b7476d9e..84df32acfe70 100644
                  schema: {
                      id: 'ExperimentalAuditSettings',
 diff --git a/webapp/channels/src/components/admin_console/admin_sidebar/__snapshots__/admin_sidebar.test.tsx.snap b/webapp/channels/src/components/admin_console/admin_sidebar/__snapshots__/admin_sidebar.test.tsx.snap
-index 4a78b29286b2..bdc8645011db 100644
+index 6d3f645a63bf..c000365f92f8 100644
 --- a/webapp/channels/src/components/admin_console/admin_sidebar/__snapshots__/admin_sidebar.test.tsx.snap
 +++ b/webapp/channels/src/components/admin_console/admin_sidebar/__snapshots__/admin_sidebar.test.tsx.snap
 @@ -2012,6 +2012,25 @@ c0,1.1,0.9,2,2,2h16c1.1,0,2-0.9,2-2V4z M20,4v5H4V4H20z M22,15v5c0,1.1-0.9,2-2,2H

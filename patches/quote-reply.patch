@@ -21,7 +21,7 @@ Mattermax-Patch: quote-reply.patch
  create mode 100644 webapp/channels/src/components/quote_reply/use_quote_reply_target.ts
 
 diff --git a/webapp/channels/src/components/advanced_text_editor/advanced_text_editor.tsx b/webapp/channels/src/components/advanced_text_editor/advanced_text_editor.tsx
-index 313a056367b2..30e95eab806b 100644
+index 6353a015ceeb..08f70e7ec382 100644
 --- a/webapp/channels/src/components/advanced_text_editor/advanced_text_editor.tsx
 +++ b/webapp/channels/src/components/advanced_text_editor/advanced_text_editor.tsx
 @@ -41,6 +41,7 @@ import {
@@ -32,7 +32,7 @@ index 313a056367b2..30e95eab806b 100644
  import RhsSuggestionList from 'components/suggestion/rhs_suggestion_list';
  import SuggestionList from 'components/suggestion/suggestion_list';
  import Textbox from 'components/textbox';
-@@ -424,6 +425,16 @@ const AdvancedTextEditor = ({
+@@ -390,6 +391,16 @@ const AdvancedTextEditor = ({
  
      const pluginItems = usePluginItems(draft, textboxRef, handleDraftChange);
      const focusTextbox = useTextboxFocus(textboxRef, channelId, isRHS, canPost, wysiwygRef);
@@ -586,10 +586,10 @@ index 000000000000..d1f984b1e7b7
 +    }, [channelId, rootId, enabled, latest]);
 +}
 diff --git a/webapp/channels/src/i18n/en.json b/webapp/channels/src/i18n/en.json
-index f4462cf7e20a..b60cb34f082f 100644
+index 23cab9f32e6b..d754e45b2bce 100644
 --- a/webapp/channels/src/i18n/en.json
 +++ b/webapp/channels/src/i18n/en.json
-@@ -27131,6 +27131,10 @@
+@@ -27751,6 +27751,10 @@
      "defaultMessage": "Quarantine for Review",
      "description": "Menu item in the message actions menu (content moderation feature) that flags the message for review by moderators; 'Quarantine' is a verb."
    },
@@ -600,7 +600,7 @@ index f4462cf7e20a..b60cb34f082f 100644
    "post_info.reply": {
      "defaultMessage": "Reply",
      "description": "Menu item in the message actions menu that opens the thread to reply; 'Reply' is a verb."
-@@ -27747,6 +27751,14 @@
+@@ -28375,6 +28379,14 @@
      "defaultMessage": "Type to find a channel. Use <b>UP/DOWN</b> to browse, <b>ENTER</b> to select, <b>ESC</b> to dismiss.",
      "description": "Help text under the search box in the channel switcher modal (Ctrl+K); <b> tags render the key names in bold; UP/DOWN, ENTER and ESC are keyboard keys."
    },

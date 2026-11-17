@@ -182,7 +182,7 @@ index 1560bfe17d4f..0c16d4d41599 100644
                      </div>
                  </div>
 diff --git a/webapp/channels/src/i18n/en.json b/webapp/channels/src/i18n/en.json
-index 7c22f8a2d496..fe23733f5cf8 100644
+index 859a384b3a5c..b6bf7defc128 100644
 --- a/webapp/channels/src/i18n/en.json
 +++ b/webapp/channels/src/i18n/en.json
 @@ -1,4 +1,8 @@

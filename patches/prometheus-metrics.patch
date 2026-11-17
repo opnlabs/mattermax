@@ -2578,10 +2578,10 @@ index e56eeea2b53b..7b8472c88dba 100644
  	})
  }
 diff --git a/server/config/client.go b/server/config/client.go
-index 433af76e802e..7d67a94dd59e 100644
+index 98f3c82c849e..2b5e4b924b01 100644
 --- a/server/config/client.go
 +++ b/server/config/client.go
-@@ -125,7 +125,9 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
+@@ -126,7 +126,9 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
  	props["SamlNicknameAttributeSet"] = "false"
  	props["SamlPositionAttributeSet"] = "false"
  	props["EnableCluster"] = "false"
@@ -2592,7 +2592,7 @@ index 433af76e802e..7d67a94dd59e 100644
  	props["EnableBanner"] = strconv.FormatBool(*c.AnnouncementSettings.EnableBanner)
  	props["BannerText"] = *c.AnnouncementSettings.BannerText
  	props["BannerColor"] = *c.AnnouncementSettings.BannerColor
-@@ -210,12 +212,6 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
+@@ -211,12 +213,6 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
  			props["EnableCluster"] = strconv.FormatBool(*c.ClusterSettings.Enable)
  		}
  

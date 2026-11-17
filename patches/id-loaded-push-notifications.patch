@@ -163,10 +163,10 @@ index 000000000000..ceb3101cd36e
 +	})
 +}
 diff --git a/webapp/channels/src/components/admin_console/admin_definition.tsx b/webapp/channels/src/components/admin_console/admin_definition.tsx
-index ca97d3af75c6..ab59c1995221 100644
+index e09505a0040f..b20c0f289fcd 100644
 --- a/webapp/channels/src/components/admin_console/admin_definition.tsx
 +++ b/webapp/channels/src/components/admin_console/admin_definition.tsx
-@@ -3327,29 +3327,6 @@ const AdminDefinition: AdminDefinitionType = {
+@@ -3347,29 +3347,6 @@ const AdminDefinition: AdminDefinitionType = {
                                  it.stateIsFalse('EmailSettings.SendEmailNotifications'),
                              ),
                          },
@@ -196,7 +196,7 @@ index ca97d3af75c6..ab59c1995221 100644
                          {
                              type: 'dropdown',
                              key: 'EmailSettings.PushNotificationContents',
-@@ -3374,7 +3351,6 @@ const AdminDefinition: AdminDefinitionType = {
+@@ -3394,7 +3371,6 @@ const AdminDefinition: AdminDefinitionType = {
                                      display_name: defineMessage({id: 'admin.environment.notifications.pushContents.idLoaded', defaultMessage: 'Full message content fetched from the server on receipt'}),
                                  },
                              ],
@@ -205,10 +205,10 @@ index ca97d3af75c6..ab59c1995221 100644
                          },
                          {
 diff --git a/webapp/channels/src/i18n/en.json b/webapp/channels/src/i18n/en.json
-index 631a13668147..9a30cbfa9c8e 100644
+index 4550c75f743d..dc94043969d1 100644
 --- a/webapp/channels/src/i18n/en.json
 +++ b/webapp/channels/src/i18n/en.json
-@@ -5283,10 +5283,6 @@
+@@ -5347,10 +5347,6 @@
      "defaultMessage": "Generic description with only sender name",
      "description": "Dropdown option for the Push Notification Contents setting: send only the sender name."
    },

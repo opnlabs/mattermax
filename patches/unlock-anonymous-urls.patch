@@ -19,7 +19,7 @@ Mattermax-Patch: unlock-anonymous-urls.patch
  create mode 100644 webapp/channels/src/components/admin_console/admin_definition_anonymous_urls.test.tsx
 
 diff --git a/server/channels/api4/channel.go b/server/channels/api4/channel.go
-index 0f571d8f4f60..04c769f074f8 100644
+index a295bc0dd5ab..313daaa81322 100644
 --- a/server/channels/api4/channel.go
 +++ b/server/channels/api4/channel.go
 @@ -148,7 +148,7 @@ func createChannel(c *Context, w http.ResponseWriter, r *http.Request) {
@@ -32,7 +32,7 @@ index 0f571d8f4f60..04c769f074f8 100644
  	}
  
 diff --git a/server/channels/api4/channel_test.go b/server/channels/api4/channel_test.go
-index 64250f2ef658..1444eeed120b 100644
+index 69f68590b709..39a1801cd5f4 100644
 --- a/server/channels/api4/channel_test.go
 +++ b/server/channels/api4/channel_test.go
 @@ -233,7 +233,7 @@ func TestCreateChannel(t *testing.T) {
@@ -54,7 +54,7 @@ index 64250f2ef658..1444eeed120b 100644
  	})
  
  	t.Run("Guest users", func(t *testing.T) {
-@@ -9607,3 +9608,44 @@ func TestPatchChannelManagedCategory(t *testing.T) {
+@@ -9609,3 +9610,44 @@ func TestPatchChannelManagedCategory(t *testing.T) {
  		assert.False(t, exists, "managed category should be cleared")
  	})
  }
@@ -138,7 +138,7 @@ index 457dea43165b..4f48a12798a2 100644
  
  	t.Run("cloud limit reached returns 400", func(t *testing.T) {
 diff --git a/server/channels/app/plugin_api.go b/server/channels/app/plugin_api.go
-index 8237863412d9..38f7fde5e287 100644
+index 085d6be912eb..5f62b261e949 100644
 --- a/server/channels/app/plugin_api.go
 +++ b/server/channels/app/plugin_api.go
 @@ -167,7 +167,7 @@ func (api *PluginAPI) GetTelemetryId() string {
@@ -160,10 +160,10 @@ index 8237863412d9..38f7fde5e287 100644
  	if !channel.IsGroupOrDirect() && !channel.IsSpace() && UseAnonymousURLs {
  		channel.Name = model.NewId()
 diff --git a/server/channels/app/plugin_api_test.go b/server/channels/app/plugin_api_test.go
-index 5dfe58ee5d34..0152e2499e6e 100644
+index 06307d151bda..f6089f7d1b58 100644
 --- a/server/channels/app/plugin_api_test.go
 +++ b/server/channels/app/plugin_api_test.go
-@@ -4622,19 +4622,15 @@ func TestPluginAPICreateTeamAnonymousURLs(t *testing.T) {
+@@ -4911,19 +4911,15 @@ func TestPluginAPICreateTeamAnonymousURLs(t *testing.T) {
  		assert.Equal(t, originalName, createdTeam.Name, "team name should not be overridden")
  	})
  
@@ -186,7 +186,7 @@ index 5dfe58ee5d34..0152e2499e6e 100644
  			Name:        originalName,
  			Type:        model.TeamOpen,
  		}
-@@ -4643,7 +4639,8 @@ func TestPluginAPICreateTeamAnonymousURLs(t *testing.T) {
+@@ -4932,7 +4928,8 @@ func TestPluginAPICreateTeamAnonymousURLs(t *testing.T) {
  		require.Nil(t, appErr)
  		require.NotNil(t, createdTeam)
  
@@ -196,7 +196,7 @@ index 5dfe58ee5d34..0152e2499e6e 100644
  	})
  }
  
-@@ -5166,15 +5163,11 @@ func TestPluginAPICreateChannelAnonymousURLs(t *testing.T) {
+@@ -5455,15 +5452,11 @@ func TestPluginAPICreateChannelAnonymousURLs(t *testing.T) {
  		assert.Equal(t, originalName, createdChannel.Name, "channel name should not be overridden")
  	})
  
@@ -214,7 +214,7 @@ index 5dfe58ee5d34..0152e2499e6e 100644
  
  		originalName := "original-channel-name"
  		channel := &model.Channel{
-@@ -5188,7 +5181,8 @@ func TestPluginAPICreateChannelAnonymousURLs(t *testing.T) {
+@@ -5477,7 +5470,8 @@ func TestPluginAPICreateChannelAnonymousURLs(t *testing.T) {
  		require.Nil(t, appErr)
  		require.NotNil(t, createdChannel)
  
@@ -225,10 +225,10 @@ index 5dfe58ee5d34..0152e2499e6e 100644
  }
  
 diff --git a/webapp/channels/src/components/admin_console/admin_definition.tsx b/webapp/channels/src/components/admin_console/admin_definition.tsx
-index f94966aca3c7..001ee73d1116 100644
+index 610ddb89ed74..9dc2af4d3e3c 100644
 --- a/webapp/channels/src/components/admin_console/admin_definition.tsx
 +++ b/webapp/channels/src/components/admin_console/admin_definition.tsx
-@@ -2974,7 +2974,6 @@ const AdminDefinition: AdminDefinitionType = {
+@@ -2994,7 +2994,6 @@ const AdminDefinition: AdminDefinitionType = {
                              help_text: defineMessage({id: 'admin.privacy.useAnonymousURLsDescription', defaultMessage: 'When true, newly created channels and teams use randomized, non-descriptive identifiers in their URLs instead of human-readable name slugs. This prevents channel and team names from being exposed when team, channel, or message URLs are shared. **Note:** Enabling this setting does not change the URLs of existing teams and channels. To update existing URLs to use anonymous identifiers, use the mmctl command line tool or update them manually.'}),
                              help_text_markdown: true,
                              isDisabled: it.not(it.userHasWritePermissionOnResource(RESOURCE_KEYS.SITE.USERS_AND_TEAMS)),

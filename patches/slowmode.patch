@@ -56,10 +56,10 @@ Mattermax-Patch: slowmode.patch
  create mode 100644 webapp/platform/types/src/channel_posting_rules.ts
 
 diff --git a/server/channels/api4/api.go b/server/channels/api4/api.go
-index b058db68d6fa..56554545abd7 100644
+index 0010bee21aba..b90460e2d9e8 100644
 --- a/server/channels/api4/api.go
 +++ b/server/channels/api4/api.go
-@@ -408,6 +408,7 @@ func Init(srv *app.Server) (*API, error) {
+@@ -412,6 +412,7 @@ func Init(srv *app.Server) (*API, error) {
  	api.InitDrafts()
  	api.InitIPFiltering()
  	api.InitChannelBookmarks()
@@ -588,10 +588,10 @@ index 000000000000..621c35763c11
 +	return model.NewAppError("createPost", "api.post.create_post.slowmode.app_error", map[string]any{"Seconds": secondsLeft}, "", http.StatusTooManyRequests)
 +}
 diff --git a/server/channels/app/command.go b/server/channels/app/command.go
-index 2a3472801a98..8fd80cc794e8 100644
+index f4595b61a54d..9ab6068c557b 100644
 --- a/server/channels/app/command.go
 +++ b/server/channels/app/command.go
-@@ -678,6 +678,10 @@ func (a *App) HandleCommandResponse(rctx request.CTX, command *model.Command, ar
+@@ -685,6 +685,10 @@ func (a *App) HandleCommandResponse(rctx request.CTX, command *model.Command, ar
  		}
  	}
  
@@ -650,7 +650,7 @@ index 000000000000..292d84af9298
 +	}
 +}
 diff --git a/server/channels/app/post.go b/server/channels/app/post.go
-index 58c842f5f172..bc30d1fe946a 100644
+index 9a1191d67c23..becdef96d86b 100644
 --- a/server/channels/app/post.go
 +++ b/server/channels/app/post.go
 @@ -265,6 +265,12 @@ func (a *App) CreatePost(rctx request.CTX, post *model.Post, channel *model.Chan
@@ -681,7 +681,7 @@ index d78b66f74af9..a46eb96ab6f8 100644
  	}
  
 diff --git a/server/channels/app/server.go b/server/channels/app/server.go
-index 74bd6abd64be..5a48eb70e8c3 100644
+index 3f67776071ed..b4787f17a89f 100644
 --- a/server/channels/app/server.go
 +++ b/server/channels/app/server.go
 @@ -128,6 +128,9 @@ type Server struct {
@@ -694,7 +694,7 @@ index 74bd6abd64be..5a48eb70e8c3 100644
  	pushNotificationServerLicenseListenerId       string
  	pushNotificationServerClusterLeaderListenerId string
  
-@@ -448,6 +451,13 @@ func NewServer(options ...Option) (*Server, error) {
+@@ -477,6 +480,13 @@ func NewServer(options ...Option) (*Server, error) {
  	}); err != nil {
  		return nil, errors.Wrap(err, "Unable to create opengraphdata cache")
  	}
@@ -709,10 +709,10 @@ index 74bd6abd64be..5a48eb70e8c3 100644
  	s.createPushNotificationsHub(request.EmptyContext(s.Log()))
  
 diff --git a/server/channels/store/retrylayer/retrylayer.go b/server/channels/store/retrylayer/retrylayer.go
-index e6c6a5ab513c..d46178ce78a1 100644
+index 861b403935b7..873c1f6bbef4 100644
 --- a/server/channels/store/retrylayer/retrylayer.go
 +++ b/server/channels/store/retrylayer/retrylayer.go
-@@ -8950,6 +8950,27 @@ func (s *RetryLayerPostStore) GetFlaggedPostsForTeam(userID string, teamID strin
+@@ -9098,6 +9098,27 @@ func (s *RetryLayerPostStore) GetFlaggedPostsForTeam(userID string, teamID strin
  
  }
  
@@ -741,7 +741,7 @@ index e6c6a5ab513c..d46178ce78a1 100644
  
  	return s.PostStore.GetMaxPostSize()
 diff --git a/server/channels/store/sqlstore/post_store.go b/server/channels/store/sqlstore/post_store.go
-index e4e4250ab7e6..3661472298b3 100644
+index 7498608113ab..268e6f47a917 100644
 --- a/server/channels/store/sqlstore/post_store.go
 +++ b/server/channels/store/sqlstore/post_store.go
 @@ -1545,6 +1545,22 @@ func (s *SqlPostStore) HasAutoResponsePostByUserSince(options model.GetPostsSinc
@@ -768,10 +768,10 @@ index e4e4250ab7e6..3661472298b3 100644
  	query := s.postsQuery.
  		OrderBy("Posts.UpdateAt", "Id").
 diff --git a/server/channels/store/store.go b/server/channels/store/store.go
-index b4fe9cf32ae8..3b7482a4b8b3 100644
+index 080670e44985..b8938853d831 100644
 --- a/server/channels/store/store.go
 +++ b/server/channels/store/store.go
-@@ -435,6 +435,7 @@ type PostStore interface {
+@@ -445,6 +445,7 @@ type PostStore interface {
  	SearchPostsForUser(rctx request.CTX, paramsList []*model.SearchParams, userID, teamID string, page, perPage int) (*model.PostSearchResults, error)
  	GetOldestEntityCreationTime() (int64, error)
  	HasAutoResponsePostByUserSince(options model.GetPostsSinceOptions, userID string) (bool, error)
@@ -819,10 +819,10 @@ index 10b4eb529270..dcb5b19f4807 100644
  func (_m *PostStore) GetMaxPostSize() int {
  	ret := _m.Called()
 diff --git a/server/channels/store/timerlayer/timerlayer.go b/server/channels/store/timerlayer/timerlayer.go
-index 233295314f15..e1157f521194 100644
+index 182c7e660b09..de22e4067480 100644
 --- a/server/channels/store/timerlayer/timerlayer.go
 +++ b/server/channels/store/timerlayer/timerlayer.go
-@@ -7225,6 +7225,22 @@ func (s *TimerLayerPostStore) GetFlaggedPostsForTeam(userID string, teamID strin
+@@ -7361,6 +7361,22 @@ func (s *TimerLayerPostStore) GetFlaggedPostsForTeam(userID string, teamID strin
  	return result, err
  }
  
@@ -846,10 +846,10 @@ index 233295314f15..e1157f521194 100644
  	start := time.Now()
  
 diff --git a/server/i18n/en.json b/server/i18n/en.json
-index e2f887359747..ce304e723042 100644
+index b5af05dd9110..d5e05926fce4 100644
 --- a/server/i18n/en.json
 +++ b/server/i18n/en.json
-@@ -3818,6 +3818,11 @@
+@@ -3848,6 +3848,11 @@
      "translation": "Silent posts cannot use persistent notifications.",
      "description": "API error when a post is marked both silent and persistent-notification, which conflict; both are message priority features."
    },
@@ -861,7 +861,7 @@ index e2f887359747..ce304e723042 100644
    {
      "id": "api.post.create_webhook_post.creating.app_error",
      "translation": "Error creating post.",
-@@ -7614,6 +7619,21 @@
+@@ -7644,6 +7649,21 @@
      "translation": "Failed to record channel member history. Failed to update existing join record",
      "description": "Internal API error when the server fails to close out a user's join record in the channel member history (used for compliance exports)."
    },
@@ -883,7 +883,7 @@ index e2f887359747..ce304e723042 100644
    {
      "id": "app.cloud.preview_modal_bucket_url_not_configured",
      "translation": "Preview bucket URL is not configured",
-@@ -14986,6 +15006,11 @@
+@@ -15211,6 +15231,11 @@
      "translation": "Invalid user id.",
      "description": "API validation error when saving a channel membership record whose user ID is malformed."
    },
@@ -930,10 +930,10 @@ index 000000000000..5437465a0620
 +	return nil
 +}
 diff --git a/webapp/channels/src/components/advanced_text_editor/advanced_text_editor.tsx b/webapp/channels/src/components/advanced_text_editor/advanced_text_editor.tsx
-index 60c190846cce..37a8bd6b4cb9 100644
+index 547245f02402..dfd73c418350 100644
 --- a/webapp/channels/src/components/advanced_text_editor/advanced_text_editor.tsx
 +++ b/webapp/channels/src/components/advanced_text_editor/advanced_text_editor.tsx
-@@ -32,6 +32,7 @@ import PostBoxIndicator from 'components/advanced_text_editor/post_box_indicator
+@@ -32,6 +32,7 @@ import {applyWysiwygFormatting} from 'components/advanced_text_editor/wysiwyg_ed
  import WysiwygEditor from 'components/advanced_text_editor/wysiwyg_editor/wysiwyg_editor';
  import type {WysiwygEditorHandle} from 'components/advanced_text_editor/wysiwyg_editor/wysiwyg_editor';
  import {makeAsyncComponent} from 'components/async_load';
@@ -941,9 +941,9 @@ index 60c190846cce..37a8bd6b4cb9 100644
  import AutoHeightSwitcher from 'components/common/auto_height_switcher';
  import useDidUpdate from 'components/common/hooks/useDidUpdate';
  import useGetAgentsBridgeEnabled from 'components/common/hooks/useGetAgentsBridgeEnabled';
-@@ -480,9 +481,11 @@ const AdvancedTextEditor = ({
-         labels: burnOnReadLabels,
+@@ -447,9 +448,11 @@ const AdvancedTextEditor = ({
          additionalControl: burnOnReadAdditionalControl,
+         isBurnOnReadSendable: burnOnReadSendable,
      } = useBurnOnRead(draft, handleDraftChange, focusTextbox, showPreview, false);
 +    const slowmodeNotice = useSlowmodeNotice(channelId, isInEditMode);
 +    const composerError = postError || slowmodeNotice;
@@ -954,7 +954,7 @@ index 60c190846cce..37a8bd6b4cb9 100644
          channelId,
          rootId,
          serverError,
-@@ -1032,7 +1035,7 @@ const AdvancedTextEditor = ({
+@@ -1011,7 +1014,7 @@ const AdvancedTextEditor = ({
                  <MessageWithMentionsFooter/>
              )}
              <Footer
@@ -964,7 +964,7 @@ index 60c190846cce..37a8bd6b4cb9 100644
                  serverError={serverError}
                  channelId={channelId}
 diff --git a/webapp/channels/src/components/advanced_text_editor/post_box_indicator/post_box_indicator.tsx b/webapp/channels/src/components/advanced_text_editor/post_box_indicator/post_box_indicator.tsx
-index 3215f7317920..a4caef3283ef 100644
+index c3da2d5d1e91..64a280f37d85 100644
 --- a/webapp/channels/src/components/advanced_text_editor/post_box_indicator/post_box_indicator.tsx
 +++ b/webapp/channels/src/components/advanced_text_editor/post_box_indicator/post_box_indicator.tsx
 @@ -5,6 +5,7 @@ import React from 'react';
@@ -975,7 +975,7 @@ index 3215f7317920..a4caef3283ef 100644
  
  import useTimePostBoxIndicator from '../use_post_box_indicator';
  
-@@ -27,6 +28,7 @@ export default function PostBoxIndicator({channelId, teammateDisplayName, locati
+@@ -30,6 +31,7 @@ export default function PostBoxIndicator({channelId, teammateDisplayName, locati
  
      return (
          <div className='postBoxIndicator'>
@@ -1747,10 +1747,10 @@ index 000000000000..7ecc67b3059b
 +    );
 +}
 diff --git a/webapp/channels/src/components/channel_settings_modal/channel_settings_modal.tsx b/webapp/channels/src/components/channel_settings_modal/channel_settings_modal.tsx
-index 043bc24dafbb..de9ac65485da 100644
+index 5b9140bf2e63..d523621669f2 100644
 --- a/webapp/channels/src/components/channel_settings_modal/channel_settings_modal.tsx
 +++ b/webapp/channels/src/components/channel_settings_modal/channel_settings_modal.tsx
-@@ -25,6 +25,7 @@ import {
+@@ -21,6 +21,7 @@ import {haveIChannelPermission, haveISystemPermission} from 'mattermost-redux/se
  import {getBasePath, isChannelAccessControlEnabled} from 'selectors/general';
  import {getChannelSettingsTabs} from 'selectors/plugins';
  
@@ -1758,7 +1758,7 @@ index 043bc24dafbb..de9ac65485da 100644
  import type {Tab as SidebarTab} from 'components/settings_sidebar/settings_sidebar';
  import {normalizePluginIcon} from 'components/settings_sidebar/settings_sidebar';
  
-@@ -58,6 +59,7 @@ const BuiltInTabIds = {
+@@ -54,6 +55,7 @@ const BuiltInTabIds = {
      ACCESS_RULES: 'access_rules',
      PERMISSIONS_POLICY: 'permissions_policy',
      CONFIGURATION: 'configuration',
@@ -1766,7 +1766,7 @@ index 043bc24dafbb..de9ac65485da 100644
      ARCHIVE: 'archive',
  } as const;
  type BuiltInTabId = typeof BuiltInTabIds[keyof typeof BuiltInTabIds];
-@@ -154,6 +156,7 @@ function ChannelSettingsModal({channelId, isOpen, onExited, focusOriginElement}:
+@@ -149,6 +151,7 @@ function ChannelSettingsModal({channelId, isOpen, onExited, focusOriginElement}:
      const canManageJoinLeaveMessages = !isDMorGM && canManageChannelProperties;
      const shouldShowConfigurationTab = canManageBanner || canManageChannelTranslation || canManageSharedChannels || canManageJoinLeaveMessages;
      const shouldShowInfoTab = canManageChannelProperties;
@@ -1774,7 +1774,7 @@ index 043bc24dafbb..de9ac65485da 100644
  
      const canArchivePrivateChannels = useSelector((state: GlobalState) =>
          haveIChannelPermission(state, channel.team_id, channel.id, Permissions.DELETE_PRIVATE_CHANNEL),
-@@ -247,6 +250,13 @@ function ChannelSettingsModal({channelId, isOpen, onExited, focusOriginElement}:
+@@ -242,6 +245,13 @@ function ChannelSettingsModal({channelId, isOpen, onExited, focusOriginElement}:
                  iconTitle: formatMessage({id: 'generic_icons.settings', defaultMessage: 'Settings Icon'}),
                  display: shouldShowConfigurationTab,
              },
@@ -1788,7 +1788,7 @@ index 043bc24dafbb..de9ac65485da 100644
              {
                  name: BuiltInTabIds.ARCHIVE,
                  uiName: formatMessage({id: 'channel_settings.tab.archive', defaultMessage: 'Archive Channel'}),
-@@ -261,6 +271,7 @@ function ChannelSettingsModal({channelId, isOpen, onExited, focusOriginElement}:
+@@ -256,6 +266,7 @@ function ChannelSettingsModal({channelId, isOpen, onExited, focusOriginElement}:
          shouldShowAccessRulesTab,
          shouldShowPermissionsPolicyTab,
          shouldShowConfigurationTab,
@@ -1796,7 +1796,7 @@ index 043bc24dafbb..de9ac65485da 100644
          shouldShowArchiveTab,
      ]);
  
-@@ -421,6 +432,14 @@ function ChannelSettingsModal({channelId, isOpen, onExited, focusOriginElement}:
+@@ -413,6 +424,14 @@ function ChannelSettingsModal({channelId, isOpen, onExited, focusOriginElement}:
              return renderPermissionsPolicyTab();
          case BuiltInTabIds.CONFIGURATION:
              return renderConfigurationTab();
@@ -1812,10 +1812,10 @@ index 043bc24dafbb..de9ac65485da 100644
              return renderArchiveTab();
          default: {
 diff --git a/webapp/channels/src/i18n/en.json b/webapp/channels/src/i18n/en.json
-index 41e1095ea257..f7ae0328331a 100644
+index eb81ec9cf0c0..7fc13e4fe668 100644
 --- a/webapp/channels/src/i18n/en.json
 +++ b/webapp/channels/src/i18n/en.json
-@@ -19635,6 +19635,30 @@
+@@ -20199,6 +20199,30 @@
      "defaultMessage": "Thread reply notifications",
      "description": "Section heading in the channel notification preferences modal for thread reply notification options."
    },
@@ -1846,7 +1846,7 @@ index 41e1095ea257..f7ae0328331a 100644
    "channel_select.placeholder": {
      "defaultMessage": "--- Select a channel ---",
      "description": "Default (unselected) option of a channel dropdown in integration settings forms; the dashes are decorative."
-@@ -19883,6 +19907,14 @@
+@@ -20447,6 +20471,14 @@
      "defaultMessage": "Channel Settings",
      "description": "Title of the Channel Settings modal."
    },
@@ -1858,10 +1858,10 @@ index 41e1095ea257..f7ae0328331a 100644
 +    "defaultMessage": "Members must wait this long between messages, including replies. Channel admins, team admins and system admins are exempt.",
 +    "description": "Help text under the slowmode setting in the channel settings Moderation tab, explaining who it applies to."
 +  },
-   "channel_settings.permissions_policy.action.download": {
-     "defaultMessage": "Download files",
-     "description": "Permission action name in the channel Permissions Policy rule editor; allows downloading files ('Download' as a verb)."
-@@ -20219,6 +20251,14 @@
+   "channel_settings.permissions_policy.action.create_bor": {
+     "defaultMessage": "Create burn-on-read message",
+     "description": "Permission action in the channel Permissions Policy rule editor; allows sending burn-on-read messages."
+@@ -20791,6 +20823,14 @@
      "defaultMessage": "Membership Policy",
      "description": "Tab name in the Channel Settings modal sidebar for attribute-based membership access rules; compact."
    },
@@ -1877,7 +1877,7 @@ index 41e1095ea257..f7ae0328331a 100644
      "defaultMessage": "Permissions Policy",
      "description": "Tab name in the Channel Settings modal sidebar for per-channel permission rules; compact."
 diff --git a/webapp/platform/client/src/client4.ts b/webapp/platform/client/src/client4.ts
-index a52faddd4144..6dd7db854623 100644
+index f730e72d1b9f..13cdb04eae51 100644
 --- a/webapp/platform/client/src/client4.ts
 +++ b/webapp/platform/client/src/client4.ts
 @@ -12,6 +12,7 @@ import type {UserAutocomplete, AutocompleteSuggestion} from '@mattermost/types/a
@@ -1888,7 +1888,7 @@ index a52faddd4144..6dd7db854623 100644
  import type {
      Channel,
      ChannelJoinRequest,
-@@ -2240,6 +2241,20 @@ export default class Client4 {
+@@ -2245,6 +2246,20 @@ export default class Client4 {
          );
      };
  

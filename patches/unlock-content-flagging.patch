@@ -183,10 +183,10 @@ index f0ac0de17195..c61209186aea 100644
 +	require.Equal(t, http.StatusNotFound, resp.StatusCode)
 +}
 diff --git a/server/config/client.go b/server/config/client.go
-index 811193c83531..3f948dd4bd46 100644
+index 99257feb3a4e..248eac486898 100644
 --- a/server/config/client.go
 +++ b/server/config/client.go
-@@ -162,6 +162,7 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
+@@ -163,6 +163,7 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
  	props["DelayChannelAutocomplete"] = strconv.FormatBool(*c.ExperimentalSettings.DelayChannelAutocomplete)
  	props["YoutubeReferrerPolicy"] = strconv.FormatBool(*c.ExperimentalSettings.YoutubeReferrerPolicy)
  	props["UniqueEmojiReactionLimitPerPost"] = strconv.FormatInt(int64(*c.ServiceSettings.UniqueEmojiReactionLimitPerPost), 10)
@@ -194,7 +194,7 @@ index 811193c83531..3f948dd4bd46 100644
  
  	props["EnableAttributeBasedAccessControl"] = strconv.FormatBool(*c.AccessControlSettings.EnableAttributeBasedAccessControl)
  	props["EnableUserManagedAttributes"] = strconv.FormatBool(*c.AccessControlSettings.EnableUserManagedAttributes)
-@@ -230,7 +231,6 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
+@@ -231,7 +232,6 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
  			props["MobileEnableSecureFilePreview"] = strconv.FormatBool(*c.NativeAppSettings.MobileEnableSecureFilePreview)
  			props["MobileAllowPdfLinkNavigation"] = strconv.FormatBool(*c.NativeAppSettings.MobileAllowPdfLinkNavigation)
  
@@ -230,10 +230,10 @@ index ce739071a093..9e611558b240 100644
  			"licensed, but not for theme management",
  			&model.Config{
 diff --git a/webapp/channels/src/components/admin_console/admin_definition.tsx b/webapp/channels/src/components/admin_console/admin_definition.tsx
-index b8ff808c79f7..2e8b8c463521 100644
+index e0967faef5ec..119d791a470b 100644
 --- a/webapp/channels/src/components/admin_console/admin_definition.tsx
 +++ b/webapp/channels/src/components/admin_console/admin_definition.tsx
-@@ -4126,7 +4126,6 @@ const AdminDefinition: AdminDefinitionType = {
+@@ -4146,7 +4146,6 @@ const AdminDefinition: AdminDefinitionType = {
                  title: defineMessage({id: 'admin.sidebar.dataSpillage', defaultMessage: 'Data Spillage Handling'}),
                  searchableStrings: dataSpillageSearchableStrings,
                  isHidden: it.any(

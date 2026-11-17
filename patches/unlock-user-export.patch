@@ -304,10 +304,10 @@ index ff1f7ea71972..95b045663fda 100644
      return button;
  }
 diff --git a/webapp/channels/src/i18n/en.json b/webapp/channels/src/i18n/en.json
-index 28da8e312120..657c8fe120ba 100644
+index 73c18390768c..af26a4a43d12 100644
 --- a/webapp/channels/src/i18n/en.json
 +++ b/webapp/channels/src/i18n/en.json
-@@ -15519,14 +15519,6 @@
+@@ -15979,14 +15979,6 @@
      "defaultMessage": "Export",
      "description": "Button above the System Console users table that exports the user report as CSV; verb. Compact space."
    },

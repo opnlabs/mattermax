@@ -2426,13 +2426,13 @@ index 0a5f5910a66c..0c72bb5d6eb8 100644
  				return nil, appErr
  			default:
 diff --git a/server/channels/app/job.go b/server/channels/app/job.go
-index 067ff1ed9e19..023d6a2278f8 100644
+index f505323518be..04ddd1187d52 100644
 --- a/server/channels/app/job.go
 +++ b/server/channels/app/job.go
-@@ -91,6 +91,8 @@ func (a *App) CreateJob(rctx request.CTX, job *model.Job) (*model.Job, *model.Ap
- 	case model.JobTypeAccessControlTeamSync:
- 		// Route team ABAC jobs to specialized deduplication handler
- 		return a.CreateAccessControlTeamSyncJob(rctx, job.Data)
+@@ -100,6 +100,8 @@ func (a *App) CreateJob(rctx request.CTX, job *model.Job) (*model.Job, *model.Ap
+ 			job.Data["index_files"] = strconv.FormatBool(*a.Config().ElasticsearchSettings.EnableFileIndexing)
+ 		}
+ 		return a.Srv().Jobs.CreateJob(rctx, job.Type, job.Data)
 +	case model.JobTypeDataRetention:
 +		return a.createManualDataRetentionJob(rctx)
  	default:
@@ -4127,10 +4127,10 @@ index 000000000000..4b5dbf4ebb9f
 +	mockStore.FileInfo().(*mocks.FileInfoStore).AssertNumberOfCalls(t, "GetForPost", 2)
 +}
 diff --git a/server/channels/store/retrylayer/retrylayer.go b/server/channels/store/retrylayer/retrylayer.go
-index d46178ce78a1..468cfba8d54e 100644
+index 873c1f6bbef4..b2db1adec7f4 100644
 --- a/server/channels/store/retrylayer/retrylayer.go
 +++ b/server/channels/store/retrylayer/retrylayer.go
-@@ -5866,6 +5866,48 @@ func (s *RetryLayerFileInfoStore) GetForPost(postID string, readFromMaster bool,
+@@ -5888,6 +5888,48 @@ func (s *RetryLayerFileInfoStore) GetForPost(postID string, readFromMaster bool,
  
  }
  
@@ -4179,7 +4179,7 @@ index d46178ce78a1..468cfba8d54e 100644
  func (s *RetryLayerFileInfoStore) GetForUser(userID string) ([]*model.FileInfo, error) {
  
  	tries := 0
-@@ -5908,6 +5950,27 @@ func (s *RetryLayerFileInfoStore) GetFromMaster(id string) (*model.FileInfo, err
+@@ -5930,6 +5972,27 @@ func (s *RetryLayerFileInfoStore) GetFromMaster(id string) (*model.FileInfo, err
  
  }
  
@@ -4207,7 +4207,7 @@ index d46178ce78a1..468cfba8d54e 100644
  func (s *RetryLayerFileInfoStore) GetStorageUsage(allowFromCache bool, includeDeleted bool) (int64, error) {
  
  	tries := 0
-@@ -6019,6 +6082,27 @@ func (s *RetryLayerFileInfoStore) PermanentDeleteBatch(rctx request.CTX, endTime
+@@ -6041,6 +6104,27 @@ func (s *RetryLayerFileInfoStore) PermanentDeleteBatch(rctx request.CTX, endTime
  
  }
  
@@ -4235,7 +4235,7 @@ index d46178ce78a1..468cfba8d54e 100644
  func (s *RetryLayerFileInfoStore) PermanentDeleteByUser(rctx request.CTX, userID string) (int64, error) {
  
  	tries := 0
-@@ -6124,6 +6208,27 @@ func (s *RetryLayerFileInfoStore) Save(rctx request.CTX, info *model.FileInfo) (
+@@ -6146,6 +6230,27 @@ func (s *RetryLayerFileInfoStore) Save(rctx request.CTX, info *model.FileInfo) (
  
  }
  
@@ -4263,7 +4263,7 @@ index d46178ce78a1..468cfba8d54e 100644
  func (s *RetryLayerFileInfoStore) Search(rctx request.CTX, paramsList []*model.SearchParams, userID string, teamID string, page int, perPage int) (*model.FileInfoList, error) {
  
  	tries := 0
-@@ -6166,6 +6271,27 @@ func (s *RetryLayerFileInfoStore) SetContent(rctx request.CTX, fileID string, co
+@@ -6188,6 +6293,27 @@ func (s *RetryLayerFileInfoStore) SetContent(rctx request.CTX, fileID string, co
  
  }
  
@@ -4291,7 +4291,7 @@ index d46178ce78a1..468cfba8d54e 100644
  func (s *RetryLayerFileInfoStore) Upsert(rctx request.CTX, info *model.FileInfo) (*model.FileInfo, error) {
  
  	tries := 0
-@@ -7699,6 +7825,27 @@ func (s *RetryLayerJobStore) UpdateOptimistically(job *model.Job, currentStatus
+@@ -7847,6 +7973,27 @@ func (s *RetryLayerJobStore) UpdateOptimistically(job *model.Job, currentStatus
  
  }
  
@@ -4319,7 +4319,7 @@ index d46178ce78a1..468cfba8d54e 100644
  func (s *RetryLayerJobStore) UpdateStatus(id string, status string) (*model.Job, error) {
  
  	tries := 0
-@@ -12664,6 +12811,27 @@ func (s *RetryLayerRetentionPolicyStore) Delete(id string) error {
+@@ -12833,6 +12980,27 @@ func (s *RetryLayerRetentionPolicyStore) Delete(id string) error {
  
  }
  
@@ -4347,7 +4347,7 @@ index d46178ce78a1..468cfba8d54e 100644
  func (s *RetryLayerRetentionPolicyStore) DeleteOrphanedRows(limit int) (int64, error) {
  
  	tries := 0
-@@ -12727,6 +12895,27 @@ func (s *RetryLayerRetentionPolicyStore) GetAll(offset int, limit int) ([]*model
+@@ -12896,6 +13064,27 @@ func (s *RetryLayerRetentionPolicyStore) GetAll(offset int, limit int) ([]*model
  
  }
  
@@ -4753,10 +4753,10 @@ index c5c23d9549fa..a18afe7e6be1 100644
  				WHERE Threads.PostId IS NULL
  				LIMIT ?
 diff --git a/server/channels/store/store.go b/server/channels/store/store.go
-index 3b7482a4b8b3..c117ffd453f4 100644
+index b8938853d831..931b5b890db2 100644
 --- a/server/channels/store/store.go
 +++ b/server/channels/store/store.go
-@@ -130,6 +130,8 @@ type RetentionPolicyStore interface {
+@@ -140,6 +140,8 @@ type RetentionPolicyStore interface {
  	GetChannelPoliciesForUser(userID string, offset, limit int) ([]*model.RetentionPolicyForChannel, error)
  	GetChannelPoliciesCountForUser(userID string) (int64, error)
  	GetIdsForDeletionByTableName(tableName string, limit int) ([]*model.RetentionIdsForDeletion, error)
@@ -4765,7 +4765,7 @@ index 3b7482a4b8b3..c117ffd453f4 100644
  }
  
  type TeamStore interface {
-@@ -797,6 +799,12 @@ type FileInfoStore interface {
+@@ -807,6 +809,12 @@ type FileInfoStore interface {
  	Search(rctx request.CTX, paramsList []*model.SearchParams, userID, teamID string, page, perPage int) (*model.FileInfoList, error)
  	CountAll() (int64, error)
  	GetFilesBatchForIndexing(startTime int64, startFileID string, includeDeleted bool, limit int) ([]*model.FileForIndexing, error)
@@ -4778,7 +4778,7 @@ index 3b7482a4b8b3..c117ffd453f4 100644
  	ClearCaches()
  	GetStorageUsage(allowFromCache, includeDeleted bool) (int64, error)
  	// GetUptoNSizeFileTime returns the CreateAt time of the last accessible file with a running-total size upto n bytes.
-@@ -838,6 +846,7 @@ type JobStore interface {
+@@ -848,6 +856,7 @@ type JobStore interface {
  	// in-progress job with the same type matching the data filter.
  	SaveOnceByTypeAndData(job *model.Job, data map[string]string) (*model.Job, error)
  	UpdateOptimistically(job *model.Job, currentStatus string) (*model.Job, error)
@@ -5742,10 +5742,10 @@ index cf09c5e35c92..50ad2d120e76 100644
  func (_m *RetentionPolicyStore) GetChannelPoliciesCountForUser(userID string) (int64, error) {
  	ret := _m.Called(userID)
 diff --git a/server/channels/store/timerlayer/timerlayer.go b/server/channels/store/timerlayer/timerlayer.go
-index e1157f521194..46d600e1e0c6 100644
+index de22e4067480..27e7c03ef63f 100644
 --- a/server/channels/store/timerlayer/timerlayer.go
 +++ b/server/channels/store/timerlayer/timerlayer.go
-@@ -4843,6 +4843,38 @@ func (s *TimerLayerFileInfoStore) GetForPost(postID string, readFromMaster bool,
+@@ -4883,6 +4883,38 @@ func (s *TimerLayerFileInfoStore) GetForPost(postID string, readFromMaster bool,
  	return result, err
  }
  
@@ -5784,7 +5784,7 @@ index e1157f521194..46d600e1e0c6 100644
  func (s *TimerLayerFileInfoStore) GetForUser(userID string) ([]*model.FileInfo, error) {
  	start := time.Now()
  
-@@ -4875,6 +4907,22 @@ func (s *TimerLayerFileInfoStore) GetFromMaster(id string) (*model.FileInfo, err
+@@ -4915,6 +4947,22 @@ func (s *TimerLayerFileInfoStore) GetFromMaster(id string) (*model.FileInfo, err
  	return result, err
  }
  
@@ -5807,7 +5807,7 @@ index e1157f521194..46d600e1e0c6 100644
  func (s *TimerLayerFileInfoStore) GetStorageUsage(allowFromCache bool, includeDeleted bool) (int64, error) {
  	start := time.Now()
  
-@@ -4970,6 +5018,22 @@ func (s *TimerLayerFileInfoStore) PermanentDeleteBatch(rctx request.CTX, endTime
+@@ -5010,6 +5058,22 @@ func (s *TimerLayerFileInfoStore) PermanentDeleteBatch(rctx request.CTX, endTime
  	return result, err
  }
  
@@ -5830,7 +5830,7 @@ index e1157f521194..46d600e1e0c6 100644
  func (s *TimerLayerFileInfoStore) PermanentDeleteByUser(rctx request.CTX, userID string) (int64, error) {
  	start := time.Now()
  
-@@ -5050,6 +5114,22 @@ func (s *TimerLayerFileInfoStore) Save(rctx request.CTX, info *model.FileInfo) (
+@@ -5090,6 +5154,22 @@ func (s *TimerLayerFileInfoStore) Save(rctx request.CTX, info *model.FileInfo) (
  	return result, err
  }
  
@@ -5853,7 +5853,7 @@ index e1157f521194..46d600e1e0c6 100644
  func (s *TimerLayerFileInfoStore) Search(rctx request.CTX, paramsList []*model.SearchParams, userID string, teamID string, page int, perPage int) (*model.FileInfoList, error) {
  	start := time.Now()
  
-@@ -5082,6 +5162,22 @@ func (s *TimerLayerFileInfoStore) SetContent(rctx request.CTX, fileID string, co
+@@ -5122,6 +5202,22 @@ func (s *TimerLayerFileInfoStore) SetContent(rctx request.CTX, fileID string, co
  	return err
  }
  
@@ -5876,7 +5876,7 @@ index e1157f521194..46d600e1e0c6 100644
  func (s *TimerLayerFileInfoStore) Upsert(rctx request.CTX, info *model.FileInfo) (*model.FileInfo, error) {
  	start := time.Now()
  
-@@ -6250,6 +6346,22 @@ func (s *TimerLayerJobStore) UpdateOptimistically(job *model.Job, currentStatus
+@@ -6386,6 +6482,22 @@ func (s *TimerLayerJobStore) UpdateOptimistically(job *model.Job, currentStatus
  	return result, err
  }
  
@@ -5899,7 +5899,7 @@ index e1157f521194..46d600e1e0c6 100644
  func (s *TimerLayerJobStore) UpdateStatus(id string, status string) (*model.Job, error) {
  	start := time.Now()
  
-@@ -10087,6 +10199,22 @@ func (s *TimerLayerRetentionPolicyStore) Delete(id string) error {
+@@ -10239,6 +10351,22 @@ func (s *TimerLayerRetentionPolicyStore) Delete(id string) error {
  	return err
  }
  
@@ -5922,7 +5922,7 @@ index e1157f521194..46d600e1e0c6 100644
  func (s *TimerLayerRetentionPolicyStore) DeleteOrphanedRows(limit int) (int64, error) {
  	start := time.Now()
  
-@@ -10135,6 +10263,22 @@ func (s *TimerLayerRetentionPolicyStore) GetAll(offset int, limit int) ([]*model
+@@ -10287,6 +10415,22 @@ func (s *TimerLayerRetentionPolicyStore) GetAll(offset int, limit int) ([]*model
  	return result, err
  }
  
@@ -5946,10 +5946,10 @@ index e1157f521194..46d600e1e0c6 100644
  	start := time.Now()
  
 diff --git a/server/config/client.go b/server/config/client.go
-index 7d67a94dd59e..0ab8ef66403c 100644
+index 2b5e4b924b01..e2b393efbe61 100644
 --- a/server/config/client.go
 +++ b/server/config/client.go
-@@ -137,10 +137,10 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
+@@ -138,10 +138,10 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
  	props["DefaultTheme"] = *c.ThemeSettings.DefaultTheme
  	props["AllowCustomThemes"] = strconv.FormatBool(*c.ThemeSettings.AllowCustomThemes)
  	props["AllowedThemes"] = strings.Join(c.ThemeSettings.AllowedThemes, ",")
@@ -5964,7 +5964,7 @@ index 7d67a94dd59e..0ab8ef66403c 100644
  
  	props["CustomUrlSchemes"] = strings.Join(c.DisplaySettings.CustomURLSchemes, ",")
  	props["MaxMarkdownNodes"] = strconv.FormatInt(int64(*c.DisplaySettings.MaxMarkdownNodes), 10)
-@@ -212,13 +212,6 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
+@@ -213,13 +213,6 @@ func GenerateClientConfig(c *model.Config, telemetryID string, license *model.Li
  			props["EnableCluster"] = strconv.FormatBool(*c.ClusterSettings.Enable)
  		}
  
@@ -6026,10 +6026,10 @@ index 000000000000..d4d7ee44d3c5
 +	}
 +}
 diff --git a/webapp/channels/src/components/admin_console/admin_definition.tsx b/webapp/channels/src/components/admin_console/admin_definition.tsx
-index 84df32acfe70..c9dbe4295fba 100644
+index 953c889e522a..8371e1735cf2 100644
 --- a/webapp/channels/src/components/admin_console/admin_definition.tsx
 +++ b/webapp/channels/src/components/admin_console/admin_definition.tsx
-@@ -6271,7 +6271,6 @@ const AdminDefinition: AdminDefinitionType = {
+@@ -6319,7 +6319,6 @@ const AdminDefinition: AdminDefinitionType = {
              custom_policy_form_edit: {
                  url: `compliance/data_retention_settings/custom_policy/:policy_id(${ID_PATH_PATTERN})`,
                  isHidden: it.any(
@@ -6037,7 +6037,7 @@ index 84df32acfe70..c9dbe4295fba 100644
                      it.not(it.userHasReadPermissionOnResource(RESOURCE_KEYS.COMPLIANCE.DATA_RETENTION_POLICY)),
                  ),
                  isDisabled: it.not(it.userHasWritePermissionOnResource(RESOURCE_KEYS.COMPLIANCE.DATA_RETENTION_POLICY)),
-@@ -6284,7 +6283,6 @@ const AdminDefinition: AdminDefinitionType = {
+@@ -6332,7 +6331,6 @@ const AdminDefinition: AdminDefinitionType = {
              custom_policy_form: {
                  url: 'compliance/data_retention_settings/custom_policy',
                  isHidden: it.any(
@@ -6045,7 +6045,7 @@ index 84df32acfe70..c9dbe4295fba 100644
                      it.not(it.userHasReadPermissionOnResource(RESOURCE_KEYS.COMPLIANCE.DATA_RETENTION_POLICY)),
                  ),
                  isDisabled: it.not(it.userHasWritePermissionOnResource(RESOURCE_KEYS.COMPLIANCE.DATA_RETENTION_POLICY)),
-@@ -6297,7 +6295,6 @@ const AdminDefinition: AdminDefinitionType = {
+@@ -6345,7 +6343,6 @@ const AdminDefinition: AdminDefinitionType = {
              global_policy_form: {
                  url: 'compliance/data_retention_settings/global_policy',
                  isHidden: it.any(
@@ -6053,7 +6053,7 @@ index 84df32acfe70..c9dbe4295fba 100644
                      it.not(it.userHasReadPermissionOnResource(RESOURCE_KEYS.COMPLIANCE.DATA_RETENTION_POLICY)),
                  ),
                  isDisabled: it.not(it.userHasWritePermissionOnResource(RESOURCE_KEYS.COMPLIANCE.DATA_RETENTION_POLICY)),
-@@ -6314,7 +6311,6 @@ const AdminDefinition: AdminDefinitionType = {
+@@ -6362,7 +6359,6 @@ const AdminDefinition: AdminDefinitionType = {
                      ...dataRetentionSearchableStrings,
                  ],
                  isHidden: it.any(
@@ -6062,7 +6062,7 @@ index 84df32acfe70..c9dbe4295fba 100644
                  ),
                  isDisabled: it.not(it.userHasWritePermissionOnResource(RESOURCE_KEYS.COMPLIANCE.DATA_RETENTION_POLICY)),
 diff --git a/webapp/channels/src/components/admin_console/admin_sidebar/__snapshots__/admin_sidebar.test.tsx.snap b/webapp/channels/src/components/admin_console/admin_sidebar/__snapshots__/admin_sidebar.test.tsx.snap
-index bdc8645011db..d3a33ffdb8ae 100644
+index c000365f92f8..d70ba202039b 100644
 --- a/webapp/channels/src/components/admin_console/admin_sidebar/__snapshots__/admin_sidebar.test.tsx.snap
 +++ b/webapp/channels/src/components/admin_console/admin_sidebar/__snapshots__/admin_sidebar.test.tsx.snap
 @@ -1944,6 +1944,25 @@ c0,1.1,0.9,2,2,2h16c1.1,0,2-0.9,2-2V4z M20,4v5H4V4H20z M22,15v5c0,1.1-0.9,2-2,2H
