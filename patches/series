@@ -38,3 +38,5 @@ unlock-channel-banners.patch
 unlock-managed-channel-categories.patch
 unlock-email-notification-contents.patch
 unlock-anonymous-urls.patch
+fix-url-search.patch
+fix-dm-modal-group-search.patch

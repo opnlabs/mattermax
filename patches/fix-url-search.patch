@@ -1,0 +1,101 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hariharan <14965074+cvhariharan@users.noreply.github.com>
+Date: Mon, 23 Nov 2026 11:45:21 +0530
+Subject: [PATCH] fix: match URL searches that include the protocol
+
+Mattermax-Patch: fix-url-search.patch
+---
+ .../channels/store/searchtest/post_layer.go   | 37 +++++++++++--------
+ server/channels/store/sqlstore/post_store.go  |  8 ++++
+ 2 files changed, 29 insertions(+), 16 deletions(-)
+
+diff --git a/server/channels/store/searchtest/post_layer.go b/server/channels/store/searchtest/post_layer.go
+index 41e8e4c5a78d..0b5c20931f56 100644
+--- a/server/channels/store/searchtest/post_layer.go
++++ b/server/channels/store/searchtest/post_layer.go
+@@ -2479,38 +2479,43 @@ func testSearchURLsPostgres(t *testing.T, th *SearchTestHelper) {
+ 
+ 	defer th.deleteUserPosts(th.User.Id)
+ 
+-	// Note: Searching for URLs with the protocol (https://, http://) doesn't work because
+-	// Mattermost strips special characters (including ":") from search terms before sending
+-	// them to PostgreSQL. This is defined in specialSearchChars (store.go) and applied in
+-	// post_store.go. The colon is stripped because it has special meaning in PostgreSQL's
+-	// to_tsquery() function (prefix operator). As a result, "https://example.com" becomes
+-	// "https //example.com" (two separate tokens) which won't match the original URL.
+-	// Users should search for the domain/path portion without the protocol.
++	// PostgreSQL doesn't index a URL's protocol, so the search drops it from
++	// the terms and matches the rest of the URL.
+ 	testCases := []struct {
+ 		name        string
+ 		terms       string
+ 		expectedIDs []string
+ 	}{
+-		// Searches WITH protocol - these don't work due to tokenization at "://"
++		// Searches WITH protocol
+ 		{
+-			name:        "Search full URL with protocol and path does not match",
++			name:        "Search full URL with protocol and path",
+ 			terms:       "https://example.com/path/to/page",
+-			expectedIDs: []string{},
++			expectedIDs: []string{fullUrlId},
+ 		},
+ 		{
+-			name:        "Search URL with protocol but without path does not match",
++			name:        "Search URL with protocol but without path",
+ 			terms:       "https://mattermost.com",
+-			expectedIDs: []string{},
++			expectedIDs: []string{urlNoPathId},
+ 		},
+ 		{
+-			name:        "Search HTTP URL with protocol and path does not match",
++			name:        "Search HTTP URL with protocol and path",
+ 			terms:       "http://legacy.example.net/old",
+-			expectedIDs: []string{},
++			expectedIDs: []string{httpUrlId},
+ 		},
+ 		{
+-			name:        "Search URL in quotes with protocol does not match",
++			name:        "Search URL in quotes with protocol",
+ 			terms:       `"https://example.com/path/to/page"`,
+-			expectedIDs: []string{},
++			expectedIDs: []string{fullUrlId},
++		},
++		{
++			name:        "Search URL with uppercase protocol",
++			terms:       "HTTPS://example.com/path/to/page",
++			expectedIDs: []string{fullUrlId},
++		},
++		{
++			name:        "Search URL with protocol and surrounding text",
++			terms:       "check https://example.com/path/to/page",
++			expectedIDs: []string{fullUrlId},
+ 		},
+ 		// Searches WITHOUT protocol - these work correctly
+ 		{
+diff --git a/server/channels/store/sqlstore/post_store.go b/server/channels/store/sqlstore/post_store.go
+index 268e6f47a917..bc96b94af813 100644
+--- a/server/channels/store/sqlstore/post_store.go
++++ b/server/channels/store/sqlstore/post_store.go
+@@ -28,6 +28,7 @@ import (
+ var (
+ 	quotedStringsRegex = regexp.MustCompile(`("[^"]*")`)
+ 	wildCardRegex      = regexp.MustCompile(`\*($| )`)
++	urlSchemeRegex     = regexp.MustCompile(`(?i)\b[a-z]+://`)
+ )
+ 
+ func membershipSystemPostTypesSQLList() string {
+@@ -2324,6 +2325,13 @@ func (s *SqlPostStore) search(logger mlog.LoggerIFace, teamId string, userId str
+ 		}
+ 	}
+ 
++	// Postgres doesn't index a URL's scheme, so "https://example.com/page"
++	// can only match as "example.com/page".
++	if !params.IsHashtag {
++		terms = urlSchemeRegex.ReplaceAllLiteralString(terms, "")
++	}
++	excludedTerms = urlSchemeRegex.ReplaceAllLiteralString(excludedTerms, "")
++
+ 	for _, c := range specialSearchChars {
+ 		if !params.IsHashtag {
+ 			terms = strings.Replace(terms, c, " ", -1)

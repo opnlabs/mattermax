@@ -40,7 +40,6 @@ server/channels/app/summarization.go
 server/channels/app/user.go
 server/channels/app/webhook_test.go
 server/channels/store/doc.go
-server/channels/store/searchtest/post_layer.go
 server/channels/store/sqlstore/role_store.go
 server/channels/utils/api.go
 server/channels/utils/api_test.go

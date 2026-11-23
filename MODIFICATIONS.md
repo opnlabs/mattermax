@@ -519,3 +519,23 @@ and channels keep their names. Gates removed: `createChannel` in
 `PluginAPI.CreateChannel` in `app/plugin_api.go`, the webapp selector
 `isAnonymousURLEnabled` that hides the URL editors, and the System Console
 toggle's Enterprise Advanced check.
+
+### fix-url-search.patch
+
+2026-11-23. Searching for a URL that includes its protocol
+(`https://example.com/page`) finds the posts that contain it. Postgres full-text
+search doesn't index a URL's protocol, and upstream turned the `:` into a space,
+so the leftover `https` term never matched. The search now drops `scheme://`
+from the search and excluded terms before it builds the query (`search` in
+`sqlstore/post_store.go`), and the upstream `testSearchURLsPostgres` cases that
+expected no results now expect the matching post.
+
+### fix-dm-modal-group-search.patch
+
+2026-11-23. Searching in the Direct Messages modal shows matching group
+messages again. Upstream 12 stopped loading the members of the group channels
+the search returns (`loadProfilesForGroupChannels` in
+`more_direct_channels.tsx`), and the modal matches a group message by its
+members' names, so a group message whose members weren't already loaded (for
+example, one that isn't in the sidebar) never showed. The call is restored as it
+was in 10.x.

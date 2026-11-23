@@ -1,0 +1,114 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hariharan <14965074+cvhariharan@users.noreply.github.com>
+Date: Mon, 23 Nov 2026 11:45:45 +0530
+Subject: [PATCH] fix: show group messages when searching the Direct Messages
+ modal
+
+Mattermax-Patch: fix-dm-modal-group-search.patch
+---
+ .../components/more_direct_channels/index.ts  |  2 ++
+ .../more_direct_channels.test.tsx             | 33 +++++++++++++++++++
+ .../more_direct_channels.tsx                  |  6 +++-
+ 3 files changed, 40 insertions(+), 1 deletion(-)
+
+diff --git a/webapp/channels/src/components/more_direct_channels/index.ts b/webapp/channels/src/components/more_direct_channels/index.ts
+index b3cb23be712a..54d7375f43a5 100644
+--- a/webapp/channels/src/components/more_direct_channels/index.ts
++++ b/webapp/channels/src/components/more_direct_channels/index.ts
+@@ -29,6 +29,7 @@ import {
+ 
+ import {openDirectChannelToUserId, openGroupChannelToUserIds} from 'actions/channel_actions';
+ import {loadStatusesForProfilesList, loadProfilesMissingStatus} from 'actions/status_actions';
++import {loadProfilesForGroupChannels} from 'actions/user_actions';
+ import {setModalSearchTerm} from 'actions/views/search';
+ 
+ import type {GlobalState} from 'types/store';
+@@ -97,6 +98,7 @@ function mapDispatchToProps(dispatch: Dispatch) {
+             loadProfilesMissingStatus,
+             getTotalUsersStats,
+             loadStatusesForProfilesList,
++            loadProfilesForGroupChannels,
+             openDirectChannelToUserId,
+             openGroupChannelToUserIds,
+             searchProfiles,
+diff --git a/webapp/channels/src/components/more_direct_channels/more_direct_channels.test.tsx b/webapp/channels/src/components/more_direct_channels/more_direct_channels.test.tsx
+index 6500aaab943e..fdf6705f9e49 100644
+--- a/webapp/channels/src/components/more_direct_channels/more_direct_channels.test.tsx
++++ b/webapp/channels/src/components/more_direct_channels/more_direct_channels.test.tsx
+@@ -74,6 +74,7 @@ describe('components/MoreDirectChannels', () => {
+             searchGroupChannels: jest.fn().mockResolvedValue({data: true}),
+             setModalSearchTerm: jest.fn().mockResolvedValue({data: true}),
+             loadStatusesForProfilesList: jest.fn().mockResolvedValue({data: true}),
++            loadProfilesForGroupChannels: jest.fn().mockResolvedValue({data: true}),
+             openDirectChannelToUserId: jest.fn().mockResolvedValue({data: {name: 'dm'}}),
+             openGroupChannelToUserIds: jest.fn().mockResolvedValue({data: {name: 'group'}}),
+             getTotalUsersStats: jest.fn().mockImplementation(() => {
+@@ -202,6 +203,38 @@ describe('components/MoreDirectChannels', () => {
+         }
+     });
+ 
++    test('should load the members of matching group channels when the search term changes', async () => {
++        jest.useFakeTimers();
++        try {
++            const groupChannels = [{id: 'gm_id', type: 'G'}];
++            const props = {
++                ...baseProps,
++                actions: {
++                    ...baseProps.actions,
++                    searchGroupChannels: jest.fn().mockResolvedValue({data: groupChannels}),
++                    loadProfilesForGroupChannels: jest.fn(),
++                },
++            };
++            const {rerender} = renderWithContext(<MoreDirectChannels {...props}/>);
++            rerender(
++                <MoreDirectChannels
++                    {...props}
++                    searchTerm='gm'
++                />,
++            );
++            await act(async () => {
++                jest.runAllTimers();
++            });
++
++            await waitFor(() => {
++                expect(props.actions.loadProfilesForGroupChannels).toHaveBeenCalledWith(groupChannels);
++            });
++            expect(props.actions.searchGroupChannels).toHaveBeenCalledWith('gm');
++        } finally {
++            jest.useRealTimers();
++        }
++    });
++
+     test('should match state on handleDelete', () => {
+         const props = {...baseProps};
+         const ref = React.createRef<MoreDirectChannels>();
+diff --git a/webapp/channels/src/components/more_direct_channels/more_direct_channels.tsx b/webapp/channels/src/components/more_direct_channels/more_direct_channels.tsx
+index af084fcfeae5..c0de214eded8 100644
+--- a/webapp/channels/src/components/more_direct_channels/more_direct_channels.tsx
++++ b/webapp/channels/src/components/more_direct_channels/more_direct_channels.tsx
+@@ -52,6 +52,7 @@ export type Props = {
+         loadProfilesMissingStatus: (users: UserProfile[]) => void;
+         getTotalUsersStats: () => void;
+         loadStatusesForProfilesList: (users: UserProfile[]) => void;
++        loadProfilesForGroupChannels: (groupChannels: Channel[]) => void;
+         openDirectChannelToUserId: (userId: string) => Promise<ActionResult>;
+         openGroupChannelToUserIds: (userIds: string[]) => Promise<ActionResult>;
+         searchProfiles: (term: string, options: any) => Promise<ActionResult<UserProfile[]>>;
+@@ -156,13 +157,16 @@ export default class MoreDirectChannels extends React.PureComponent<Props, State
+                 this.searchTimeoutId = setTimeout(
+                     async () => {
+                         this.setUsersLoadingState(true);
+-                        const [{data: profilesData}] = await Promise.all([
++                        const [{data: profilesData}, {data: groupChannelsData}] = await Promise.all([
+                             this.props.actions.searchProfiles(searchTerm, {team_id: teamId}),
+                             this.props.actions.searchGroupChannels(searchTerm),
+                         ]);
+                         if (profilesData) {
+                             this.props.actions.loadStatusesForProfilesList(profilesData);
+                         }
++                        if (groupChannelsData) {
++                            this.props.actions.loadProfilesForGroupChannels(groupChannelsData);
++                        }
+                         this.resetPaging();
+                         this.setUsersLoadingState(false);
+                     },
