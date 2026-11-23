@@ -539,3 +539,17 @@ the search returns (`loadProfilesForGroupChannels` in
 members' names, so a group message whose members weren't already loaded (for
 example, one that isn't in the sidebar) never showed. The call is restored as it
 was in 10.x.
+
+### bot-post-overrides.patch
+
+2026-11-23. Bot accounts can override their display name and icon on each post
+again, as they could before 12.x. Upstream 12 strips `from_webhook`,
+`override_username`, `override_icon_url`, `override_icon_emoji` and
+`webhook_display_name` from every new post and restores them only for incoming
+webhooks and slash command responses. `CreatePost` in `app/post.go` now records
+those props before they are stripped and puts them back when the author is a
+bot account (`app/bot_post_overrides.go`). Regular users, including those
+posting with a personal access token, OAuth apps and plugins are still
+stripped, and `EnablePostUsernameOverride` / `EnablePostIconOverride` still
+decide whether the overrides are shown. The upstream test that expected a bot's
+overrides to be stripped now expects them to be kept.

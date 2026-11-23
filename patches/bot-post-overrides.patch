@@ -1,0 +1,174 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hariharan <14965074+cvhariharan@users.noreply.github.com>
+Date: Mon, 23 Nov 2026 13:45:20 +0530
+Subject: [PATCH] feat: let bot accounts override their name and icon per post
+
+Mattermax-Patch: bot-post-overrides.patch
+---
+ server/channels/app/bot_post_overrides.go | 47 ++++++++++++++++++
+ server/channels/app/post.go               |  9 ++++
+ server/channels/app/post_test.go          | 59 +++++++++++++++++------
+ 3 files changed, 100 insertions(+), 15 deletions(-)
+ create mode 100644 server/channels/app/bot_post_overrides.go
+
+diff --git a/server/channels/app/bot_post_overrides.go b/server/channels/app/bot_post_overrides.go
+new file mode 100644
+index 000000000000..e9e60fcd29af
+--- /dev/null
++++ b/server/channels/app/bot_post_overrides.go
+@@ -0,0 +1,47 @@
++// Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
++// See LICENSE.txt for license information.
++
++package app
++
++import (
++	"github.com/mattermost/mattermost/server/public/model"
++)
++
++// botDisplayOverrideProps are the post props a bot account may set to change
++// how a single post is displayed. from_webhook is included because every
++// render path only honours the overrides on posts that carry it.
++var botDisplayOverrideProps = []string{
++	model.PostPropsFromWebhook,
++	model.PostPropsOverrideUsername,
++	model.PostPropsOverrideIconURL,
++	model.PostPropsOverrideIconEmoji,
++	model.PostPropsWebhookDisplayName,
++}
++
++// captureBotDisplayOverrides returns the display-override props on post
++// before SanitizeProps strips them. Only non-empty strings are kept, and
++// from_webhook only when it is "true".
++func captureBotDisplayOverrides(post *model.Post) map[string]string {
++	overrides := map[string]string{}
++	for _, key := range botDisplayOverrideProps {
++		value, ok := post.GetProp(key).(string)
++		if !ok || value == "" {
++			continue
++		}
++		if key == model.PostPropsFromWebhook && value != "true" {
++			continue
++		}
++		overrides[key] = value
++	}
++	return overrides
++}
++
++// restoreBotDisplayOverrides puts back the props captured by
++// captureBotDisplayOverrides. CreatePost calls it only for bot accounts, so
++// regular users, including those posting with a personal access token, still
++// cannot override their name or icon.
++func restoreBotDisplayOverrides(post *model.Post, overrides map[string]string) {
++	for key, value := range overrides {
++		post.AddProp(key, value)
++	}
++}
+diff --git a/server/channels/app/post.go b/server/channels/app/post.go
+index becdef96d86b..c22d037e46a6 100644
+--- a/server/channels/app/post.go
++++ b/server/channels/app/post.go
+@@ -242,6 +242,10 @@ func (a *App) CreatePost(rctx request.CTX, post *model.Post, channel *model.Chan
+ 
+ 	silentRequested := flags.SilentNotification
+ 
++	// Mattermax: bot accounts keep per-post name and icon overrides; restored
++	// below once the author is known to be a bot.
++	botDisplayOverrides := captureBotDisplayOverrides(post)
++
+ 	post.SanitizeProps()
+ 
+ 	var pchan chan store.StoreResult[*model.PostList]
+@@ -339,6 +343,11 @@ func (a *App) CreatePost(rctx request.CTX, post *model.Post, channel *model.Chan
+ 		if flags.WebhookDisplayName != "" {
+ 			post.AddProp(model.PostPropsWebhookDisplayName, flags.WebhookDisplayName)
+ 		}
++	} else if user.IsBot {
++		// Mattermax: unlike upstream, a bot account may set from_webhook and
++		// the override props on its own posts, as it could before v12. Only
++		// real bot accounts qualify; a user's personal access token does not.
++		restoreBotDisplayOverrides(post, botDisplayOverrides)
+ 	}
+ 
+ 	// Strip mm_blocks_actions from posts that are neither bot-authored nor
+diff --git a/server/channels/app/post_test.go b/server/channels/app/post_test.go
+index 84b04edade60..b0a62ed24e4b 100644
+--- a/server/channels/app/post_test.go
++++ b/server/channels/app/post_test.go
+@@ -1903,15 +1903,11 @@ func TestCreatePost(t *testing.T) {
+ 		require.Nil(t, createdPost.GetProp(model.PostPropsFromWebhook))
+ 	})
+ 
+-	t.Run("v12: override_* stripped for bot user posting directly (no webhook/plugin flag)", func(t *testing.T) {
+-		// Override display has been an incoming-webhook-specific feature since
+-		// its 2015 introduction (paired with from_webhook and a "BOT" badge) —
+-		// every render path still gates on from_webhook alone. A bot account
+-		// already has its own account-level username/icon; re-injecting a
+-		// per-post override here would just resurrect the from_webhook +
+-		// override_username forgery idiom via a bot session instead of a
+-		// forged prop, so isIntegrationPostAuthor's broader scope must not
+-		// extend to this block.
++	t.Run("Mattermax: bot user posting directly keeps from_webhook and override_*", func(t *testing.T) {
++		// Upstream v12 strips these for bots too. Mattermax keeps them for real
++		// bot accounts so bots can override their name and icon per post, as
++		// they could before v12. Regular and PAT users are still stripped (see
++		// the tests above).
+ 		mainHelper.Parallel(t)
+ 		th := Setup(t).InitBasic(t)
+ 
+@@ -1927,16 +1923,49 @@ func TestCreatePost(t *testing.T) {
+ 			Message:   "bot override via props",
+ 			UserId:    bot.UserId,
+ 			Props: model.StringInterface{
+-				model.PostPropsOverrideUsername:  "BotName",
+-				model.PostPropsOverrideIconURL:   "http://bot/icon.png",
+-				model.PostPropsOverrideIconEmoji: ":bot:",
++				model.PostPropsFromWebhook:        "true",
++				model.PostPropsOverrideUsername:   "BotName",
++				model.PostPropsOverrideIconURL:    "http://bot/icon.png",
++				model.PostPropsOverrideIconEmoji:  ":bot:",
++				model.PostPropsWebhookDisplayName: "BotHook",
+ 			},
+ 		}, th.BasicChannel, model.CreatePostFlags{})
+ 		require.Nil(t, err)
+ 
+-		require.Nil(t, createdPost.GetProp(model.PostPropsOverrideUsername))
+-		require.Nil(t, createdPost.GetProp(model.PostPropsOverrideIconURL))
+-		require.Nil(t, createdPost.GetProp(model.PostPropsOverrideIconEmoji))
++		assert.Equal(t, "true", createdPost.GetProp(model.PostPropsFromWebhook))
++		assert.Equal(t, "BotName", createdPost.GetProp(model.PostPropsOverrideUsername))
++		assert.Equal(t, "http://bot/icon.png", createdPost.GetProp(model.PostPropsOverrideIconURL))
++		assert.Equal(t, ":bot:", createdPost.GetProp(model.PostPropsOverrideIconEmoji))
++		assert.Equal(t, "BotHook", createdPost.GetProp(model.PostPropsWebhookDisplayName))
++		assert.Equal(t, "true", createdPost.GetProp(model.PostPropsFromBot))
++	})
++
++	t.Run("Mattermax: bot user drops non-string overrides and non-true from_webhook", func(t *testing.T) {
++		mainHelper.Parallel(t)
++		th := Setup(t).InitBasic(t)
++
++		bot := th.CreateBot(t)
++		botUser, appErr := th.App.GetUser(th.Context, bot.UserId)
++		require.Nil(t, appErr)
++		th.LinkUserToTeam(t, botUser, th.BasicTeam)
++		_, appErr = th.App.AddUserToChannel(th.Context, botUser, th.BasicChannel, false)
++		require.Nil(t, appErr)
++
++		createdPost, _, err := th.App.CreatePost(th.Context, &model.Post{
++			ChannelId: th.BasicChannel.Id,
++			Message:   "bot override with bad values",
++			UserId:    bot.UserId,
++			Props: model.StringInterface{
++				model.PostPropsFromWebhook:      "yes",
++				model.PostPropsOverrideUsername: 10,
++				model.PostPropsOverrideIconURL:  "",
++			},
++		}, th.BasicChannel, model.CreatePostFlags{})
++		require.Nil(t, err)
++
++		assert.Nil(t, createdPost.GetProp(model.PostPropsFromWebhook))
++		assert.Nil(t, createdPost.GetProp(model.PostPropsOverrideUsername))
++		assert.Nil(t, createdPost.GetProp(model.PostPropsOverrideIconURL))
+ 	})
+ 
+ 	t.Run("v12: override_* stripped for OAuth-app session posting directly (no webhook/plugin flag)", func(t *testing.T) {
