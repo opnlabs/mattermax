@@ -5,15 +5,21 @@ Subject: [PATCH] fix: match URL searches that include the protocol
 
 Mattermax-Patch: fix-url-search.patch
 ---
- .../channels/store/searchtest/post_layer.go   | 37 +++++++++++--------
- server/channels/store/sqlstore/post_store.go  |  8 ++++
- 2 files changed, 29 insertions(+), 16 deletions(-)
+ .../channels/store/searchtest/post_layer.go   | 53 +++++++++++++------
+ server/channels/store/sqlstore/post_store.go  | 11 ++++
+ server/channels/store/sqlstore/utils.go       | 21 ++++++++
+ server/channels/store/sqlstore/utils_test.go  | 26 +++++++++
+ 4 files changed, 95 insertions(+), 16 deletions(-)
 
 diff --git a/server/channels/store/searchtest/post_layer.go b/server/channels/store/searchtest/post_layer.go
-index 41e8e4c5a78d..0b5c20931f56 100644
+index 41e8e4c5a78d..0cba790ce837 100644
 --- a/server/channels/store/searchtest/post_layer.go
 +++ b/server/channels/store/searchtest/post_layer.go
-@@ -2479,38 +2479,43 @@ func testSearchURLsPostgres(t *testing.T, th *SearchTestHelper) {
+@@ -2476,41 +2476,62 @@ func testSearchURLsPostgres(t *testing.T, th *SearchTestHelper) {
+ 	urlNoPathId := createPost("go to https://mattermost.com for details")
+ 	urlNoProtocolNoPathId := createPost("see testsite.io now")
+ 	httpUrlId := createPost("old link http://legacy.example.net/old")
++	trailingSlashUrlId := createPost("read https://blog.example.dev/posts/my-first-post/ later")
  
  	defer th.deleteUserPosts(th.User.Id)
  
@@ -67,6 +73,21 @@ index 41e8e4c5a78d..0b5c20931f56 100644
 +			expectedIDs: []string{fullUrlId},
 +		},
 +		{
++			name:        "Search URL without the trailing slash it was posted with",
++			terms:       "blog.example.dev/posts/my-first-post",
++			expectedIDs: []string{trailingSlashUrlId},
++		},
++		{
++			name:        "Search URL with protocol and the trailing slash it was posted with",
++			terms:       "https://blog.example.dev/posts/my-first-post/",
++			expectedIDs: []string{trailingSlashUrlId},
++		},
++		{
++			name:        "Search URL with a trailing slash it was posted without",
++			terms:       "http://legacy.example.net/old/",
++			expectedIDs: []string{httpUrlId},
++		},
++		{
 +			name:        "Search URL with protocol and surrounding text",
 +			terms:       "check https://example.com/path/to/page",
 +			expectedIDs: []string{fullUrlId},
@@ -74,7 +95,7 @@ index 41e8e4c5a78d..0b5c20931f56 100644
  		// Searches WITHOUT protocol - these work correctly
  		{
 diff --git a/server/channels/store/sqlstore/post_store.go b/server/channels/store/sqlstore/post_store.go
-index 268e6f47a917..bc96b94af813 100644
+index 268e6f47a917..c56f1687fc86 100644
 --- a/server/channels/store/sqlstore/post_store.go
 +++ b/server/channels/store/sqlstore/post_store.go
 @@ -28,6 +28,7 @@ import (
@@ -99,3 +120,82 @@ index 268e6f47a917..bc96b94af813 100644
  	for _, c := range specialSearchChars {
  		if !params.IsHashtag {
  			terms = strings.Replace(terms, c, " ", -1)
+@@ -2357,6 +2365,9 @@ func (s *SqlPostStore) search(logger mlog.LoggerIFace, teamId string, userId str
+ 		terms = expandNumericTerms(terms)
+ 		excludedTerms = expandNumericTerms(excludedTerms)
+ 
++		terms = expandURLPathTerms(terms)
++		excludedTerms = expandURLPathTerms(excludedTerms)
++
+ 		// Replace spaces with to_tsquery symbols
+ 		replaceSpaces := func(input string, excludedInput bool) string {
+ 			if input == "" {
+diff --git a/server/channels/store/sqlstore/utils.go b/server/channels/store/sqlstore/utils.go
+index 2f36cf21da94..aa1a752d7f3b 100644
+--- a/server/channels/store/sqlstore/utils.go
++++ b/server/channels/store/sqlstore/utils.go
+@@ -248,6 +248,27 @@ func expandNumericTerms(terms string) string {
+ 	return strings.Join(fields, " ")
+ }
+ 
++var urlPathTermRegex = regexp.MustCompile(`^[^\s"/]+\.[^\s"/]+/[^\s"]*$`)
++
++// expandURLPathTerms rewrites each unquoted "host/path" term to
++// "(host/path|host/path/)". Postgres indexes a whole URL, trailing slash
++// included, as one lexeme, and the search parser strips trailing punctuation
++// from terms, so the URL is matched both with and without the slash.
++func expandURLPathTerms(terms string) string {
++	fields := strings.Fields(terms)
++	inQuote := false
++	for i, f := range fields {
++		if !inQuote && urlPathTermRegex.MatchString(f) && !strings.HasSuffix(f, ":*") {
++			base := strings.TrimRight(f, "/")
++			fields[i] = "(" + base + "|" + base + "/)"
++		}
++		if strings.Count(f, `"`)%2 == 1 {
++			inQuote = !inQuote
++		}
++	}
++	return strings.Join(fields, " ")
++}
++
+ // scanRowsIntoMap scans SQL rows into a map, using a provided scanner function to extract key-value pairs
+ func scanRowsIntoMap[K comparable, V any](rows rowScanner, scanner func(rows rowScanner) (K, V, error), defaults map[K]V) (map[K]V, error) {
+ 	results := make(map[K]V, len(defaults))
+diff --git a/server/channels/store/sqlstore/utils_test.go b/server/channels/store/sqlstore/utils_test.go
+index ffec77f4a097..70d832d57270 100644
+--- a/server/channels/store/sqlstore/utils_test.go
++++ b/server/channels/store/sqlstore/utils_test.go
+@@ -63,6 +63,32 @@ func TestExpandNumericTerms(t *testing.T) {
+ 	}
+ }
+ 
++func TestExpandURLPathTerms(t *testing.T) {
++	testCases := []struct {
++		name     string
++		input    string
++		expected string
++	}{
++		{"url with path", "example.com/a-b/c", "(example.com/a-b/c|example.com/a-b/c/)"},
++		{"url with trailing slash", "example.com/a-b/c/", "(example.com/a-b/c|example.com/a-b/c/)"},
++		{"url with other terms", "see example.com/docs today", "see (example.com/docs|example.com/docs/) today"},
++		{"domain only", "example.com", "example.com"},
++		{"domain with slash only", "example.com/", "(example.com|example.com/)"},
++		{"path without a domain", "docs/guide", "docs/guide"},
++		{"wildcard url", "example.com/docs:*", "example.com/docs:*"},
++		{"url inside a quoted phrase", `"see example.com/docs"`, `"see example.com/docs"`},
++		{"url after a quoted phrase", `"see this" example.com/docs`, `"see this" (example.com/docs|example.com/docs/)`},
++		{"no urls", "flight today", "flight today"},
++		{"empty string", "", ""},
++	}
++
++	for _, tc := range testCases {
++		t.Run(tc.name, func(t *testing.T) {
++			require.Equal(t, tc.expected, expandURLPathTerms(tc.input))
++		})
++	}
++}
++
+ func TestChunkSlice(t *testing.T) {
+ 	if enableFullyParallelTests {
+ 		t.Parallel()

@@ -528,7 +528,11 @@ search doesn't index a URL's protocol, and upstream turned the `:` into a space,
 so the leftover `https` term never matched. The search now drops `scheme://`
 from the search and excluded terms before it builds the query (`search` in
 `sqlstore/post_store.go`), and the upstream `testSearchURLsPostgres` cases that
-expected no results now expect the matching post.
+expected no results now expect the matching post. Postgres also indexes a whole
+URL, trailing slash included, as one word, while the search parser strips
+trailing punctuation from terms, so a link posted as `example.com/page/` never
+matched. A new `expandURLPathTerms` (`sqlstore/utils.go`) matches each
+`host/path` term with and without the trailing slash.
 
 ### fix-dm-modal-group-search.patch
 
